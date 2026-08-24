@@ -23,6 +23,49 @@
     </header>
 
     <main id="top">
+      <section class="ray-intro" aria-labelledby="rayIntroTitle">
+        <div class="ray-intro-copy">
+          <p class="eyebrow">RAY EQUATIONS · RUNGE–KUTTA INTEGRATION</p>
+          <h1 id="rayIntroTitle">声线，如何一步步<br><em>穿过海洋。</em></h1>
+          <p class="intro-lead">将程函方程写成一阶 Hamilton 系统，从声源给定初始方向，沿弧长 <i>s</i> 逐步积分。右侧依次展示每条声线的数值推进过程。</p>
+
+          <div class="equation-card" aria-label="经典射线方程">
+            <div class="equation-title"><span>CLASSIC RAY EQUATIONS</span><strong>经典射线方程</strong></div>
+            <div class="equation-system">
+              <math display="block">
+                <mrow><mfrac><mrow><mi>d</mi><mi>r</mi></mrow><mrow><mi>d</mi><mi>s</mi></mrow></mfrac><mo>=</mo><mi>c</mi><msub><mi>ξ</mi><mi>s</mi></msub><mo>(</mo><mi>s</mi><mo>)</mo><mo>,</mo></mrow>
+                <mspace width="2em"></mspace>
+                <mrow><mfrac><mrow><mi>d</mi><mi>ξ</mi></mrow><mrow><mi>d</mi><mi>s</mi></mrow></mfrac><mo>=</mo><mo>−</mo><mfrac><mn>1</mn><msup><mi>c</mi><mn>2</mn></msup></mfrac><mfrac><mrow><mi>∂</mi><mi>c</mi></mrow><mrow><mi>∂</mi><mi>r</mi></mrow></mfrac><mo>,</mo></mrow>
+              </math>
+              <math display="block">
+                <mrow><mfrac><mrow><mi>d</mi><mi>z</mi></mrow><mrow><mi>d</mi><mi>s</mi></mrow></mfrac><mo>=</mo><mi>c</mi><msub><mi>ζ</mi><mi>s</mi></msub><mo>(</mo><mi>s</mi><mo>)</mo><mo>,</mo></mrow>
+                <mspace width="2em"></mspace>
+                <mrow><mfrac><mrow><mi>d</mi><mi>ζ</mi></mrow><mrow><mi>d</mi><mi>s</mi></mrow></mfrac><mo>=</mo><mo>−</mo><mfrac><mn>1</mn><msup><mi>c</mi><mn>2</mn></msup></mfrac><mfrac><mrow><mi>∂</mi><mi>c</mi></mrow><mrow><mi>∂</mi><mi>z</mi></mrow></mfrac><mo>.</mo></mrow>
+              </math>
+            </div>
+            <div class="equation-legend"><span><i>r, z</i> 距离与深度</span><span><i>ξ, ζ</i> 慢度向量分量</span><span><i>c(r,z)</i> 局地声速</span><span><i>s</i> 声线弧长</span></div>
+          </div>
+        </div>
+
+        <div class="intro-visual panel">
+          <div class="intro-visual-head">
+            <div><span class="micro">NUMERICAL MARCHING</span><h3>二阶 Runge–Kutta 声线步进</h3></div>
+            <button id="introReplay" class="intro-replay" aria-label="重新播放声线动画">↻ REPLAY</button>
+          </div>
+          <div class="intro-canvas-wrap">
+            <canvas id="introRayCanvas" aria-label="逐条传播的声线计算动画"></canvas>
+            <div class="marching-note"><i></i><span>当前步进方向</span></div>
+            <div class="intro-source-label" id="intro-source-label">SOURCE</div>
+          </div>
+          <div class="intro-progress">
+            <div><span>当前声线</span><strong id="introRayNumber">01 / 09</strong></div>
+            <div><span>发射角</span><strong id="introAngle">−20.3°</strong></div>
+            <div class="progress-track"><span>积分进度</span><i><b id="introProgressBar"></b></i><strong id="introProgressText">0%</strong></div>
+            <div><span>步长</span><strong>Δr = 0.5 km</strong></div>
+          </div>
+        </div>
+      </section>
+
       <section class="hero">
         <div>
           <p class="eyebrow">OPENOCEAN FIELD · RAY MODE</p>
@@ -96,10 +139,10 @@
                 <div><label for="bottomAbsorption">吸收</label><output id="bottomAbsorptionOut">0.50 dB/λ</output></div>
                 <input id="bottomAbsorption" type="range" min="0" max="2" step="0.05" value="0.5">
               </div>
-              <div class="bottom-result"><span>估算单次底反射损失</span><strong id="bottomReflectionLoss">— dB</strong></div>
+              <div class="bottom-result"><span>送入 OOB 的底质吸收</span><strong id="bottomReflectionLoss">— dB/λ</strong></div>
             </div>
 
-            <button class="run-button" id="runButton"><span class="play-icon"></span><span><b>重新发射声线</b><small>RUN BELLHOP PREVIEW</small></span></button>
+            <button class="run-button" id="runButton"><span class="play-icon"></span><span><b>重新发射声线</b><small>RUN OOB BELLHOP2D</small></span></button>
           </aside>
 
           <section class="ray-panel panel">
@@ -114,8 +157,8 @@
               <div class="sim-badge"><span id="simPulse"></span><b id="simStatus">CALCULATING</b><small id="simTime">00.0 ms</small></div>
             </div>
             <div class="ray-footer">
-              <div><span>发射角</span><strong>−18° — +18°</strong></div>
-              <div><span>声线数量</span><strong>19 RAYS</strong></div>
+              <div><span>发射角</span><strong>−20.3° — +20.3°</strong></div>
+              <div><span>显示声线数量</span><strong>19 DISPLAY RAYS</strong></div>
               <div><span>最大距离</span><strong>100 km</strong></div>
             </div>
           </section>
@@ -123,13 +166,13 @@
           <section class="loss-panel panel">
             <div class="panel-head canvas-heading">
               <div><span class="micro">TRANSMISSION LOSS</span><h3>传播损失</h3></div>
-              <button class="icon-button" id="replayButton" title="重播动画" aria-label="重播动画">↻</button>
+              <div class="loss-head-meta"><span id="fieldRayCount">1,000 RAYS</span><button class="icon-button" id="replayButton" title="刷新绘图" aria-label="刷新绘图">↻</button></div>
             </div>
             <div class="main-canvas-wrap loss-wrap">
               <canvas id="lossCanvas" aria-label="传播损失图"></canvas>
               <div class="canvas-axis x-axis">距离 / km</div>
               <div class="canvas-axis y-axis">深度 / m</div>
-              <div class="colorbar"><span>60</span><i></i><span>120 dB</span></div>
+              <div class="colorbar"><div><span>TRANSMISSION LOSS / dB</span><strong>1,000 RAY FIELD</strong></div><i></i><p><span>60</span><span>75</span><span>90</span><span>105</span><span>120</span></p></div>
               <div class="receiver-readout"><span>●</span><div><small>光标位置损失</small><strong id="tlReadout">— dB</strong></div></div>
             </div>
             <div class="loss-summary">
@@ -158,7 +201,7 @@
       <section class="advanced-section" id="advanced">
         <div class="section-heading">
           <div><span class="section-no">03</span><h2>精确本征声线</h2></div>
-          <p>粗扫描 → 拓扑分组 → 二分求根 → 相干叠加</p>
+          <p>1000 等角度基线 → OOB MODE_E_PC 精确求解 → 原生到达结果</p>
         </div>
 
         <div class="eigen-lab panel">
@@ -180,13 +223,13 @@
 
           <div class="eigen-grid">
             <section class="eigen-chart-card">
-              <div class="chart-head"><div><span class="micro">GEOMETRY COMPARISON</span><h4>等角度射线 vs. 精确本征声线</h4></div><div class="eigen-legend"><span><i class="coarse-line"></i>等角度扫描</span><span><i class="exact-line"></i>精确解</span><span><i class="receiver-dot"></i>接收器</span></div></div>
+              <div class="chart-head"><div><span class="micro">GEOMETRY COMPARISON</span><h4>1000 等角度法 vs. 精确本征声线</h4></div><div class="eigen-legend"><span><i class="coarse-line"></i>粗划分扇区</span><span><i class="equal-line"></i>等角度本征</span><span><i class="exact-line"></i>精确本征</span><span><i class="receiver-dot"></i>接收器</span></div></div>
               <div class="eigen-canvas-wrap"><canvas id="eigenCanvas" aria-label="等角度声线与精确本征声线对比图"></canvas><div class="receiver-drag-hint">拖动 <i></i> 接收器修改距离与深度</div><div class="zoom-label">RECEIVER ±1 km / ±180 m</div></div>
               <div class="metric-row">
-                <div><span>等角度最近偏差</span><strong id="coarseMiss">— m</strong></div>
-                <div><span>精确解最大残差</span><strong id="exactResidual">— m</strong></div>
-                <div><span>本征声线数量</span><strong id="eigenCount">— paths</strong></div>
-                <div><span>求根迭代</span><strong id="eigenIterations">— iter</strong></div>
+                <div><span>等角度残差 RMSE</span><strong id="coarseMiss">— m</strong></div>
+                <div><span>精确残差 RMSE</span><strong id="exactResidual">— m</strong></div>
+                <div><span>等角度 / 精确数量</span><strong id="eigenCount">— / — paths</strong></div>
+                <div><span>精确求解引擎</span><strong id="eigenIterations">—</strong></div>
               </div>
             </section>
 
@@ -195,13 +238,13 @@
               <div class="arrival-canvas-wrap"><canvas id="arrivalCanvas" aria-label="本征声线到达时延和幅度图"></canvas></div>
               <div class="arrival-table-wrap">
                 <table>
-                  <thead><tr><th>路径</th><th>类型</th><th>发射角</th><th>时延</th><th>相位</th><th>残差</th></tr></thead>
-                  <tbody id="arrivalRows"><tr><td colspan="6">正在计算…</td></tr></tbody>
+                  <thead><tr><th>方法</th><th>路径</th><th>类型</th><th>发射角</th><th>时延</th><th>相位</th><th>残差</th></tr></thead>
+                  <tbody id="arrivalRows"><tr><td colspan="7">正在计算…</td></tr></tbody>
                 </table>
               </div>
             </section>
           </div>
-          <div class="method-note"><span>算法说明</span><p>灰线以 2° 等间隔发射；OOB 精确模式先以 0.5° 搜索同反射拓扑的符号变化区间，再对发射角二分迭代。只有到达接收距离时深度残差小于所选容差的路径才计为本征声线。</p></div>
+          <div class="method-note"><span>算法说明</span><p>−20.3° 至 +20.3° 共使用 1000 个等间隔发射角。蓝色结果由 OOB 的传统 EIGENRAY / ARRIVALS 模式计算；彩色结果由 OOB 原生 MODE_E_PC 精确本征声线算法（PARTICLE_RAY / PARTICLE_ARRIVALS）计算。Python 后端只读取 ResultHandle 的内存结果，灰色扇区仅对 OOB RAY 输出抽样显示。</p></div>
         </div>
 
         <div class="capability-heading"><span>MORE CAPABILITIES</span><h3>从本征声线扩展到完整声场</h3></div>
