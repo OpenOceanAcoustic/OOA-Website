@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Web server for the native OpenOcean Bellhop teaching demo."""
+"""Web server for the native OOA-RayMode teaching demo."""
 
 from __future__ import annotations
 
@@ -59,7 +59,7 @@ def main() -> None:
     host = os.environ.get("OOB_WEB_HOST", "127.0.0.1")
     port = int(os.environ.get("OOB_WEB_PORT", "8000"))
     server = ThreadingHTTPServer((host, port), Handler)
-    print(f"OpenOcean Bellhop lab: http://{host}:{port}")
+    print(f"OOA-RayMode lab: http://{host}:{port}")
     try:
         server.serve_forever()
     except KeyboardInterrupt:

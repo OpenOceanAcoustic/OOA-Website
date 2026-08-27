@@ -1,4 +1,4 @@
-# OpenOcean Bellhop 交互实验室
+# OOA-RayMode 交互实验室
 
 一个使用 OOB 原生 Bellhop2D Python 接口的交互教学网页：左侧设置声速环境，中间展示声线，右侧联动显示传播损失。SSP 在 0–5000 m 范围内每 500 m 提供一个可水平拖动的声速节点；海底半空间的纵波声速、密度和吸收也可实时调节。进阶实验在 −20.3° 至 +20.3° 使用 1000 条等角度声线，对比 OOB 的传统 `EIGENRAY/ARRIVALS` 与精确 `PARTICLE_RAY/PARTICLE_ARRIVALS`（C++ `MODE_E_PC_*`）结果。接收器可直接在距离—深度图上拖动，松开后由原生求解器重新计算。
 

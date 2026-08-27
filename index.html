@@ -4,15 +4,15 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#07131b">
-  <title>OpenOcean Bellhop · 声传播交互实验室</title>
+  <title>OOA-RayMode · 声传播交互实验室</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <div class="app-shell">
     <header class="topbar">
-      <a class="brand" href="#top" aria-label="OpenOcean 首页">
+      <a class="brand" href="#top" aria-label="OOA-RayMode 首页">
         <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
-        <span><strong>OpenOcean Bellhop</strong><small>ACOUSTIC PROPAGATION LAB</small></span>
+        <span><strong>OOA-RayMode</strong><small>ACOUSTIC PROPAGATION LAB</small></span>
       </a>
       <nav aria-label="主导航">
         <a class="active" href="#lab">交互实验</a>
@@ -24,11 +24,13 @@
 
     <main id="top">
       <section class="ray-intro" aria-labelledby="rayIntroTitle">
-        <div class="ray-intro-copy">
+        <div class="ray-intro-heading">
           <p class="eyebrow">RAY EQUATIONS · RUNGE–KUTTA INTEGRATION</p>
           <h1 id="rayIntroTitle">声线，如何一步步<br><em>穿过海洋。</em></h1>
           <p class="intro-lead">Munk 声速剖面使多条声线围绕深海声道轴弯曲传播。右侧按发射角一条一条追踪声线，同步展示当前声线的高斯波束和复声压 <i>p<sup>(α)</sup></i>，再按 <i>p = ∑<sub>α</sub> p<sup>(α)</sup></i> 完成相干叠加，直观展示二维声场的形成过程。</p>
+        </div>
 
+        <div class="ray-intro-copy">
           <div class="equation-card" aria-label="声线轨迹方程、动态射线方程、几何波束与声压计算公式">
             <div class="equation-title"><span>RAY · DYNAMIC RAY · PRESSURE</span><strong>声线、波束与声压</strong></div>
 
@@ -72,9 +74,9 @@
                 </div>
 
                 <figure class="beam-schematic">
-                  <svg viewBox="0 0 360 220" role="img" aria-labelledby="beamDiagramTitle beamDiagramDesc">
-                    <title id="beamDiagramTitle">几何波束示意图</title>
-                    <desc id="beamDiagramDesc">从声源发出的中心声线及其上下边界，标注沿程位置、法向距离和波束半宽。</desc>
+                  <svg viewBox="0 0 520 220" role="img" aria-labelledby="beamDiagramTitle beamDiagramDesc">
+                    <title id="beamDiagramTitle">几何波束与波束窗示意图</title>
+                    <desc id="beamDiagramDesc">左侧为从声源发出的中心声线及其上下边界，右侧为法向距离方向上的三角形波束窗。</desc>
                     <defs>
                       <linearGradient id="beamAreaGradient" x1="0" y1="1" x2="1" y2="0">
                         <stop offset="0" stop-color="#35d4e9" stop-opacity=".05"/>
@@ -107,8 +109,24 @@
                     <text x="167" y="91">d</text>
                     <text x="247" y="71">ρ(s)</text>
                     <text class="beam-caption" x="180" y="208">GEOMETRIC BEAM</text>
+
+                    <rect class="beam-window-box" x="366" y="24" width="146" height="166" rx="4"/>
+                    <text class="beam-window-title" x="379" y="45">BEAM WINDOW</text>
+                    <line class="beam-window-axis" x1="397" y1="91" x2="433" y2="172" marker-start="url(#beamArrow)" marker-end="url(#beamArrow)"/>
+                    <line class="beam-window-axis" x1="415" y1="132" x2="495" y2="96" marker-end="url(#beamArrow)"/>
+                    <path class="beam-window-fill" d="M403 104 L427 159 L484 101 Z"/>
+                    <path class="beam-window-line" d="M403 104 L484 101 L427 159"/>
+                    <line class="beam-window-center" x1="415" y1="132" x2="484" y2="101"/>
+                    <line class="beam-window-slice" x1="421" y1="146" x2="484" y2="101"/>
+                    <circle class="beam-window-peak" cx="484" cy="101" r="3.5"/>
+                    <circle class="beam-window-sample" cx="421" cy="146" r="2.7"/>
+                    <text class="beam-window-label" x="486" y="91">φ</text>
+                    <text class="beam-window-label" x="388" y="111">−ρ</text>
+                    <text class="beam-window-label" x="430" y="164">ρ</text>
+                    <text class="beam-window-label" x="428" y="143">d</text>
+                    <text class="beam-window-label" x="448" y="123">φ(s,d)</text>
                   </svg>
-                  <figcaption>中心声线与相邻声线围成几何波束，横向扩展决定幅度和有效波束宽度。</figcaption>
+                  <figcaption>左：中心声线与相邻声线围成几何波束。右：沿波束传播方向绘制局部波束窗，法向距离为 <i>d</i>，边界为 <i>ρ(s)</i>。</figcaption>
                 </figure>
               </div>
             </section>
@@ -143,6 +161,22 @@
           </div>
         </div>
 
+        <div class="intro-visual-column">
+        <section class="intro-principle" id="principle" aria-labelledby="introPrincipleTitle">
+          <div class="intro-principle-head">
+            <div><span>PROPAGATION LOSS · PRINCIPLE</span><strong id="introPrincipleTitle">传播损失计算原理</strong></div>
+            <small>声速剖面 → 声线路径 → 声压与 TL</small>
+          </div>
+          <div class="intro-principle-flow">
+            <article><span class="step">01</span><div class="flow-icon profile-icon"><i></i></div><h3>声速决定折射</h3><p>温度、盐度和压力形成声速剖面，决定声道、会聚区与阴影区。</p><code>c = c(z)</code></article>
+            <div class="flow-arrow">→</div>
+            <article><span class="step">02</span><div class="flow-icon ray-icon"><i></i></div><h3>追踪能量路径</h3><p>按发射角追踪声线，逐步求解折射并处理海面、海底反射。</p><code>∇ · (c⁻¹ dr/ds) = ∇c⁻¹</code></article>
+            <div class="flow-arrow">→</div>
+            <article><span class="step">03</span><div class="flow-icon field-icon"><i></i></div><h3>形成传播损失场</h3><p>几何扩展、吸收、反射和相干叠加共同确定接收点声压。</p><code>TL = −20 log₁₀ |p/p₀|</code></article>
+          </div>
+          <div class="intro-principle-note"><span>关键观察</span><p>剖面改变声线弯曲与能量聚集位置，随后反映为传播损失场中的低损失通道。</p></div>
+        </section>
+
         <div class="intro-visual panel">
           <div class="intro-visual-head">
             <div><span class="micro">MUNK CHANNEL · COHERENT SUM</span><h3>从声线、波束到声压叠加</h3></div>
@@ -157,6 +191,7 @@
             <div class="progress-track"><span>逐条叠加进度</span><i><b id="introProgressBar"></b></i><strong id="introProgressText">0%</strong></div>
             <div><span>相干叠加</span><strong class="intro-sum"><i>p</i> = ∑<sub>α</sub> <i>p</i><sup>(α)</sup></strong></div>
           </div>
+        </div>
         </div>
       </section>
 
@@ -308,21 +343,6 @@
         </div>
       </section>
 
-      <section class="principle-section" id="principle">
-        <div class="section-heading">
-          <div><span class="section-no">02</span><h2>从剖面到损失</h2></div>
-          <p>三步理解 Bellhop 射线声学</p>
-        </div>
-        <div class="principle-flow">
-          <article><span class="step">01</span><div class="flow-icon profile-icon"><i></i></div><h3>声速决定折射</h3><p>温度、盐度和压力共同形成声速剖面。声线总是向较低声速区域弯曲，从而出现声道、会聚区和阴影区。</p><code>c = c(z)</code></article>
-          <div class="flow-arrow">→</div>
-          <article><span class="step">02</span><div class="flow-icon ray-icon"><i></i></div><h3>追踪能量路径</h3><p>Bellhop 从声源按一组角度发射声线，逐步求解折射，并处理海面与海底边界反射。</p><code>∇ · (c⁻¹ dr/ds) = ∇c⁻¹</code></article>
-          <div class="flow-arrow">→</div>
-          <article><span class="step">03</span><div class="flow-icon field-icon"><i></i></div><h3>形成传播损失场</h3><p>声线的几何扩展、吸收、反射与相干叠加共同决定接收点声压，最终转换为 dB 损失。</p><code>TL = −20 log₁₀ |p/p₀|</code></article>
-        </div>
-        <div class="insight"><span>关键观察</span><p>调整上方的剖面强度：声线弯曲越明显，能量越容易被束缚在声道轴附近；右侧低损失区域也会随之收窄并延伸。</p></div>
-      </section>
-
       <section class="advanced-section" id="advanced">
         <div class="section-heading">
           <div><span class="section-no">03</span><h2>精确本征声线</h2></div>
@@ -406,7 +426,7 @@
       </section>
     </main>
 
-    <footer><div class="brand footer-brand"><span class="brand-mark"><i></i><i></i><i></i></span><span><strong>OpenOcean Bellhop</strong><small>FIELD RAY MODE · 2D</small></span></div><p>交互结果用于原理演示；工程计算请使用 OOB 原生求解器及经验证的环境数据。</p><a href="#top">BACK TO TOP ↑</a></footer>
+    <footer><div class="brand footer-brand"><span class="brand-mark"><i></i><i></i><i></i></span><span><strong>OOA-RayMode</strong><small>FIELD RAY MODE · 2D</small></span></div><p>交互结果用于原理演示；工程计算请使用 OOB 原生求解器及经验证的环境数据。</p><a href="#top">BACK TO TOP ↑</a></footer>
   </div>
   <script src="app.js"></script>
 </body>
