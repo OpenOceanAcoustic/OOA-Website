@@ -3,13 +3,18 @@ const initialSSP = Array.from({length:11},(_,i)=>{
   const z=i*500,eta=2*(z-1300)/1300,c=1500*(1+.00737*(eta+Math.exp(-Math.max(-8,Math.min(8,eta)))-1));
   return [z,Math.max(1450,Math.min(1600,Math.round(c*2)/2))];
 });
-const state = { data: null, animation: 0, raf: null, request: 0, lossImage: null, eigen: null, eigenRequest: 0, customSSP: initialSSP, customInitialized: false, sspDrag: -1, receiverDragging: false, receiverPreview: null, introRaf: null, introStart: 0, introIndex: 0, introHold: 0 };
+const state = { data: null, animation: 0, raf: null, request: 0, lossImage: null, velocityImages: { horizontal: null, vertical: null }, eigen: null, eigenRequest: 0, customSSP: initialSSP, customInitialized: false, sspDrag: -1, sourceDragging: false, solvedSourceDepth: null, eigenSourceDragging: false, solvedEigenSourceDepth: null, receiverDragging: false, receiverPreview: null, introRaf: null, introStart: 0, introProgress: 0 };
 const controls = {
   profile: $('profile'), axisDepth: $('axisDepth'), gradient: $('gradient'),
   sourceDepth: $('sourceDepth'), frequency: $('frequency'), bottomSpeed: $('bottomSpeed'),
   bottomDensity: $('bottomDensity'), bottomAbsorption: $('bottomAbsorption')
 };
-const canvases = { intro: $('introRayCanvas'), ssp: $('sspCanvas'), ray: $('rayCanvas'), loss: $('lossCanvas'), eigen: $('eigenCanvas'), arrival: $('arrivalCanvas') };
+const eigenEnvControls = {
+  profile: $('eigenProfile'), axisDepth: $('eigenAxisDepth'), gradient: $('eigenGradient'),
+  sourceDepth: $('eigenSourceDepth'), frequency: $('eigenFrequency'), bottomSpeed: $('eigenBottomSpeed'),
+  bottomDensity: $('eigenBottomDensity'), bottomAbsorption: $('eigenBottomAbsorption')
+};
+const canvases = { intro: $('introRayCanvas'), ssp: $('sspCanvas'), ray: $('rayCanvas'), loss: $('lossCanvas'), horizontalVelocity: $('horizontalVelocityCanvas'), verticalVelocity: $('verticalVelocityCanvas'), eigenSSP: $('eigenSSPCanvas'), eigen: $('eigenCanvas'), arrival: $('arrivalCanvas') };
 
 function fitCanvas(canvas) {
   const ratio = Math.min(window.devicePixelRatio || 1, 2);
@@ -49,6 +54,54 @@ function syncLabels() {
   $('channelSummary').textContent = p.profile === 'constant' ? '无明显声道轴' : p.profile==='custom' ? '由 11 个自定义节点共同决定' : `${p.axis_depth.toLocaleString('zh-CN')} m 附近`;
   const names = { munk: 'MUNK / DEEP CHANNEL', surface: 'THERMOCLINE / SURFACE', constant: 'ISOVELOCITY / CONTROL', custom:'CUSTOM / 500 M NODES' };
   $('hero-profile').textContent = names[p.profile];
+}
+
+function syncEigenEnvironmentFromMain(){
+  Object.keys(eigenEnvControls).forEach(key=>{eigenEnvControls[key].value=controls[key].value;});
+  const p=params();$('eigenAxisDepthOut').textContent=p.axis_depth.toLocaleString('zh-CN')+' m';$('eigenGradientOut').textContent=p.gradient.toFixed(2)+'×';$('eigenBottomSpeedOut').textContent=p.bottom_speed.toLocaleString('zh-CN')+' m/s';$('eigenBottomDensityOut').textContent=p.bottom_density.toLocaleString('zh-CN')+' kg/m³';$('eigenBottomAbsorptionOut').textContent=p.bottom_absorption.toFixed(2)+' dB/λ';eigenEnvControls.axisDepth.disabled=['constant','custom'].includes(p.profile);eigenEnvControls.gradient.disabled=['constant','custom'].includes(p.profile);drawEigenEnvironment();renderSSPTables();
+}
+
+function environmentProfile(){
+  const p=params();if(p.profile==='custom')return state.customSSP.map(point=>[point[0],point[1]]);
+  return Array.from({length:101},(_,index)=>{const depth=index*50;let speed;if(p.profile==='constant')speed=1500;else if(p.profile==='surface'){const thermocline=28*Math.tanh((p.axis_depth-depth)/420),deep=Math.max(0,depth-p.axis_depth)*.012;speed=1490+p.gradient*(thermocline+deep);}else{const eta=Math.max(-8,Math.min(8,2*(depth-p.axis_depth)/1300));speed=1500*(1+.00737*p.gradient*(eta+Math.exp(-eta)-1));}return[depth,speed];});
+}
+
+function drawEigenEnvironment(){
+  if(!canvases.eigenSSP)return;const {ctx,w,h}=fitCanvas(canvases.eigenSSP);ctx.clearRect(0,0,w,h);ctx.fillStyle='#061720';ctx.fillRect(0,0,w,h);const a={l:31,r:10,t:29,b:25};a.pw=w-a.l-a.r;a.ph=h-a.t-a.b;const x=c=>a.l+(c-1450)/150*a.pw,y=z=>a.t+z/5000*a.ph,profile=environmentProfile(),p=params();
+  ctx.strokeStyle='rgba(92,151,169,.13)';ctx.lineWidth=1;for(let i=0;i<=4;i++){const py=a.t+a.ph*i/4;ctx.beginPath();ctx.moveTo(a.l,py);ctx.lineTo(a.l+a.pw,py);ctx.stroke();const px=a.l+a.pw*i/4;ctx.beginPath();ctx.moveTo(px,a.t);ctx.lineTo(px,a.t+a.ph);ctx.stroke();}
+  ctx.beginPath();profile.forEach(([depth,speed],index)=>index?ctx.lineTo(x(speed),y(depth)):ctx.moveTo(x(speed),y(depth)));ctx.strokeStyle='#62d8e7';ctx.lineWidth=2;ctx.shadowColor='rgba(98,216,231,.5)';ctx.shadowBlur=6;ctx.stroke();ctx.shadowBlur=0;
+  if(!['constant','custom'].includes(p.profile)){ctx.setLineDash([3,3]);ctx.strokeStyle='rgba(197,241,107,.62)';ctx.beginPath();ctx.moveTo(a.l,y(p.axis_depth));ctx.lineTo(a.l+a.pw,y(p.axis_depth));ctx.stroke();ctx.setLineDash([]);}
+  const nearest=profile.reduce((best,point)=>Math.abs(point[0]-p.source_depth)<Math.abs(best[0]-p.source_depth)?point:best,profile[0]),sy=y(p.source_depth),sx=x(nearest[1]);ctx.setLineDash([3,3]);ctx.strokeStyle='rgba(248,180,76,.45)';ctx.beginPath();ctx.moveTo(a.l,sy);ctx.lineTo(a.l+a.pw,sy);ctx.stroke();ctx.setLineDash([]);ctx.fillStyle='#f8b44c';ctx.shadowColor='#f8b44c';ctx.shadowBlur=8;ctx.beginPath();ctx.arc(sx,sy,3.5,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;
+  ctx.fillStyle='#64848e';ctx.font='9px ui-monospace,monospace';ctx.textAlign='left';ctx.fillText('1450',a.l,h-9);ctx.textAlign='right';ctx.fillText('1600 m/s',a.l+a.pw,h-9);ctx.fillStyle='#dfb76f';ctx.fillText(`${p.source_depth.toLocaleString('zh-CN')} m`,a.l+a.pw,Math.max(a.t+10,Math.min(a.t+a.ph-3,sy-5)));
+}
+
+function sspTablePoints(){
+  if(controls.profile.value==='custom')return state.customSSP;
+  const profile=environmentProfile();return Array.from({length:11},(_,index)=>{const target=index*500,point=profile.reduce((best,current)=>Math.abs(current[0]-target)<Math.abs(best[0]-target)?current:best,profile[0]);return[point[0],point[1]];});
+}
+
+function normalizeCustomSSP(){
+  const unique=new Map();state.customSSP.forEach(point=>{const depth=Math.round(Math.max(0,Math.min(5000,Number(point[0])||0))*10)/10,speed=Math.round(Math.max(1400,Math.min(1650,Number(point[1])||1500))*10)/10;unique.set(depth,speed);});state.customSSP=Array.from(unique,([depth,speed])=>[depth,speed]).sort((a,b)=>a[0]-b[0]).slice(0,64);
+}
+
+function ensureCustomSSP(){
+  if(controls.profile.value!=='custom')state.customSSP=sspTablePoints().map(point=>[point[0],point[1]]);state.customInitialized=true;controls.profile.value='custom';eigenEnvControls.profile.value='custom';normalizeCustomSSP();
+}
+
+function renderSSPTables(){
+  const points=sspTablePoints(),markup=points.map(([depth,speed],index)=>`<tr><td><input type="number" min="0" max="5000" step="10" value="${Number(depth).toFixed(depth%1?1:0)}" data-ssp-index="${index}" data-ssp-field="depth" aria-label="第 ${index+1} 行深度"></td><td><input type="number" min="1400" max="1650" step="0.1" value="${Number(speed).toFixed(1)}" data-ssp-index="${index}" data-ssp-field="speed" aria-label="第 ${index+1} 行声速"></td><td><button type="button" class="ssp-delete-row" data-ssp-delete="${index}" aria-label="删除第 ${index+1} 行">×</button></td></tr>`).join('');['sspTableRows','eigenSSPTableRows'].forEach(id=>{const body=$(id);if(body)body.innerHTML=markup;});
+}
+
+function updateSSPTableCell(event){
+  const input=event.target.closest('input[data-ssp-field]');if(!input)return;const index=Number(input.dataset.sspIndex),field=input.dataset.sspField;ensureCustomSSP();if(!state.customSSP[index])return;state.customSSP[index][field==='depth'?0:1]=Number(input.value);normalizeCustomSSP();syncLabels();syncEigenEnvironmentFromMain();drawSSP();markEigenStale();clearTimeout(debounce);debounce=setTimeout(recalculateEnvironment,80);
+}
+
+function addSSPTableRow(){
+  ensureCustomSSP();if(state.customSSP.length>=64)return;const points=state.customSSP;let left=points[0],right=points[points.length-1],largest=-1;for(let index=0;index<points.length-1;index++){const gap=points[index+1][0]-points[index][0];if(gap>largest){largest=gap;left=points[index];right=points[index+1];}}let depth;if(largest>1)depth=Math.round((left[0]+right[0])/2);else depth=Math.min(5000,Math.max(0,(points.at(-1)?.[0]||0)+100));const mix=(depth-left[0])/Math.max(1,right[0]-left[0]),speed=left[1]+(right[1]-left[1])*Math.max(0,Math.min(1,mix));state.customSSP.push([depth,speed]);normalizeCustomSSP();syncLabels();syncEigenEnvironmentFromMain();drawSSP();markEigenStale();clearTimeout(debounce);debounce=setTimeout(recalculateEnvironment,80);
+}
+
+function deleteSSPTableRow(event){
+  const button=event.target.closest('[data-ssp-delete]');if(!button)return;ensureCustomSSP();if(state.customSSP.length<=2)return;state.customSSP.splice(Number(button.dataset.sspDelete),1);normalizeCustomSSP();syncLabels();syncEigenEnvironmentFromMain();drawSSP();markEigenStale();clearTimeout(debounce);debounce=setTimeout(recalculateEnvironment,80);
 }
 
 function axes(ctx, w, h, opts = {}) {
@@ -99,31 +152,50 @@ function sspPointer(event,commit=false){
     let nearest=-1,distance=Infinity;sspNodes().forEach(([z,c],i)=>{const x=layout.l+(c-layout.min)/(layout.max-layout.min)*layout.pw,y=layout.t+z/5000*layout.ph,d=Math.hypot(px-x,py-y);if(d<distance){nearest=i;distance=d;}});
     if(distance>18)return;state.customSSP=sspNodes().map(point=>[point[0],point[1]]);state.customInitialized=true;state.sspDrag=nearest;controls.profile.value='custom';canvas.setPointerCapture?.(event.pointerId);
   }
-  const speed=Math.round(Math.max(layout.min,Math.min(layout.max,layout.min+(px-layout.l)/layout.pw*(layout.max-layout.min)))*2)/2;state.customSSP[state.sspDrag][1]=speed;$('sspReadout').textContent=`${state.customSSP[state.sspDrag][0].toLocaleString('zh-CN')} m · ${speed.toFixed(1)} m/s`;syncLabels();drawSSP();markEigenStale();clearTimeout(debounce);debounce=setTimeout(run,commit?10:240);
+  const speed=Math.round(Math.max(layout.min,Math.min(layout.max,layout.min+(px-layout.l)/layout.pw*(layout.max-layout.min)))*2)/2;state.customSSP[state.sspDrag][1]=speed;$('sspReadout').textContent=`${state.customSSP[state.sspDrag][0].toLocaleString('zh-CN')} m · ${speed.toFixed(1)} m/s`;syncLabels();syncEigenEnvironmentFromMain();drawSSP();markEigenStale();clearTimeout(debounce);debounce=setTimeout(recalculateEnvironment,commit?10:180);
+}
+
+function sourceFromPointer(event){
+  const rect=canvases.ray.getBoundingClientRect(),a={l:39,r:12,t:19,b:28},ph=rect.height-a.t-a.b,px=event.clientX-rect.left,py=event.clientY-rect.top;
+  return {depth:Math.round(Math.max(50,Math.min(4800,(py-a.t)/ph*5000))/10)*10,px,py,sourceX:a.l,sourceY:a.t+params().source_depth/5000*ph};
+}
+
+function startSourceDrag(event){
+  if(!state.data)return;const point=sourceFromPointer(event);if(Math.hypot(point.px-point.sourceX,point.py-point.sourceY)>22)return;
+  clearTimeout(debounce);state.sourceDragging=true;canvases.ray.classList.add('dragging');canvases.ray.setPointerCapture?.(event.pointerId);moveSource(event);
+}
+
+function moveSource(event){
+  if(!state.sourceDragging)return;const point=sourceFromPointer(event);controls.sourceDepth.value=String(point.depth);syncLabels();markEigenStale();$('simStatus').textContent='DRAGGING SOURCE';$('simTime').textContent='RELEASE TO RUN';drawRay(1);
+}
+
+function finishSourceDrag(event){
+  if(!state.sourceDragging)return;moveSource(event);state.sourceDragging=false;canvases.ray.classList.remove('dragging');syncEigenEnvironmentFromMain();recalculateEnvironment();
 }
 
 function drawRay(progress = 1) {
   const { ctx, w, h } = fitCanvas(canvases.ray);
   ctx.clearRect(0,0,w,h); ctx.fillStyle='#06161f';ctx.fillRect(0,0,w,h);
   const a = axes(ctx,w,h); if (!state.data) return;
-  const y = z => a.t + z/5000*a.ph, x = r => a.l + r/100*a.pw;
+  const y = z => a.t + z/5000*a.ph, x = r => a.l + r/100*a.pw, sourceDepth=params().source_depth, solvedDepth=state.solvedSourceDepth??sourceDepth, previewShift=sourceDepth-solvedDepth;
   const grad = ctx.createLinearGradient(0,a.t,0,a.t+a.ph); grad.addColorStop(0,'rgba(20,72,89,.16)');grad.addColorStop(.5,'rgba(18,91,108,.08)');grad.addColorStop(1,'rgba(4,10,16,.25)');ctx.fillStyle=grad;ctx.fillRect(a.l,a.t,a.pw,a.ph);
   ctx.strokeStyle='rgba(197,241,107,.28)';ctx.setLineDash([4,5]);ctx.beginPath();ctx.moveTo(a.l,y(params().axis_depth));ctx.lineTo(a.l+a.pw,y(params().axis_depth));ctx.stroke();ctx.setLineDash([]);
   const maxRange = progress*100;
   state.data.rays.forEach((ray, idx) => {
     ctx.beginPath(); let started=false;
-    ray.forEach(pt => { if(pt[0]>maxRange)return; const px=x(pt[0]),py=y(pt[1]); if(!started){ctx.moveTo(px,py);started=true;}else ctx.lineTo(px,py); });
+    ray.forEach(pt => { if(pt[0]>maxRange)return; const px=x(pt[0]),previewDepth=Math.max(0,Math.min(5000,pt[1]+previewShift*Math.exp(-pt[0]/10))),py=y(previewDepth); if(!started){ctx.moveTo(px,py);started=true;}else ctx.lineTo(px,py); });
     const alpha=.32+.58*(1-Math.abs(idx-(state.data.rays.length-1)/2)/(state.data.rays.length/2));
     ctx.strokeStyle=`rgba(98,216,231,${alpha})`;ctx.lineWidth=idx%3===0?1.15:.75;ctx.stroke();
   });
-  const sx=x(0), sy=y(params().source_depth); ctx.shadowColor='#f8b44c';ctx.shadowBlur=12;ctx.fillStyle='#f8b44c';ctx.beginPath();ctx.arc(sx,sy,4,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;
+  const sx=x(0), sy=y(sourceDepth); ctx.shadowColor='#f8b44c';ctx.shadowBlur=state.sourceDragging?16:12;ctx.fillStyle='#f8b44c';ctx.beginPath();ctx.arc(sx,sy,state.sourceDragging?5:4,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;
   ctx.strokeStyle='rgba(248,180,76,.35)';ctx.beginPath();ctx.arc(sx,sy,8,0,Math.PI*2);ctx.stroke();
+  if(state.sourceDragging){ctx.setLineDash([3,4]);ctx.strokeStyle='rgba(248,180,76,.32)';ctx.beginPath();ctx.moveTo(a.l,sy);ctx.lineTo(a.l+a.pw,sy);ctx.stroke();ctx.setLineDash([]);ctx.fillStyle='#f1c878';ctx.font='11px ui-monospace, monospace';ctx.textAlign='left';ctx.fillText(`${sourceDepth.toLocaleString('zh-CN')} m`,sx+12,sy-10);}
   if(progress<1){const fx=x(maxRange);ctx.strokeStyle='rgba(98,216,231,.2)';ctx.beginPath();ctx.moveTo(fx,a.t);ctx.lineTo(fx,a.t+a.ph);ctx.stroke();}
 }
 
-const stops = [[9,16,34],[36,40,92],[41,97,145],[25,145,178],[56,207,202],[203,239,119]];
+const stops = [[148,0,0],[255,20,0],[255,154,0],[255,242,0],[48,224,122],[0,205,230],[0,105,244],[0,23,184],[2,3,105]];
 function tlColor(tl) {
-  const u = Math.max(0,Math.min(1,(120-tl)/60))*(stops.length-1), i=Math.min(stops.length-2,Math.floor(u)), f=u-i;
+  const u = Math.max(0,Math.min(1,(tl-40)/60))*(stops.length-1), i=Math.min(stops.length-2,Math.floor(u)), f=u-i;
   return stops[i].map((v,k)=>Math.round(v+(stops[i+1][k]-v)*f));
 }
 
@@ -138,50 +210,175 @@ function buildLossImage() {
 function drawLoss(progress=1) {
   const {ctx,w,h}=fitCanvas(canvases.loss);ctx.clearRect(0,0,w,h);ctx.fillStyle='#06161f';ctx.fillRect(0,0,w,h);const a=axes(ctx,w,h);
   if(!state.lossImage)return;
-  ctx.imageSmoothingEnabled=true;ctx.globalAlpha=.88;ctx.drawImage(state.lossImage,0,0,state.lossImage.width*progress,state.lossImage.height,a.l,a.t,a.pw*progress,a.ph);ctx.globalAlpha=1;
+  ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';ctx.globalAlpha=.96;ctx.drawImage(state.lossImage,0,0,state.lossImage.width*progress,state.lossImage.height,a.l,a.t,a.pw*progress,a.ph);ctx.globalAlpha=1;
   axes(ctx,w,h);
   if(progress<1){const fx=a.l+a.pw*progress;const g=ctx.createLinearGradient(fx-18,0,fx+8,0);g.addColorStop(0,'rgba(98,216,231,0)');g.addColorStop(1,'rgba(98,216,231,.42)');ctx.fillStyle=g;ctx.fillRect(fx-18,a.t,26,a.ph);}
 }
 
-const introRayOrder=[1,3,5,7,9,11,13,15,17];
-function introPath(ctx,ray,fraction,x,y,color,width){
-  if(!ray?.length)return null;const position=Math.max(0,Math.min(ray.length-1,(ray.length-1)*fraction)),whole=Math.floor(position),mix=position-whole;ctx.beginPath();ctx.moveTo(x(ray[0][0]),y(ray[0][1]));
-  for(let i=1;i<=whole;i++)ctx.lineTo(x(ray[i][0]),y(ray[i][1]));
-  let front=ray[Math.min(whole,ray.length-1)],previous=ray[Math.max(0,whole-1)];
-  if(whole<ray.length-1){const next=ray[whole+1];front=[front[0]+(next[0]-front[0])*mix,front[1]+(next[1]-front[1])*mix];ctx.lineTo(x(front[0]),y(front[1]));previous=ray[whole];}
-  ctx.strokeStyle=color;ctx.lineWidth=width;ctx.stroke();return {front,previous};
+function velocityColor(level){return tlColor(40+(Math.max(30,Math.min(120,level))-30)/90*60);}
+
+function buildVelocityImages(){
+  if(!state.data?.velocity)return;const {cols,rows}=state.data.velocity;[['horizontal','horizontal_db'],['vertical','vertical_db']].forEach(([component,key])=>{const values=state.data.velocity[key],off=document.createElement('canvas');off.width=cols;off.height=rows;const context=off.getContext('2d'),image=context.createImageData(cols,rows);for(let index=0;index<values.length;index++){const color=velocityColor(values[index]);image.data[index*4]=color[0];image.data[index*4+1]=color[1];image.data[index*4+2]=color[2];image.data[index*4+3]=255;}context.putImageData(image,0,0);state.velocityImages[component]=off;});
+}
+
+function drawVelocityComponent(canvas,image,progress){
+  const {ctx,w,h}=fitCanvas(canvas);ctx.clearRect(0,0,w,h);ctx.fillStyle='#06161f';ctx.fillRect(0,0,w,h);const a=axes(ctx,w,h);if(!image)return;ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';ctx.globalAlpha=.96;ctx.drawImage(image,0,0,image.width*progress,image.height,a.l,a.t,a.pw*progress,a.ph);ctx.globalAlpha=1;axes(ctx,w,h);if(progress<1){const fx=a.l+a.pw*progress,g=ctx.createLinearGradient(fx-18,0,fx+8,0);g.addColorStop(0,'rgba(98,216,231,0)');g.addColorStop(1,'rgba(98,216,231,.42)');ctx.fillStyle=g;ctx.fillRect(fx-18,a.t,26,a.ph);}
+}
+
+function drawVelocity(progress=1){
+  drawVelocityComponent(canvases.horizontalVelocity,state.velocityImages.horizontal,progress);drawVelocityComponent(canvases.verticalVelocity,state.velocityImages.vertical,progress);
+}
+
+const introAngles=[-12,-9,-6,-3,0,3,6,9,12];
+function introMunkSpeed(z){const eta=2*(z-1300)/1300;return 1500*(1+.00737*(eta+Math.exp(-eta)-1));}
+function introMunkGradient(z){const eta=2*(z-1300)/1300;return 1500*.00737*(2/1300)*(1-Math.exp(-eta));}
+function introMunkCurvature(z){const eta=2*(z-1300)/1300;return 1500*.00737*Math.pow(2/1300,2)*Math.exp(-eta);}
+const introMunkProfile=Array.from({length:101},(_,i)=>{
+  const z=i*50;return[z,introMunkSpeed(z)];
+});
+function introTrace(angle,spacingDegrees=.5,widthScale=1.35){
+  const step=100,sourceDepth=1000,c0=introMunkSpeed(sourceDepth),theta=angle*Math.PI/180,spacing=spacingDegrees*Math.PI/180,points=[[0,sourceDepth,0,0,0]];let range=0,z=sourceDepth,xi=Math.cos(theta)/c0,zeta=Math.sin(theta)/c0,p=1,q=0,tau=0,width=0;
+  for(let i=0;i<3000&&range<100000;i++){
+    const c=introMunkSpeed(z),cz=introMunkGradient(z),cnn=introMunkCurvature(z)*xi*xi,k1r=c*xi,k1z=c*zeta,midZ=z+k1z*step*.5,midZeta=zeta-step*.5*cz/(c*c),midP=p-step*.5*cnn*q,midQ=q+step*.5*c*p,midC=introMunkSpeed(midZ),midCz=introMunkGradient(midZ),midCnn=introMunkCurvature(midZ)*xi*xi;range+=midC*xi*step;z+=midC*midZeta*step;zeta-=midCz/(midC*midC)*step;p-=midCnn*midQ*step;q+=midC*midP*step;tau+=step/midC;
+    if(z<0){z=-z;zeta=Math.abs(zeta);}else if(z>5000){z=10000-z;zeta=-Math.abs(zeta);}
+    const rawSigma=Math.abs(q)*spacing/c0/Math.max(.2,Math.abs(midC*xi)),minimumSigma=Math.min(.2*50*tau,Math.PI*midC/50);width=Math.min(1100,Math.max(width,rawSigma*widthScale,minimumSigma*widthScale));
+    if(i%5===4||range>=100000)points.push([Math.min(100,range/1000),z,width,q,tau]);
+  }
+  return points;
+}
+const introDemoRays=introAngles.map(angle=>introTrace(angle));
+
+function introPartialRay(ray,fraction){
+  if(!ray?.length)return[];
+  const position=Math.max(0,Math.min(ray.length-1,(ray.length-1)*fraction)),whole=Math.floor(position),mix=position-whole,points=ray.slice(0,whole+1);
+  if(whole<ray.length-1){const a=ray[whole],b=ray[whole+1];points.push(a.map((value,i)=>value+(b[i]-value)*mix));}
+  return points;
+}
+
+function introPointAtRange(ray,rangeKm){
+  let low=0,high=ray.length-1;while(low+1<high){const middle=(low+high)>>1;if(ray[middle][0]<rangeKm)low=middle;else high=middle;}const a=ray[low],b=ray[Math.min(ray.length-1,high)],mix=Math.max(0,Math.min(1,(rangeKm-a[0])/Math.max(1e-8,b[0]-a[0])));return a.map((value,index)=>value+(b[index]-value)*mix);
+}
+
+const introPressureGroups=introAngles.map(angle=>Array.from({length:7},(_,index)=>introTrace(angle-1.35+index*.45,.45,.9)));
+const introFieldStops=[[146,0,0],[255,25,0],[255,183,0],[225,255,16],[37,238,196],[0,184,246],[0,74,222],[4,6,130]];
+function introFieldColor(tl){const value=Math.max(0,Math.min(1,(tl-40)/50))*(introFieldStops.length-1),index=Math.min(introFieldStops.length-2,Math.floor(value)),mix=value-index;return introFieldStops[index].map((channel,channelIndex)=>Math.round(channel+(introFieldStops[index+1][channelIndex]-channel)*mix));}
+
+function introBuildPressureModel(){
+  const cols=180,rows=100,size=cols*rows,omega=2*Math.PI*50,components=introPressureGroups.map(()=>({real:new Float64Array(size),imaginary:new Float64Array(size),energy:new Float64Array(size)}));let maximum=0;
+  introPressureGroups.forEach((rayGroup,groupIndex)=>rayGroup.forEach(ray=>{
+    for(let column=0;column<cols;column++){
+      const range=.1+99.9*column/(cols-1),point=introPointAtRange(ray,range),sigma=Math.max(24,point[2]),phase=omega*point[4]-(point[3]<0?Math.PI/2:0),phaseReal=Math.cos(phase),phaseImaginary=-Math.sin(phase);
+      for(let row=0;row<rows;row++){
+        const normal=5000*row/(rows-1)-point[1],window=Math.abs(normal)/sigma;if(window>3.7)continue;const weight=Math.exp(-.5*window*window),rangeScale=1/Math.pow(Math.max(1,range),.25),amplitude=weight*rangeScale/Math.pow(Math.max(1,Math.abs(point[3])),.18),index=row*cols+column;components[groupIndex].real[index]+=amplitude*phaseReal;components[groupIndex].imaginary[index]+=amplitude*phaseImaginary;components[groupIndex].energy[index]+=amplitude*amplitude;
+      }
+    }
+  }));
+  const referenceLevels=[];for(let index=0;index<size;index++){let real=0,imaginary=0,energy=0;components.forEach(component=>{real+=component.real[index];imaginary+=component.imaginary[index];energy+=component.energy[index];});const magnitude=Math.hypot(real,imaginary)+.18*Math.sqrt(energy);if(index%cols>5&&magnitude>1e-12)referenceLevels.push(magnitude);}referenceLevels.sort((a,b)=>a-b);maximum=referenceLevels[Math.floor(referenceLevels.length*.995)]||1;
+  const canvas=document.createElement('canvas');canvas.width=cols;canvas.height=rows;const context=canvas.getContext('2d'),image=context.createImageData(cols,rows);return{cols,rows,size,components,maximum,canvas,context,image};
+}
+const introPressureModel=introBuildPressureModel();
+
+function introSequence(progress){
+  if(progress>=1)return{current:introDemoRays.length-1,local:1,visible:introDemoRays.length};const scaled=Math.max(0,progress)*introDemoRays.length,current=Math.min(introDemoRays.length-1,Math.floor(scaled)),local=scaled-current;return{current,local,visible:current+(local>0?1:0)};
+}
+
+function introRenderPressure(sequence){
+  const model=introPressureModel,front=sequence.local*(model.cols-1);
+  for(let index=0;index<model.size;index++){
+    const column=index%model.cols;let real=0,imaginary=0,energy=0;for(let rayIndex=0;rayIndex<sequence.current;rayIndex++){real+=model.components[rayIndex].real[index];imaginary+=model.components[rayIndex].imaginary[index];energy+=model.components[rayIndex].energy[index];}
+    const currentWeight=sequence.local<=0?0:Math.max(0,Math.min(1,(front-column+2)/2));real+=model.components[sequence.current].real[index]*currentWeight;imaginary+=model.components[sequence.current].imaginary[index]*currentWeight;energy+=model.components[sequence.current].energy[index]*currentWeight*currentWeight;
+    const magnitude=Math.hypot(real,imaginary)+.18*Math.sqrt(energy),relativeDb=20*Math.log10(Math.max(1e-12,magnitude)/Math.max(1e-12,model.maximum)),row=Math.floor(index/model.cols),depth=5000*row/(model.rows-1),sourceDistance=Math.hypot(column/1.6,(depth-1000)/160);let tl=68+Math.max(0,Math.min(22,-relativeDb*.55));if(sourceDistance<1)tl=Math.min(tl,46+22*sourceDistance);const color=introFieldColor(tl);model.image.data[index*4]=color[0];model.image.data[index*4+1]=color[1];model.image.data[index*4+2]=color[2];model.image.data[index*4+3]=255;
+  }
+  model.context.putImageData(model.image,0,0);return model.canvas;
+}
+
+function introDrawSumFormula(ctx,x,y,align='right',size=12,color='#91aab2'){
+  ctx.save();ctx.fillStyle=color;ctx.textAlign='left';ctx.textBaseline='alphabetic';ctx.font=`italic ${size}px Georgia, serif`;const prefix='p = ',sum='∑',pressure='p',prefixWidth=ctx.measureText(prefix).width,sumWidth=ctx.measureText(sum).width,pressureWidth=ctx.measureText(pressure).width,scriptSize=size*.65;ctx.font=`italic ${scriptSize}px Georgia, serif`;const alphaWidth=ctx.measureText('α').width,scriptWidth=ctx.measureText('(α)').width,total=prefixWidth+sumWidth+alphaWidth*.72+5+pressureWidth+scriptWidth;let cursor=align==='right'?x-total:align==='center'?x-total/2:x;ctx.font=`italic ${size}px Georgia, serif`;ctx.fillText(prefix,cursor,y);cursor+=prefixWidth;ctx.fillText(sum,cursor,y);ctx.font=`italic ${scriptSize}px Georgia, serif`;ctx.fillText('α',cursor+sumWidth*.58,y+size*.38);cursor+=sumWidth+alphaWidth*.72+5;ctx.font=`italic ${size}px Georgia, serif`;ctx.fillText(pressure,cursor,y);cursor+=pressureWidth;ctx.font=`italic ${scriptSize}px Georgia, serif`;ctx.fillText('(α)',cursor,y-size*.45);ctx.restore();
+}
+
+function introPanel(ctx,rect,index,title,formula){
+  ctx.fillStyle='rgba(7,25,35,.72)';ctx.fillRect(rect.x,rect.y,rect.w,rect.h);ctx.strokeStyle='rgba(71,133,150,.25)';ctx.lineWidth=1;ctx.strokeRect(rect.x+.5,rect.y+.5,rect.w-1,rect.h-1);
+  ctx.font='13px ui-monospace, monospace';ctx.textBaseline='alphabetic';ctx.textAlign='left';ctx.fillStyle='#62d8e7';ctx.fillText(`${String(index).padStart(2,'0')}  ${title}`,rect.x+11,rect.y+20);if(formula==='coherent-sum')introDrawSumFormula(ctx,rect.x+rect.w-10,rect.y+20,'right',14,'#a4bbc1');else{ctx.textAlign='right';ctx.fillStyle='#a4bbc1';ctx.fillText(formula,rect.x+rect.w-10,rect.y+20);}
+  return{x:rect.x+11,y:rect.y+31,w:rect.w-22,h:rect.h-42};
+}
+
+function introRayPlot(ctx,plot,ray,progress,beam=false){
+  const x=r=>plot.x+r/100*plot.w,y=z=>plot.y+z/5000*plot.h;
+  ctx.save();ctx.beginPath();ctx.rect(plot.x,plot.y,plot.w,plot.h);ctx.clip();
+  ctx.strokeStyle='rgba(91,145,160,.12)';ctx.lineWidth=1;
+  for(let i=0;i<=4;i++){const px=plot.x+plot.w*i/4;ctx.beginPath();ctx.moveTo(px,plot.y);ctx.lineTo(px,plot.y+plot.h);ctx.stroke();}
+  [0,1300,3000,5000].forEach(z=>{const py=y(z);ctx.beginPath();ctx.moveTo(plot.x,py);ctx.lineTo(plot.x+plot.w,py);ctx.stroke();});
+  ctx.setLineDash([4,5]);ctx.strokeStyle='rgba(197,241,107,.24)';ctx.beginPath();ctx.moveTo(plot.x,y(1300));ctx.lineTo(plot.x+plot.w,y(1300));ctx.stroke();ctx.setLineDash([]);
+  const partial=introPartialRay(ray,progress),screen=partial.map(point=>[x(point[0]),y(point[1]),(point[2]||0)/5000*plot.h]);
+  if(beam&&screen.length>2){
+    const upper=[],lower=[];
+    screen.forEach((point,i)=>{const before=screen[Math.max(0,i-1)],after=screen[Math.min(screen.length-1,i+1)],dx=after[0]-before[0],dy=after[1]-before[1],length=Math.max(1,Math.hypot(dx,dy)),width=Math.max(1.5,point[2]);upper.push([point[0]-dy/length*width,point[1]+dx/length*width]);lower.push([point[0]+dy/length*width,point[1]-dx/length*width]);});
+    const gradient=ctx.createLinearGradient(plot.x,0,plot.x+plot.w,0);gradient.addColorStop(0,'rgba(98,216,231,.06)');gradient.addColorStop(.55,'rgba(98,216,231,.22)');gradient.addColorStop(1,'rgba(98,216,231,.31)');ctx.fillStyle=gradient;ctx.beginPath();upper.forEach((p,i)=>i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]));[...lower].reverse().forEach(p=>ctx.lineTo(p[0],p[1]));ctx.closePath();ctx.fill();
+    ctx.strokeStyle='rgba(115,222,234,.65)';ctx.lineWidth=1;ctx.setLineDash([4,3]);[upper,lower].forEach(edge=>{ctx.beginPath();edge.forEach((p,i)=>i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]));ctx.stroke();});ctx.setLineDash([]);
+    const front=screen[screen.length-1],previous=screen[Math.max(0,screen.length-2)],dx=front[0]-previous[0],dy=front[1]-previous[1],length=Math.max(1,Math.hypot(dx,dy)),normalX=-dy/length,normalY=dx/length,width=Math.max(4,front[2]);ctx.strokeStyle='#f8b44c';ctx.beginPath();ctx.moveTo(front[0]-normalX*width,front[1]-normalY*width);ctx.lineTo(front[0]+normalX*width,front[1]+normalY*width);ctx.stroke();ctx.font='12px Georgia, serif';ctx.textAlign='left';ctx.fillStyle='#f8b44c';ctx.fillText('σ(s)',front[0]+7,front[1]-8);
+  }
+  if(screen.length){ctx.beginPath();screen.forEach((point,i)=>i?ctx.lineTo(point[0],point[1]):ctx.moveTo(point[0],point[1]));ctx.strokeStyle=beam?'#f8b44c':'#70e3ef';ctx.lineWidth=2;ctx.shadowColor=beam?'rgba(248,180,76,.5)':'rgba(98,216,231,.55)';ctx.shadowBlur=6;ctx.stroke();ctx.shadowBlur=0;}
+  const source=[x(ray[0][0]),y(ray[0][1])];ctx.fillStyle='#f8b44c';ctx.beginPath();ctx.arc(source[0],source[1],4,0,Math.PI*2);ctx.fill();
+  if(screen.length>1){const front=screen[screen.length-1],previous=screen[screen.length-2],angle=Math.atan2(front[1]-previous[1],front[0]-previous[0]);ctx.save();ctx.translate(front[0],front[1]);ctx.rotate(angle);ctx.fillStyle='#f8b44c';ctx.beginPath();ctx.moveTo(5,0);ctx.lineTo(-4,-3);ctx.lineTo(-4,3);ctx.closePath();ctx.fill();ctx.restore();}
+  ctx.restore();
+  ctx.fillStyle='#708f99';ctx.font='12px ui-monospace, monospace';ctx.textAlign='left';ctx.fillText('0',plot.x,plot.y+plot.h+13);ctx.textAlign='right';ctx.fillText('100 km',plot.x+plot.w,plot.y+plot.h+13);
+}
+
+function introRayFanPlot(ctx,plot,sequence){
+  const x=r=>plot.x+r/100*plot.w,y=z=>plot.y+z/5000*plot.h;let visible=0;ctx.save();ctx.beginPath();ctx.rect(plot.x,plot.y,plot.w,plot.h);ctx.clip();ctx.strokeStyle='rgba(91,145,160,.12)';ctx.lineWidth=1;
+  for(let i=0;i<=4;i++){const px=plot.x+plot.w*i/4;ctx.beginPath();ctx.moveTo(px,plot.y);ctx.lineTo(px,plot.y+plot.h);ctx.stroke();}for(let i=0;i<=4;i++){const py=plot.y+plot.h*i/4;ctx.beginPath();ctx.moveTo(plot.x,py);ctx.lineTo(plot.x+plot.w,py);ctx.stroke();}
+  ctx.setLineDash([4,5]);ctx.strokeStyle='rgba(197,241,107,.24)';ctx.beginPath();ctx.moveTo(plot.x,y(1300));ctx.lineTo(plot.x+plot.w,y(1300));ctx.stroke();ctx.setLineDash([]);
+  introDemoRays.forEach((ray,index)=>{const local=index<sequence.current?1:index===sequence.current?sequence.local:0;if(local<=0)return;visible++;const partial=introPartialRay(ray,local);ctx.beginPath();partial.forEach((point,i)=>i?ctx.lineTo(x(point[0]),y(point[1])):ctx.moveTo(x(point[0]),y(point[1])));ctx.strokeStyle=index===sequence.current?'rgba(248,180,76,.95)':'rgba(98,216,231,.58)';ctx.lineWidth=index===sequence.current?1.65:1;ctx.stroke();});
+  ctx.fillStyle='#f8b44c';ctx.shadowColor='rgba(248,180,76,.65)';ctx.shadowBlur=7;ctx.beginPath();ctx.arc(x(0),y(1000),3.5,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;ctx.restore();ctx.fillStyle='#708f99';ctx.font='12px ui-monospace, monospace';ctx.textAlign='left';ctx.fillText('0',plot.x,plot.y+plot.h+13);ctx.textAlign='right';ctx.fillText('100 km',plot.x+plot.w,plot.y+plot.h+13);return visible;
+}
+
+function introBeamFanPlot(ctx,plot,sequence){
+  const x=range=>plot.x+range/100*plot.w,y=depth=>plot.y+depth/5000*plot.h;ctx.save();ctx.beginPath();ctx.rect(plot.x,plot.y,plot.w,plot.h);ctx.clip();ctx.strokeStyle='rgba(91,145,160,.12)';ctx.lineWidth=1;
+  for(let i=0;i<=4;i++){const px=plot.x+plot.w*i/4;ctx.beginPath();ctx.moveTo(px,plot.y);ctx.lineTo(px,plot.y+plot.h);ctx.stroke();}for(let i=0;i<=4;i++){const py=plot.y+plot.h*i/4;ctx.beginPath();ctx.moveTo(plot.x,py);ctx.lineTo(plot.x+plot.w,py);ctx.stroke();}
+  ctx.setLineDash([4,5]);ctx.strokeStyle='rgba(197,241,107,.24)';ctx.beginPath();ctx.moveTo(plot.x,y(1300));ctx.lineTo(plot.x+plot.w,y(1300));ctx.stroke();ctx.setLineDash([]);
+  introDemoRays.forEach((ray,rayIndex)=>{
+    const local=rayIndex<sequence.current?1:rayIndex===sequence.current?sequence.local:0;if(local<=0)return;const active=rayIndex===sequence.current,partial=introPartialRay(ray,local),screen=partial.map(point=>[x(point[0]),y(point[1]),(point[2]||0)/5000*plot.h]),deepEdge=[],shallowEdge=[];
+    screen.forEach((point,index)=>{const before=screen[Math.max(0,index-1)],after=screen[Math.min(screen.length-1,index+1)],dx=after[0]-before[0],dy=after[1]-before[1],length=Math.max(1,Math.hypot(dx,dy)),normalX=-dy/length,normalY=dx/length,beamWidth=Math.max(1.7,point[2]);shallowEdge.push([point[0]-normalX*beamWidth,point[1]-normalY*beamWidth]);deepEdge.push([point[0]+normalX*beamWidth,point[1]+normalY*beamWidth]);});
+    if(screen.length>2){ctx.fillStyle=active?'rgba(248,180,76,.13)':'rgba(98,216,231,.045)';ctx.beginPath();shallowEdge.forEach((point,index)=>index?ctx.lineTo(point[0],point[1]):ctx.moveTo(point[0],point[1]));[...deepEdge].reverse().forEach(point=>ctx.lineTo(point[0],point[1]));ctx.closePath();ctx.fill();ctx.setLineDash([4,3]);ctx.strokeStyle=active?'rgba(248,180,76,.76)':'rgba(98,216,231,.24)';ctx.lineWidth=active?1:.7;[shallowEdge,deepEdge].forEach(edge=>{ctx.beginPath();edge.forEach((point,index)=>index?ctx.lineTo(point[0],point[1]):ctx.moveTo(point[0],point[1]));ctx.stroke();});ctx.setLineDash([]);}
+    ctx.beginPath();screen.forEach((point,index)=>index?ctx.lineTo(point[0],point[1]):ctx.moveTo(point[0],point[1]));ctx.strokeStyle=active?'#f8b44c':'rgba(98,216,231,.58)';ctx.lineWidth=active?1.8:.9;ctx.stroke();
+    if(active&&screen.length>1){const front=screen[screen.length-1],shallow=shallowEdge[shallowEdge.length-1],deep=deepEdge[deepEdge.length-1];ctx.strokeStyle='#f8b44c';ctx.beginPath();ctx.moveTo(shallow[0],shallow[1]);ctx.lineTo(deep[0],deep[1]);ctx.stroke();ctx.fillStyle='#f8b44c';ctx.font='12px Georgia, serif';ctx.textAlign='left';ctx.fillText('ρ(s)',front[0]+7,front[1]-8);}
+  });
+  ctx.fillStyle='#f8b44c';ctx.shadowColor='rgba(248,180,76,.6)';ctx.shadowBlur=7;ctx.beginPath();ctx.arc(x(0),y(1000),3.5,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;ctx.restore();ctx.fillStyle='#708f99';ctx.font='12px ui-monospace, monospace';ctx.textAlign='left';ctx.fillText('0',plot.x,plot.y+plot.h+13);ctx.textAlign='right';ctx.fillText('100 km',plot.x+plot.w,plot.y+plot.h+13);
+}
+
+function introPressurePlot(ctx,plot,sequence){
+  const field=introRenderPressure(sequence),front=plot.x+plot.w*sequence.local;ctx.save();ctx.beginPath();ctx.rect(plot.x,plot.y,plot.w,plot.h);ctx.clip();ctx.fillStyle='#061019';ctx.fillRect(plot.x,plot.y,plot.w,plot.h);ctx.imageSmoothingEnabled=true;ctx.globalAlpha=.96;ctx.drawImage(field,plot.x,plot.y,plot.w,plot.h);ctx.globalAlpha=1;
+  ctx.strokeStyle='rgba(190,223,229,.13)';ctx.lineWidth=1;for(let i=0;i<=4;i++){const x=plot.x+plot.w*i/4;ctx.beginPath();ctx.moveTo(x,plot.y);ctx.lineTo(x,plot.y+plot.h);ctx.stroke();}for(let i=0;i<=4;i++){const y=plot.y+plot.h*i/4;ctx.beginPath();ctx.moveTo(plot.x,y);ctx.lineTo(plot.x+plot.w,y);ctx.stroke();}
+  ctx.fillStyle='rgba(4,14,21,.86)';ctx.fillRect(plot.x+7,plot.y+7,218,24);introDrawSumFormula(ctx,plot.x+14,plot.y+24,'left',14,'#e0eaec');ctx.fillStyle='#91abb3';ctx.font='12px ui-monospace, monospace';ctx.textAlign='left';ctx.fillText(`α ${sequence.visible || 0} / ${introDemoRays.length}`,plot.x+141,plot.y+24);
+  const barW=Math.min(125,plot.w*.24),barX=plot.x+plot.w-barW-9,barY=plot.y+9,bar=ctx.createLinearGradient(barX,0,barX+barW,0);bar.addColorStop(0,'rgb(4,6,130)');bar.addColorStop(.45,'rgb(0,184,246)');bar.addColorStop(.72,'rgb(225,255,16)');bar.addColorStop(1,'rgb(255,25,0)');ctx.fillStyle=bar;ctx.fillRect(barX,barY,barW,6);ctx.fillStyle='#c2d3d7';ctx.font='10px ui-monospace, monospace';ctx.textAlign='left';ctx.fillText('90 dB',barX,barY+17);ctx.textAlign='right';ctx.fillText('40 dB',barX+barW,barY+17);
+  const partial=introPartialRay(introDemoRays[sequence.current],sequence.local),x=range=>plot.x+range/100*plot.w,y=depth=>plot.y+depth/5000*plot.h;ctx.beginPath();partial.forEach((point,index)=>index?ctx.lineTo(x(point[0]),y(point[1])):ctx.moveTo(x(point[0]),y(point[1])));ctx.setLineDash([4,3]);ctx.strokeStyle='rgba(248,180,76,.75)';ctx.lineWidth=1;ctx.stroke();ctx.setLineDash([]);
+  if(sequence.local<1){const glow=ctx.createLinearGradient(front-20,0,front+5,0);glow.addColorStop(0,'rgba(248,180,76,0)');glow.addColorStop(1,'rgba(248,180,76,.62)');ctx.fillStyle=glow;ctx.fillRect(front-20,plot.y,25,plot.h);}
+  ctx.fillStyle='#bdced2';ctx.font='11px ui-monospace, monospace';ctx.textAlign='left';ctx.fillText('0 m',plot.x+4,plot.y+13);ctx.fillText('5 km',plot.x+4,plot.y+plot.h-5);ctx.restore();
+  ctx.fillStyle='#708f99';ctx.font='12px ui-monospace, monospace';ctx.textAlign='left';ctx.fillText('0',plot.x,plot.y+plot.h+13);ctx.textAlign='center';ctx.fillText('50',plot.x+plot.w/2,plot.y+plot.h+13);ctx.textAlign='right';ctx.fillText('100 km',plot.x+plot.w,plot.y+plot.h+13);
 }
 
 function drawIntroRay(progress=0){
-  const {ctx,w,h}=fitCanvas(canvases.intro);ctx.clearRect(0,0,w,h);const bg=ctx.createLinearGradient(0,0,0,h);bg.addColorStop(0,'#08212c');bg.addColorStop(1,'#05141c');ctx.fillStyle=bg;ctx.fillRect(0,0,w,h);
-  const a={l:46,r:15,t:20,b:34};a.pw=w-a.l-a.r;a.ph=h-a.t-a.b;ctx.strokeStyle='rgba(92,151,169,.13)';ctx.lineWidth=1;ctx.fillStyle='#64848e';ctx.font='10px ui-monospace, monospace';
-  for(let i=0;i<=5;i++){const px=a.l+a.pw*i/5;ctx.beginPath();ctx.moveTo(px,a.t);ctx.lineTo(px,a.t+a.ph);ctx.stroke();ctx.textAlign='center';ctx.fillText(String(i*20),px,h-12);const py=a.t+a.ph*i/5;ctx.beginPath();ctx.moveTo(a.l,py);ctx.lineTo(a.l+a.pw,py);ctx.stroke();ctx.textAlign='right';ctx.fillText(String(i*1000),a.l-6,py+3);}
-  ctx.fillStyle='#496d78';ctx.textAlign='center';ctx.fillText('距离 / km',a.l+a.pw/2,h-3);ctx.save();ctx.translate(10,a.t+a.ph/2);ctx.rotate(-Math.PI/2);ctx.fillText('深度 / m',0,0);ctx.restore();
-  const x=r=>a.l+r/100*a.pw,y=z=>a.t+z/5000*a.ph,p=params();ctx.setLineDash([4,5]);ctx.strokeStyle='rgba(197,241,107,.22)';ctx.beginPath();ctx.moveTo(a.l,y(p.axis_depth));ctx.lineTo(a.l+a.pw,y(p.axis_depth));ctx.stroke();ctx.setLineDash([]);
-  if(!state.data?.rays?.length){ctx.fillStyle='#65848e';ctx.textAlign='center';ctx.fillText('WAITING FOR RAY SOLVER…',a.l+a.pw/2,a.t+a.ph/2);return;}
-  const count=Math.min(introRayOrder.length,state.data.rays.length),current=Math.min(state.introIndex,count-1);
-  for(let i=0;i<current;i++){const ray=state.data.rays[introRayOrder[i]];ctx.globalAlpha=.38;introPath(ctx,ray,1,x,y,'#62d8e7',1.1);}ctx.globalAlpha=1;
-  const ray=state.data.rays[introRayOrder[current]],result=introPath(ctx,ray,progress,x,y,'#71e4ef',2);
-  if(result){const fx=x(result.front[0]),fy=y(result.front[1]),px=x(result.previous[0]),py=y(result.previous[1]),dx=fx-px,dy=fy-py,length=Math.max(1,Math.hypot(dx,dy)),ux=dx/length,uy=dy/length;ctx.strokeStyle='#f8b44c';ctx.lineWidth=1.5;ctx.setLineDash([4,3]);ctx.beginPath();ctx.moveTo(fx-ux*23,fy-uy*23);ctx.lineTo(fx+ux*18,fy+uy*18);ctx.stroke();ctx.setLineDash([]);ctx.fillStyle='#f8b44c';ctx.shadowColor='#f8b44c';ctx.shadowBlur=12;ctx.beginPath();ctx.arc(fx,fy,4,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;ctx.save();ctx.translate(fx+ux*18,fy+uy*18);ctx.rotate(Math.atan2(uy,ux));ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(-7,-4);ctx.lineTo(-7,4);ctx.closePath();ctx.fill();ctx.restore();}
-  const sx=x(0),sy=y(p.source_depth);ctx.fillStyle='#f8b44c';ctx.shadowColor='#f8b44c';ctx.shadowBlur=10;ctx.beginPath();ctx.arc(sx,sy,5,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;ctx.strokeStyle='rgba(248,180,76,.45)';ctx.beginPath();ctx.arc(sx,sy,10,0,Math.PI*2);ctx.stroke();
-  const nativeAngle=state.data.ray_angles_deg?.[introRayOrder[current]]??0;$('intro-source-label').style.top=Math.max(24,Math.min(h-45,sy-19))+'px';$('introRayNumber').textContent=`${String(current+1).padStart(2,'0')} / ${String(count).padStart(2,'0')}`;$('introAngle').textContent=`${nativeAngle.toFixed(1).replace('-','−')}°`;$('introProgressBar').style.width=(progress*100).toFixed(1)+'%';$('introProgressText').textContent=Math.round(progress*100)+'%';
+  state.introProgress=Math.max(0,Math.min(1,progress));const {ctx,w,h}=fitCanvas(canvases.intro);ctx.clearRect(0,0,w,h);const bg=ctx.createLinearGradient(0,0,w,h);bg.addColorStop(0,'#08212c');bg.addColorStop(1,'#05141c');ctx.fillStyle=bg;ctx.fillRect(0,0,w,h);
+  const outer=12,profileWidth=Math.max(108,Math.min(188,w*.24)),profile={x:outer,y:outer,w:profileWidth,h:h-outer*2},rightX=profile.x+profile.w+10,rightW=w-rightX-outer,gap=8,available=profile.h-gap*2,heights=[available*.25,available*.28,available*.47],rows=[];let rowStart=outer;heights.forEach(height=>{rows.push({x:rightX,y:rowStart,w:rightW,h:height});rowStart+=height+gap;});
+  ctx.fillStyle='rgba(7,25,35,.72)';ctx.fillRect(profile.x,profile.y,profile.w,profile.h);ctx.strokeStyle='rgba(71,133,150,.28)';ctx.strokeRect(profile.x+.5,profile.y+.5,profile.w-1,profile.h-1);ctx.font='12px ui-monospace, monospace';ctx.textAlign='left';ctx.fillStyle='#62d8e7';ctx.fillText('MUNK  c(z)',profile.x+11,profile.y+20);ctx.fillStyle='#91aab2';ctx.fillText('声速剖面',profile.x+11,profile.y+39);
+  const chart={x:profile.x+34,y:profile.y+48,w:profile.w-45,h:profile.h-82},cx=c=>chart.x+(c-1495)/65*chart.w,cy=z=>chart.y+z/5000*chart.h;
+  ctx.strokeStyle='rgba(91,145,160,.14)';ctx.lineWidth=1;[0,1300,3000,5000].forEach(z=>{const y=cy(z);ctx.beginPath();ctx.moveTo(chart.x,y);ctx.lineTo(chart.x+chart.w,y);ctx.stroke();});[1500,1530,1560].forEach(c=>{const x=cx(c);ctx.beginPath();ctx.moveTo(x,chart.y);ctx.lineTo(x,chart.y+chart.h);ctx.stroke();});
+  ctx.beginPath();introMunkProfile.forEach(([z,c],i)=>i?ctx.lineTo(cx(c),cy(z)):ctx.moveTo(cx(c),cy(z)));ctx.strokeStyle='#62d8e7';ctx.lineWidth=2.2;ctx.shadowColor='rgba(98,216,231,.5)';ctx.shadowBlur=7;ctx.stroke();ctx.shadowBlur=0;ctx.setLineDash([4,4]);ctx.strokeStyle='rgba(197,241,107,.65)';ctx.beginPath();ctx.moveTo(chart.x,cy(1300));ctx.lineTo(chart.x+chart.w,cy(1300));ctx.stroke();ctx.setLineDash([]);
+  ctx.fillStyle='#7898a1';ctx.font='11px ui-monospace, monospace';ctx.textAlign='right';ctx.fillText('0',chart.x-6,chart.y+4);ctx.fillText('1.3k',chart.x-6,cy(1300)+4);ctx.fillText('3k',chart.x-6,cy(3000)+4);ctx.fillText('5k',chart.x-6,chart.y+chart.h+4);ctx.textAlign='left';ctx.fillStyle='#c5f16b';ctx.fillText('AXIS',chart.x+4,cy(1300)-6);ctx.fillStyle='#7898a1';ctx.fillText('1500',chart.x,chart.y+chart.h+19);ctx.textAlign='right';ctx.fillText('1560 m/s',chart.x+chart.w,chart.y+chart.h+19);
+  const sequence=introSequence(state.introProgress),rayPlot=introPanel(ctx,rows[0],1,'逐条声线传播','r⁽α⁾(s), z⁽α⁾(s)'),beamPlot=introPanel(ctx,rows[1],2,'多声线 + 波束累积','Σ B⁽α⁾(s,n)'),pressurePlot=introPanel(ctx,rows[2],3,'逐条声压相干叠加','coherent-sum');
+  const visible=introRayFanPlot(ctx,rayPlot,sequence);introBeamFanPlot(ctx,beamPlot,sequence);introPressurePlot(ctx,pressurePlot,sequence);
+  $('introRayNumber').textContent=`${String(visible).padStart(2,'0')} / ${String(introDemoRays.length).padStart(2,'0')}`;$('introAngle').textContent=`${introAngles[sequence.current].toFixed(1).replace('-','−')}°`;$('introProgressBar').style.width=(state.introProgress*100).toFixed(1)+'%';$('introProgressText').textContent=Math.round(state.introProgress*100)+'%';
 }
 
-function startIntroAnimation(){
-  cancelAnimationFrame(state.introRaf);state.introIndex=0;state.introStart=performance.now();state.introHold=0;
-  const duration=2800,pause=260;
-  function frame(now){
-    if(!state.data?.rays?.length){drawIntroRay(0);state.introRaf=requestAnimationFrame(frame);return;}
-    const elapsed=now-state.introStart,progress=Math.min(1,elapsed/duration);drawIntroRay(progress);
-    if(elapsed>=duration+pause){if(state.introIndex<introRayOrder.length-1){state.introIndex++;state.introStart=now;}else if(!state.introHold){state.introHold=now;}else if(now-state.introHold>2200){state.introIndex=0;state.introStart=now;state.introHold=0;}}
-    state.introRaf=requestAnimationFrame(frame);
-  }
+function startIntroAnimation(initialProgress=0){
+  const duration=10800,offset=typeof initialProgress==='number'?Math.max(0,Math.min(.95,initialProgress)):0;cancelAnimationFrame(state.introRaf);state.introStart=performance.now()-duration*offset;
+  function frame(now){const progress=Math.min(1,(now-state.introStart)/duration);drawIntroRay(progress);if(progress<1)state.introRaf=requestAnimationFrame(frame);else state.introRaf=null;}
   state.introRaf=requestAnimationFrame(frame);
 }
 
 function animate() {
   cancelAnimationFrame(state.raf); const start=performance.now(), duration=1800;
-  function frame(now){const t=Math.min(1,(now-start)/duration), eased=1-Math.pow(1-t,3);state.animation=eased;drawRay(eased);drawLoss(eased);if(t<1)state.raf=requestAnimationFrame(frame);}
+  function frame(now){const t=Math.min(1,(now-start)/duration), eased=1-Math.pow(1-t,3);state.animation=eased;drawRay(eased);drawLoss(eased);drawVelocity(eased);if(t<1)state.raf=requestAnimationFrame(frame);}
   state.raf=requestAnimationFrame(frame);
 }
 
@@ -204,11 +401,10 @@ function eigenAxes(ctx,w,h,maxRange) {
 function drawEigen() {
   const {ctx,w,h}=fitCanvas(canvases.eigen);ctx.clearRect(0,0,w,h);ctx.fillStyle='#06161f';ctx.fillRect(0,0,w,h);
   const data=state.eigen,maxRange=100,a=eigenAxes(ctx,w,h,maxRange);if(!data)return;
-  const receiver=state.receiverPreview||data.receiver,x=r=>a.l+r/maxRange*a.pw,y=z=>a.t+z/5000*a.ph;
-  ctx.lineWidth=.65;ctx.strokeStyle='rgba(139,157,161,.22)';
-  data.coarse_rays.forEach(ray=>{ctx.beginPath();ray.path.forEach((pt,i)=>i?ctx.lineTo(x(pt[0]),y(pt[1])):ctx.moveTo(x(pt[0]),y(pt[1])));ctx.stroke();});
-  ctx.setLineDash([5,4]);data.equal_angle_eigenrays.forEach(ray=>{ctx.beginPath();ray.path.forEach((pt,i)=>i?ctx.lineTo(x(pt[0]),y(pt[1])):ctx.moveTo(x(pt[0]),y(pt[1])));ctx.strokeStyle='rgba(91,157,255,.75)';ctx.lineWidth=1.15;ctx.stroke();});ctx.setLineDash([]);
-  data.eigenrays.forEach(ray=>{ctx.beginPath();ray.path.forEach((pt,i)=>i?ctx.lineTo(x(pt[0]),y(pt[1])):ctx.moveTo(x(pt[0]),y(pt[1])));ctx.strokeStyle=eigenColor(ray);ctx.lineWidth=1.65;ctx.shadowColor=eigenColor(ray);ctx.shadowBlur=5;ctx.stroke();ctx.shadowBlur=0;});
+  const receiver=state.receiverPreview||data.receiver,x=r=>a.l+r/maxRange*a.pw,y=z=>a.t+z/5000*a.ph,sourceDepth=params().source_depth,solvedSource=state.solvedEigenSourceDepth??sourceDepth,sourceShift=sourceDepth-solvedSource,pathY=pt=>y(Math.max(0,Math.min(5000,pt[1]+sourceShift*Math.exp(-pt[0]/10))));
+  ctx.setLineDash([5,4]);data.equal_angle_eigenrays.forEach(ray=>{ctx.beginPath();ray.path.forEach((pt,i)=>i?ctx.lineTo(x(pt[0]),pathY(pt)):ctx.moveTo(x(pt[0]),pathY(pt)));ctx.strokeStyle='rgba(91,157,255,.75)';ctx.lineWidth=1.15;ctx.stroke();});ctx.setLineDash([]);
+  data.eigenrays.forEach(ray=>{ctx.beginPath();ray.path.forEach((pt,i)=>i?ctx.lineTo(x(pt[0]),pathY(pt)):ctx.moveTo(x(pt[0]),pathY(pt)));ctx.strokeStyle=eigenColor(ray);ctx.lineWidth=1.65;ctx.shadowColor=eigenColor(ray);ctx.shadowBlur=5;ctx.stroke();ctx.shadowBlur=0;});
+  const sourceX=x(0),sourceY=y(sourceDepth);if(state.eigenSourceDragging){ctx.setLineDash([3,4]);ctx.strokeStyle='rgba(248,180,76,.34)';ctx.beginPath();ctx.moveTo(a.l,sourceY);ctx.lineTo(a.l+a.pw,sourceY);ctx.stroke();ctx.setLineDash([]);}ctx.fillStyle='#f8b44c';ctx.shadowColor='#f8b44c';ctx.shadowBlur=state.eigenSourceDragging?15:10;ctx.beginPath();ctx.arc(sourceX,sourceY,state.eigenSourceDragging?6:4.5,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;ctx.strokeStyle='rgba(248,180,76,.48)';ctx.beginPath();ctx.arc(sourceX,sourceY,9,0,Math.PI*2);ctx.stroke();ctx.fillStyle='#e2be78';ctx.font='10px ui-monospace,monospace';ctx.textAlign='left';ctx.fillText(`声源 ${sourceDepth.toLocaleString('zh-CN')} m`,sourceX+12,sourceY-10);
   const rx=x(receiver.range_km),ry=y(receiver.depth_m),boxLeft=Math.max(0,receiver.range_km-1),boxRight=Math.min(100,receiver.range_km+1),boxTop=Math.max(0,receiver.depth_m-180),boxBottom=Math.min(5000,receiver.depth_m+180);
   if(state.receiverDragging){ctx.setLineDash([3,4]);ctx.strokeStyle='rgba(248,180,76,.36)';ctx.beginPath();ctx.moveTo(a.l,ry);ctx.lineTo(a.l+a.pw,ry);ctx.moveTo(rx,a.t);ctx.lineTo(rx,a.t+a.ph);ctx.stroke();ctx.setLineDash([]);}
   ctx.fillStyle='#f8b44c';ctx.shadowColor='#f8b44c';ctx.shadowBlur=12;ctx.beginPath();ctx.arc(rx,ry,state.receiverDragging?7:5,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;ctx.strokeStyle='#f8b44c';ctx.strokeRect(x(boxLeft),y(boxTop),x(boxRight)-x(boxLeft),y(boxBottom)-y(boxTop));
@@ -217,7 +413,6 @@ function drawEigen() {
   const zw=Math.min(230,w*.34),zh=Math.min(150,h*.36),zx=w-zw-24,zy=32;ctx.fillStyle='rgba(5,19,27,.96)';ctx.fillRect(zx,zy,zw,zh);ctx.strokeStyle='#285365';ctx.strokeRect(zx,zy,zw,zh);
   ctx.save();ctx.beginPath();ctx.rect(zx+8,zy+18,zw-16,zh-27);ctx.clip();
   const zxmin=boxLeft,zxmax=boxRight,zymin=boxTop,zymax=boxBottom;const xx=r=>zx+8+(r-zxmin)/Math.max(.1,zxmax-zxmin)*(zw-16),yy=z=>zy+18+(z-zymin)/Math.max(1,zymax-zymin)*(zh-27);
-  data.coarse_rays.forEach(ray=>{ctx.beginPath();let active=false;ray.path.forEach(pt=>{if(pt[0]<zxmin||pt[0]>zxmax)return;active?ctx.lineTo(xx(pt[0]),yy(pt[1])):(ctx.moveTo(xx(pt[0]),yy(pt[1])),active=true);});ctx.strokeStyle='rgba(145,157,160,.3)';ctx.lineWidth=.7;ctx.stroke();});
   ctx.setLineDash([4,3]);data.equal_angle_eigenrays.forEach(ray=>{ctx.beginPath();let active=false;ray.path.forEach(pt=>{if(pt[0]<zxmin||pt[0]>zxmax)return;active?ctx.lineTo(xx(pt[0]),yy(pt[1])):(ctx.moveTo(xx(pt[0]),yy(pt[1])),active=true);});ctx.strokeStyle='rgba(91,157,255,.8)';ctx.lineWidth=1;ctx.stroke();});ctx.setLineDash([]);
   data.eigenrays.forEach(ray=>{ctx.beginPath();let active=false;ray.path.forEach(pt=>{if(pt[0]<zxmin||pt[0]>zxmax)return;active?ctx.lineTo(xx(pt[0]),yy(pt[1])):(ctx.moveTo(xx(pt[0]),yy(pt[1])),active=true);});ctx.strokeStyle=eigenColor(ray);ctx.lineWidth=1.25;ctx.stroke();});
   ctx.fillStyle='#f8b44c';ctx.beginPath();ctx.arc(xx(receiver.range_km),yy(receiver.depth_m),3.5,0,Math.PI*2);ctx.fill();ctx.restore();
@@ -227,6 +422,19 @@ function drawEigen() {
 function receiverFromPointer(event){
   const rect=canvases.eigen.getBoundingClientRect(),a={l:46,r:16,t:18,b:34},pw=rect.width-62,ph=rect.height-52,px=event.clientX-rect.left,py=event.clientY-rect.top;
   return {range_km:Math.round(Math.max(5,Math.min(95,(px-a.l)/pw*100))*2)/2,depth_m:Math.round(Math.max(20,Math.min(4980,(py-a.t)/ph*5000))/10)*10,px,py,a,pw,ph};
+}
+
+function startEigenInteraction(event){
+  if(!state.eigen||$('eigenRun').disabled)return;const point=receiverFromPointer(event),sourceX=point.a.l,sourceY=point.a.t+params().source_depth/5000*point.ph;
+  if(Math.hypot(point.px-sourceX,point.py-sourceY)<=22){clearTimeout(debounce);state.eigenSourceDragging=true;canvases.eigen.classList.add('dragging');canvases.eigen.setPointerCapture?.(event.pointerId);moveEigenInteraction(event);return;}startReceiverDrag(event);
+}
+
+function moveEigenInteraction(event){
+  if(!state.eigenSourceDragging){moveReceiver(event);return;}const point=receiverFromPointer(event),depth=Math.round(Math.max(50,Math.min(4800,point.depth_m))/10)*10;controls.sourceDepth.value=String(depth);eigenEnvControls.sourceDepth.value=String(depth);syncLabels();drawEigenEnvironment();drawRay(1);$('eigenStatus').classList.add('eigen-running');$('eigenStatus').querySelector('span').textContent='拖动声源 · 松开后重新求解';drawEigen();
+}
+
+function finishEigenInteraction(event){
+  if(!state.eigenSourceDragging){finishReceiverDrag(event);return;}moveEigenInteraction(event);state.eigenSourceDragging=false;canvases.eigen.classList.remove('dragging');run();runEigen();
 }
 
 function startReceiverDrag(event){
@@ -251,21 +459,21 @@ function drawArrivals() {
   equal.forEach(ray=>{const x=a.l+(ray.travel_time_s-lo)/(hi-lo)*a.pw,amp=ray.amplitude/maxAmp,y=a.t+(1-amp)*a.ph;ctx.strokeStyle='rgba(91,157,255,.72)';ctx.lineWidth=1;ctx.setLineDash([3,2]);ctx.beginPath();ctx.moveTo(x,a.t+a.ph);ctx.lineTo(x,y);ctx.stroke();ctx.setLineDash([]);ctx.strokeStyle='#5b9dff';ctx.beginPath();ctx.arc(x,y,3,0,Math.PI*2);ctx.stroke();});
   rays.forEach(ray=>{const x=a.l+(ray.travel_time_s-lo)/(hi-lo)*a.pw,amp=ray.amplitude/maxAmp,y=a.t+(1-amp)*a.ph;ctx.strokeStyle=eigenColor(ray);ctx.lineWidth=1.3;ctx.beginPath();ctx.moveTo(x,a.t+a.ph);ctx.lineTo(x,y);ctx.stroke();ctx.fillStyle=eigenColor(ray);ctx.beginPath();ctx.arc(x,y,3,0,Math.PI*2);ctx.fill();});
   for(let i=0;i<=4;i++){const x=a.l+a.pw*i/4;ctx.fillStyle='#486b76';ctx.textAlign='center';ctx.fillText((lo+(hi-lo)*i/4).toFixed(2),x,h-12);}
-  ctx.fillText('到达时间 / s',a.l+a.pw/2,h-3);ctx.save();ctx.translate(10,a.t+a.ph/2);ctx.rotate(-Math.PI/2);ctx.fillText('归一化幅度',0,0);ctx.restore();ctx.textAlign='right';ctx.fillStyle='#5b9dff';ctx.fillText('○ 1000 等角度',w-72,11);ctx.fillStyle='#c5f16b';ctx.fillText('● 精确本征',w-12,11);
+  ctx.fillText('到达时间 / s',a.l+a.pw/2,h-3);ctx.save();ctx.translate(10,a.t+a.ph/2);ctx.rotate(-Math.PI/2);ctx.fillText('归一化幅度',0,0);ctx.restore();ctx.textAlign='right';ctx.fillStyle='#5b9dff';ctx.fillText('○ 本征声线',w-72,11);ctx.fillStyle='#c5f16b';ctx.fillText('● 精确本征',w-12,11);
 }
 
 function renderEigenSummary() {
   const data=state.eigen;if(!data)return;const rays=data.eigenrays,equal=data.equal_angle_eigenrays;
   $('coarseMiss').textContent=data.equal_angle_residual_rmse_m.toFixed(2)+' m';$('exactResidual').textContent=data.precise_residual_rmse_m.toFixed(3)+' m';$('eigenCount').textContent=`${equal.length} / ${rays.length} paths`;$('eigenIterations').textContent=data.iterations==null?'MODE_E_PC':data.iterations+' iter';$('coherentTl').textContent=data.coherent_tl_db.toFixed(2)+' dB';$('incoherentTl').textContent=data.incoherent_tl_db.toFixed(2)+' dB';
   const timeText=ray=>ray.arrival_valid&&Number.isFinite(ray.travel_time_s)?ray.travel_time_s.toFixed(4)+' s':'—',phaseText=ray=>ray.arrival_valid&&Number.isFinite(ray.phase_deg)?ray.phase_deg.toFixed(1)+'°':'—';
-  const exactRows=rays.map(ray=>`<tr><td class="method-precise">精确</td><td>E${String(ray.id).padStart(2,'0')}</td><td style="color:${eigenColor(ray)}">${ray.kind}</td><td>${ray.launch_angle.toFixed(4)}°</td><td>${timeText(ray)}</td><td>${phaseText(ray)}</td><td>${Math.abs(ray.residual_m).toFixed(3)} m</td></tr>`),equalRows=equal.map(ray=>`<tr><td class="method-equal">等角度</td><td>A${String(ray.id).padStart(2,'0')}</td><td>${ray.kind}</td><td>${ray.launch_angle.toFixed(4)}°</td><td>${timeText(ray)}</td><td>${phaseText(ray)}</td><td>${Math.abs(ray.residual_m).toFixed(2)} m</td></tr>`);
+  const exactRows=rays.map(ray=>`<tr><td class="method-precise">精确</td><td>E${String(ray.id).padStart(2,'0')}</td><td style="color:${eigenColor(ray)}">${ray.kind}</td><td>${ray.launch_angle.toFixed(4)}°</td><td>${timeText(ray)}</td><td>${phaseText(ray)}</td><td>${Math.abs(ray.residual_m).toFixed(3)} m</td></tr>`),equalRows=equal.map(ray=>`<tr><td class="method-equal">本征</td><td>A${String(ray.id).padStart(2,'0')}</td><td>${ray.kind}</td><td>${ray.launch_angle.toFixed(4)}°</td><td>${timeText(ray)}</td><td>${phaseText(ray)}</td><td>${Math.abs(ray.residual_m).toFixed(2)} m</td></tr>`);
   $('arrivalRows').innerHTML=exactRows.length||equalRows.length?[...exactRows,...equalRows].join(''):'<tr><td colspan="7">当前角度范围内未发现本征声线，请调整接收点。</td></tr>';
 }
 
 async function runEigen() {
   const token=++state.eigenRequest,p=params();p.receiver_range=Math.max(5,Math.min(95,Number($('receiverRange').value)||50));p.receiver_depth=Math.max(20,Math.min(4980,Number($('receiverDepth').value)||1000));p.tolerance=Number($('eigenTolerance').value);
-  const names={munk:'Munk 深海声道',surface:'表层跃变',constant:'等声速水体',custom:'自定义 500 m 节点'};$('eigenEnv').textContent=`${names[p.profile]} · 声源 ${p.source_depth.toLocaleString('zh-CN')} m · ${p.frequency} Hz`;$('eigenStatus').classList.add('eigen-running');$('eigenStatus').querySelector('span').textContent='正在追踪 1000 条等角度粗划分声线';$('eigenRun').disabled=true;
-  try{const res=await fetch('/api/eigenrays',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)});if(!res.ok)throw new Error(`HTTP ${res.status}`);const data=await res.json();if(token!==state.eigenRequest)return;state.eigen=data;state.receiverPreview=null;state.receiverDragging=false;canvases.eigen.classList.remove('dragging');drawEigen();drawArrivals();renderEigenSummary();$('eigenStatus').querySelector('span').textContent=`${data.coarse_angle_count} 条粗划分完成 · ${data.compute_ms.toFixed(1)} ms`;$('eigenStatus').classList.remove('eigen-running');}
+  const names={munk:'Munk 深海声道',surface:'表层跃变',constant:'等声速水体',custom:'自定义 500 m 节点'};$('eigenEnv').textContent=`${names[p.profile]} · 声源 ${p.source_depth.toLocaleString('zh-CN')} m · ${p.frequency} Hz`;$('eigenStatus').classList.add('eigen-running');$('eigenStatus').querySelector('span').textContent='正在计算本征声线与精确本征声线';$('eigenRun').disabled=true;
+  try{const res=await fetch('/api/eigenrays',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)});if(!res.ok)throw new Error(`HTTP ${res.status}`);const data=await res.json();if(token!==state.eigenRequest)return;state.eigen=data;state.solvedEigenSourceDepth=p.source_depth;state.receiverPreview=null;state.receiverDragging=false;state.eigenSourceDragging=false;canvases.eigen.classList.remove('dragging');syncEigenEnvironmentFromMain();drawEigen();drawArrivals();renderEigenSummary();$('eigenEnv').textContent=`${names[p.profile]} · 声源 ${p.source_depth.toLocaleString('zh-CN')} m · ${p.frequency} Hz · ${data.thread_count} threads`;$('eigenStatus').querySelector('span').textContent=`本征 ${data.equal_angle_eigenrays.length} 条 · 精确 ${data.eigenrays.length} 条 · ${data.compute_ms.toFixed(1)} ms`;$('eigenStatus').classList.remove('eigen-running');}
   catch(e){$('eigenStatus').querySelector('span').textContent='求解失败 · 请确认 Python 服务已启动';$('eigenStatus').classList.remove('eigen-running');console.error(e);}finally{if(token===state.eigenRequest)$('eigenRun').disabled=false;}
 }
 
@@ -274,7 +482,7 @@ async function run() {
   const started=performance.now();
   try {
     const res=await fetch('/api/simulate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(params())});
-    if(!res.ok)throw new Error(`HTTP ${res.status}`);const data=await res.json();if(token!==state.request)return;state.data=data;state.animation=1;$('bottomReflectionLoss').textContent=data.bottom.absorption_db_per_wavelength.toFixed(2)+' dB/λ';$('fieldRayCount').textContent=data.field_ray_count.toLocaleString('zh-CN')+' RAYS';buildLossImage();drawSSP();drawRay(1);drawLoss(1);startIntroAnimation();
+    if(!res.ok)throw new Error(`HTTP ${res.status}`);const data=await res.json();if(token!==state.request)return;state.data=data;state.solvedSourceDepth=params().source_depth;state.animation=1;$('bottomReflectionLoss').textContent=data.bottom.absorption_db_per_wavelength.toFixed(2)+' dB/λ';$('fieldRayCount').textContent=data.field_ray_count.toLocaleString('zh-CN')+' RAYS · INCOHERENT';buildLossImage();buildVelocityImages();drawSSP();drawRay(1);drawLoss(1);drawVelocity(1);drawIntroRay(state.introProgress||1);
     $('simStatus').textContent='SIMULATION COMPLETE';$('simTime').textContent=`${(performance.now()-started).toFixed(1)} ms`;
   } catch(e) {
     $('simStatus').textContent='OFFLINE';$('simTime').textContent='START server.py';console.error(e);
@@ -282,19 +490,26 @@ async function run() {
 }
 
 let debounce;
-function markEigenStale(){if(!$('eigenStatus')||$('eigenRun').disabled)return;$('eigenStatus').querySelector('span').textContent='环境已更新 · 点击重新搜索';}
-function schedule(){syncLabels();markEigenStale();clearTimeout(debounce);debounce=setTimeout(run,280);}
+function recalculateEnvironment(){run();runEigen();}
+function markEigenStale(){if(!$('eigenStatus'))return;$('eigenStatus').classList.add('eigen-running');$('eigenStatus').querySelector('span').textContent='环境参数已变化 · 正在重新计算';}
+function schedule(){syncLabels();syncEigenEnvironmentFromMain();markEigenStale();clearTimeout(debounce);debounce=setTimeout(recalculateEnvironment,180);}
 Object.values(controls).forEach(el=>el.addEventListener(el.type==='number'?'change':'input',schedule));
+Object.entries(eigenEnvControls).forEach(([key,el])=>el.addEventListener(el.type==='number'?'change':'input',()=>{controls[key].value=el.value;schedule();drawEigen();}));
+['sspTableRows','eigenSSPTableRows'].forEach(id=>{$(id).addEventListener('change',updateSSPTableCell);$(id).addEventListener('click',deleteSSPTableRow);});
+$('addSSPRow').addEventListener('click',addSSPTableRow);$('eigenAddSSPRow').addEventListener('click',addSSPTableRow);
 $('sspCanvas').addEventListener('pointerdown',e=>sspPointer(e));
 $('sspCanvas').addEventListener('pointermove',e=>{if(state.sspDrag>=0)sspPointer(e);});
 function finishSSPDrag(e){if(state.sspDrag<0)return;sspPointer(e,true);state.sspDrag=-1;drawSSP();}
 $('sspCanvas').addEventListener('pointerup',finishSSPDrag);$('sspCanvas').addEventListener('pointercancel',finishSSPDrag);
-$('runButton').addEventListener('click',run);$('replayButton').addEventListener('click',()=>{drawRay(1);drawLoss(1);});
-$('introReplay').addEventListener('click',startIntroAnimation);
+$('rayCanvas').addEventListener('pointerdown',startSourceDrag);$('rayCanvas').addEventListener('pointermove',moveSource);$('rayCanvas').addEventListener('pointerup',finishSourceDrag);$('rayCanvas').addEventListener('pointercancel',finishSourceDrag);
+$('runButton').addEventListener('click',run);$('replayButton').addEventListener('click',()=>{drawRay(1);drawLoss(1);drawVelocity(1);});
+$('introReplay').addEventListener('click',()=>startIntroAnimation());
 canvases.loss.addEventListener('mousemove',e=>{if(!state.data)return;const rect=e.target.getBoundingClientRect(),a={l:39,r:12,t:19,b:28};const px=Math.max(0,Math.min(1,(e.clientX-rect.left-a.l)/(rect.width-a.l-a.r))),py=Math.max(0,Math.min(1,(e.clientY-rect.top-a.t)/(rect.height-a.t-a.b)));const {cols,rows,values}=state.data.loss;const v=values[Math.min(rows-1,Math.floor(py*rows))*cols+Math.min(cols-1,Math.floor(px*cols))];$('tlReadout').textContent=v.toFixed(1)+' dB';});
-window.addEventListener('resize',()=>{drawSSP();drawRay(state.animation||1);drawLoss(state.animation||1);});
+function bindVelocityReadout(canvas,key,readoutId){canvas.addEventListener('mousemove',event=>{if(!state.data?.velocity)return;const rect=event.target.getBoundingClientRect(),a={l:39,r:12,t:19,b:28},px=Math.max(0,Math.min(1,(event.clientX-rect.left-a.l)/(rect.width-a.l-a.r))),py=Math.max(0,Math.min(1,(event.clientY-rect.top-a.t)/(rect.height-a.t-a.b))),{cols,rows}=state.data.velocity,level=state.data.velocity[key][Math.min(rows-1,Math.floor(py*rows))*cols+Math.min(cols-1,Math.floor(px*cols))],magnitude=Math.pow(10,-level/20);$(readoutId).textContent=`${magnitude.toExponential(2)} · ${level.toFixed(1)} dB`;});}
+bindVelocityReadout(canvases.horizontalVelocity,'horizontal_db','horizontalVelocityReadout');bindVelocityReadout(canvases.verticalVelocity,'vertical_db','verticalVelocityReadout');
+window.addEventListener('resize',()=>{drawIntroRay(state.introProgress||1);drawSSP();drawEigenEnvironment();drawRay(state.animation||1);drawLoss(state.animation||1);drawVelocity(state.animation||1);});
 document.querySelectorAll('nav a').forEach(a=>a.addEventListener('click',()=>{document.querySelectorAll('nav a').forEach(x=>x.classList.remove('active'));a.classList.add('active');}));
 $('eigenRun').addEventListener('click',runEigen);$('receiverRange').addEventListener('change',runEigen);$('receiverDepth').addEventListener('change',runEigen);$('eigenTolerance').addEventListener('change',runEigen);
-canvases.eigen.addEventListener('pointerdown',startReceiverDrag);canvases.eigen.addEventListener('pointermove',moveReceiver);canvases.eigen.addEventListener('pointerup',finishReceiverDrag);canvases.eigen.addEventListener('pointercancel',finishReceiverDrag);
+canvases.eigen.addEventListener('pointerdown',startEigenInteraction);canvases.eigen.addEventListener('pointermove',moveEigenInteraction);canvases.eigen.addEventListener('pointerup',finishEigenInteraction);canvases.eigen.addEventListener('pointercancel',finishEigenInteraction);
 window.addEventListener('resize',()=>{drawEigen();drawArrivals();});
-syncLabels();drawIntroRay();drawSSP();drawRay();drawLoss();drawEigen();drawArrivals();startIntroAnimation();run();runEigen();
+syncLabels();syncEigenEnvironmentFromMain();drawIntroRay(0);drawSSP();drawRay();drawLoss();drawVelocity();drawEigen();drawArrivals();startIntroAnimation(0);run();runEigen();

@@ -8,14 +8,18 @@ views owned by Bellhop's ``ResultHandle``.
 from __future__ import annotations
 
 import math
+import os
 from typing import Any
 
 
 DEPTH_M = 5000.0
 MAX_RANGE_M = 100_000.0
-COARSE_ANGLE_COUNT = 1000
+LAUNCH_ANGLE_COUNT = 1000
+FIELD_RANGE_COUNT = 201
+FIELD_DEPTH_COUNT = 201
 ANGLE_MIN_DEG = -20.3
 ANGLE_MAX_DEG = 20.3
+DEFAULT_THREAD_COUNT = max(1, (os.cpu_count() or 1) // 2)
 
 
 class OOBUnavailableError(RuntimeError):
@@ -166,7 +170,10 @@ def _axis_max(axis: Any) -> float:
 
 def _run(value: Any) -> Any:
     api = _api()
-    solver = api["Bellhop2D"](thread_count=1, memory_limit_bytes=768 * 1024 * 1024)
+    solver = api["Bellhop2D"](
+        thread_count=DEFAULT_THREAD_COUNT,
+        memory_limit_bytes=768 * 1024 * 1024,
+    )
     solver.set_input(value)
     return solver.run()
 
@@ -273,7 +280,7 @@ def _combine_rays(
     rays = _ray_views(ray_result.rays())
     arrivals = _arrivals(arrival_result)
     available = set(range(len(arrivals)))
-    coarse_step = (ANGLE_MAX_DEG - ANGLE_MIN_DEG) / (COARSE_ANGLE_COUNT - 1)
+    coarse_step = (ANGLE_MAX_DEG - ANGLE_MIN_DEG) / (LAUNCH_ANGLE_COUNT - 1)
     match_tolerance_deg = max(1.0e-4, 1.5 * coarse_step)
     combined: list[dict[str, Any]] = []
     for ray in rays:
@@ -339,8 +346,8 @@ def _serialize(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 def simulate(payload: dict[str, Any]) -> dict[str, Any]:
     api = _api()
-    ranges = api["AxisInput"].linspace(100.0, MAX_RANGE_M, 150)
-    depths = api["AxisInput"].linspace(0.0, DEPTH_M, 86)
+    ranges = api["AxisInput"].linspace(100.0, MAX_RANGE_M, FIELD_RANGE_COUNT)
+    depths = api["AxisInput"].linspace(0.0, DEPTH_M, FIELD_DEPTH_COUNT)
 
     ray_input, profile, ssp_depths, ssp_speeds = _input(
         payload,
@@ -351,17 +358,38 @@ def simulate(payload: dict[str, Any]) -> dict[str, Any]:
     )
     field_input, _, _, _ = _input(
         payload,
-        run_mode=api["RunMode"].COHERENT_TL,
-        launch_count=COARSE_ANGLE_COUNT,
+        run_mode=api["RunMode"].INCOHERENT_TL,
+        launch_count=LAUNCH_ANGLE_COUNT,
         receiver_depths=depths,
         receiver_ranges=ranges,
     )
+    field_input.options.velocity_enabled = True
     ray_set = _run(ray_input).rays()
-    field = _run(field_input).pressure_field()
+    field_result = _run(field_input)
+    field = field_result.pressure_field()
     np = api["np"]
     tl = np.asarray(field.transmission_loss_db, dtype=np.float64)
-    tl = np.nan_to_num(tl, nan=120.0, posinf=120.0, neginf=60.0)
-    tl = np.clip(tl, 60.0, 120.0)
+    tl = np.nan_to_num(tl, nan=100.0, posinf=100.0, neginf=40.0)
+    tl = np.clip(tl, 40.0, 100.0)
+    # Native OOB particle-velocity components. The high-level PressureField
+    # wrapper currently forwards pressure only, while the owning native
+    # ResultHandle exposes both enabled velocity fields as read-only arrays.
+    horizontal_velocity = np.asarray(
+        field_result._handle.horizontal_velocity[0], dtype=np.complex64
+    )
+    vertical_velocity = np.asarray(
+        field_result._handle.vertical_velocity[0], dtype=np.complex64
+    )
+
+    def velocity_level(component: Any) -> Any:
+        level = -20.0 * np.log10(np.maximum(
+            np.abs(component), np.finfo(np.float32).tiny
+        ))
+        level = np.nan_to_num(level, nan=120.0, posinf=120.0, neginf=30.0)
+        return np.clip(level, 30.0, 120.0)
+
+    horizontal_level = velocity_level(horizontal_velocity)
+    vertical_level = velocity_level(vertical_velocity)
     bottom_speed, bottom_density, bottom_absorption = _bottom(payload)
     ray_views = _ray_views(ray_set)
     ray_paths = [_clip_path(ray["points"], MAX_RANGE_M) for ray in ray_views]
@@ -376,8 +404,23 @@ def simulate(payload: dict[str, Any]) -> dict[str, Any]:
             "rows": int(field.receiver_depths_m.size),
             "values": [round(float(value), 2) for value in tl.reshape(-1)],
         },
+        "velocity": {
+            "cols": int(field.receiver_ranges_m.size),
+            "rows": int(field.receiver_depths_m.size),
+            "horizontal_db": [
+                round(float(value), 2) for value in horizontal_level.reshape(-1)
+            ],
+            "vertical_db": [
+                round(float(value), 2) for value in vertical_level.reshape(-1)
+            ],
+            "minimum_db": 30.0,
+            "maximum_db": 120.0,
+            "model": "OOB_NATIVE_RESULT_HANDLE_VELOCITY",
+        },
         "display_ray_count": len(ray_paths),
-        "field_ray_count": COARSE_ANGLE_COUNT,
+        "field_ray_count": LAUNCH_ANGLE_COUNT,
+        "field_mode": "INCOHERENT_TL",
+        "thread_count": DEFAULT_THREAD_COUNT,
         "bottom": {
             "speed_mps": bottom_speed,
             "density_kgm3": bottom_density,
@@ -399,34 +442,17 @@ def precise_eigenrays(payload: dict[str, Any]) -> dict[str, Any]:
         return _input(
             payload,
             run_mode=mode,
-            launch_count=COARSE_ANGLE_COUNT,
+            launch_count=LAUNCH_ANGLE_COUNT,
             receiver_depths=receiver_depths,
             receiver_ranges=receiver_ranges,
         )[0]
 
-    # OOB's traditional equal-angle result, its returned arrival structure,
-    # and the MODE_E_PC_* precise algorithms all execute in native memory.
-    fan_result = _run(configured(api["RunMode"].RAY))
+    # Only the two eigenray methods are evaluated. A separate R-mode fan is
+    # intentionally omitted because it does not contribute to either result.
     equal_ray_result = _run(configured(api["RunMode"].EIGENRAY))
     equal_arrival_result = _run(configured(api["RunMode"].ARRIVALS))
     precise_ray_result = _run(configured(api["RunMode"].PARTICLE_RAY))
     precise_arrival_result = _run(configured(api["RunMode"].PARTICLE_ARRIVALS))
-
-    fan = _ray_views(fan_result.rays())
-    display_indices = list(range(0, len(fan), 25))
-    if fan and display_indices[-1] != len(fan) - 1:
-        display_indices.append(len(fan) - 1)
-    coarse = []
-    nearest_miss = float("inf")
-    for index, ray in enumerate(fan):
-        miss = _depth_at_range(ray["points"], receiver_range_m) - receiver_depth_m
-        nearest_miss = min(nearest_miss, abs(miss))
-        if index in display_indices:
-            coarse.append({
-                "angle": round(ray["angle"], 7),
-                "miss_m": round(miss, 2),
-                "path": _clip_path(ray["points"], receiver_range_m + 1000.0),
-            })
 
     equal = _combine_rays(
         equal_ray_result, equal_arrival_result, receiver_range_m, receiver_depth_m
@@ -434,7 +460,6 @@ def precise_eigenrays(payload: dict[str, Any]) -> dict[str, Any]:
     precise = _combine_rays(
         precise_ray_result, precise_arrival_result, receiver_range_m, receiver_depth_m
     )
-    np = api["np"]
     pressure = sum((item["_pressure"] for item in precise if item["arrival_valid"]), 0j)
     incoherent_power = sum(
         item["amplitude"] ** 2 for item in precise if item["arrival_valid"]
@@ -450,18 +475,16 @@ def precise_eigenrays(payload: dict[str, Any]) -> dict[str, Any]:
     )
     return {
         "receiver": {"range_km": receiver_range_km, "depth_m": receiver_depth_m},
-        "coarse_rays": coarse,
-        "coarse_angle_count": COARSE_ANGLE_COUNT,
-        "coarse_display_count": len(coarse),
+        "launch_angle_count": LAUNCH_ANGLE_COUNT,
         "angle_range_degrees": [ANGLE_MIN_DEG, ANGLE_MAX_DEG],
         "equal_angle_eigenrays": _serialize(equal),
         "eigenrays": _serialize(precise),
-        "nearest_coarse_miss_m": round(nearest_miss, 2) if np.isfinite(nearest_miss) else None,
         "equal_angle_residual_rmse_m": round(equal_rmse, 4),
         "precise_residual_rmse_m": round(precise_rmse, 4),
         "tolerance_m": _clamp(payload.get("tolerance", 1.0), 0.05, 25.0),
         "iterations": None,
         "coherent_tl_db": round(coherent_tl, 2),
         "incoherent_tl_db": round(incoherent_tl, 2),
+        "thread_count": DEFAULT_THREAD_COUNT,
         "engine": "OOB_BELLHOP2D_MODE_E_PC_MEMORY",
     }

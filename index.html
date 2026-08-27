@@ -27,41 +27,135 @@
         <div class="ray-intro-copy">
           <p class="eyebrow">RAY EQUATIONS · RUNGE–KUTTA INTEGRATION</p>
           <h1 id="rayIntroTitle">声线，如何一步步<br><em>穿过海洋。</em></h1>
-          <p class="intro-lead">将程函方程写成一阶 Hamilton 系统，从声源给定初始方向，沿弧长 <i>s</i> 逐步积分。右侧依次展示每条声线的数值推进过程。</p>
+          <p class="intro-lead">Munk 声速剖面使多条声线围绕深海声道轴弯曲传播。右侧按发射角一条一条追踪声线，同步展示当前声线的高斯波束和复声压 <i>p<sup>(α)</sup></i>，再按 <i>p = ∑<sub>α</sub> p<sup>(α)</sup></i> 完成相干叠加，直观展示二维声场的形成过程。</p>
 
-          <div class="equation-card" aria-label="经典射线方程">
-            <div class="equation-title"><span>CLASSIC RAY EQUATIONS</span><strong>经典射线方程</strong></div>
-            <div class="equation-system">
+          <div class="equation-card" aria-label="声线轨迹方程、动态射线方程、几何波束与声压计算公式">
+            <div class="equation-title"><span>RAY · DYNAMIC RAY · PRESSURE</span><strong>声线、波束与声压</strong></div>
+
+            <section class="equation-section" aria-labelledby="trajectoryEquationTitle">
+              <div class="equation-section-head"><span>01 · TRAJECTORY</span><strong id="trajectoryEquationTitle">声线轨迹方程</strong></div>
+              <p class="equation-note">以下四个一阶方程只负责追踪中心声线的位置与方向：</p>
+              <div class="equation-system trajectory-system">
               <math display="block">
-                <mrow><mfrac><mrow><mi>d</mi><mi>r</mi></mrow><mrow><mi>d</mi><mi>s</mi></mrow></mfrac><mo>=</mo><mi>c</mi><msub><mi>ξ</mi><mi>s</mi></msub><mo>(</mo><mi>s</mi><mo>)</mo><mo>,</mo></mrow>
+                <mrow><mfrac><mrow><mi>d</mi><mi>r</mi></mrow><mrow><mi>d</mi><mi>s</mi></mrow></mfrac><mo>=</mo><mi>c</mi><mi>ξ</mi><mo stretchy="false">(</mo><mi>s</mi><mo stretchy="false">)</mo><mo>,</mo></mrow>
                 <mspace width="2em"></mspace>
                 <mrow><mfrac><mrow><mi>d</mi><mi>ξ</mi></mrow><mrow><mi>d</mi><mi>s</mi></mrow></mfrac><mo>=</mo><mo>−</mo><mfrac><mn>1</mn><msup><mi>c</mi><mn>2</mn></msup></mfrac><mfrac><mrow><mi>∂</mi><mi>c</mi></mrow><mrow><mi>∂</mi><mi>r</mi></mrow></mfrac><mo>,</mo></mrow>
               </math>
               <math display="block">
-                <mrow><mfrac><mrow><mi>d</mi><mi>z</mi></mrow><mrow><mi>d</mi><mi>s</mi></mrow></mfrac><mo>=</mo><mi>c</mi><msub><mi>ζ</mi><mi>s</mi></msub><mo>(</mo><mi>s</mi><mo>)</mo><mo>,</mo></mrow>
+                <mrow><mfrac><mrow><mi>d</mi><mi>z</mi></mrow><mrow><mi>d</mi><mi>s</mi></mrow></mfrac><mo>=</mo><mi>c</mi><mi>ζ</mi><mo stretchy="false">(</mo><mi>s</mi><mo stretchy="false">)</mo><mo>,</mo></mrow>
                 <mspace width="2em"></mspace>
                 <mrow><mfrac><mrow><mi>d</mi><mi>ζ</mi></mrow><mrow><mi>d</mi><mi>s</mi></mrow></mfrac><mo>=</mo><mo>−</mo><mfrac><mn>1</mn><msup><mi>c</mi><mn>2</mn></msup></mfrac><mfrac><mrow><mi>∂</mi><mi>c</mi></mrow><mrow><mi>∂</mi><mi>z</mi></mrow></mfrac><mo>.</mo></mrow>
               </math>
-            </div>
-            <div class="equation-legend"><span><i>r, z</i> 距离与深度</span><span><i>ξ, ζ</i> 慢度向量分量</span><span><i>c(r,z)</i> 局地声速</span><span><i>s</i> 声线弧长</span></div>
+              </div>
+              <div class="equation-legend"><span><i>r, z</i> 距离与深度</span><span><i>ξ, ζ</i> 慢度向量分量</span><span><i>c(r,z)</i> 局地声速</span><span><i>s</i> 声线弧长</span></div>
+            </section>
+
+            <section class="equation-section dynamic-ray-section" aria-labelledby="dynamicEquationTitle">
+              <div class="equation-section-head"><span>02 · DYNAMIC RAY</span><strong id="dynamicEquationTitle">动态射线方程</strong></div>
+              <p class="equation-note">为进一步求解声线幅度与波束宽度，引入沿中心声线演化的动态变量 <i>q(s)</i> 和 <i>p(s)</i>：</p>
+              <div class="dynamic-beam-grid">
+                <div class="dynamic-equation-copy">
+                  <div class="equation-system dynamic-equation-system">
+                    <math display="block">
+                      <mrow><mfrac><mrow><mi>d</mi><mi>q</mi></mrow><mrow><mi>d</mi><mi>s</mi></mrow></mfrac><mo>=</mo><mi>c</mi><mi>p</mi><mo stretchy="false">(</mo><mi>s</mi><mo stretchy="false">)</mo><mo>,</mo></mrow>
+                    </math>
+                    <math display="block">
+                      <mrow><mfrac><mrow><mi>d</mi><mi>p</mi></mrow><mrow><mi>d</mi><mi>s</mi></mrow></mfrac><mo>=</mo><mo>−</mo><mfrac><msub><mi>c</mi><mrow><mi>m</mi><mi>n</mi></mrow></msub><mrow><msup><mi>c</mi><mn>2</mn></msup><mo stretchy="false">(</mo><mi>s</mi><mo stretchy="false">)</mo></mrow></mfrac><mi>q</mi><mo stretchy="false">(</mo><mi>s</mi><mo stretchy="false">)</mo><mo>.</mo></mrow>
+                    </math>
+                  </div>
+                  <div class="dynamic-legend">
+                    <span><i>q(s)</i> 横向几何扩展与波束宽度参数</span>
+                    <span><i>p(s)</i> 与 <i>q(s)</i> 共轭的动态射线变量</span>
+                    <span><i>c<sub>mn</sub></i> 声速在射线法向上的二阶变化项</span>
+                    <small>这里的 <i>p(s)</i> 是动态变量，不是声压。</small>
+                  </div>
+                </div>
+
+                <figure class="beam-schematic">
+                  <svg viewBox="0 0 360 220" role="img" aria-labelledby="beamDiagramTitle beamDiagramDesc">
+                    <title id="beamDiagramTitle">几何波束示意图</title>
+                    <desc id="beamDiagramDesc">从声源发出的中心声线及其上下边界，标注沿程位置、法向距离和波束半宽。</desc>
+                    <defs>
+                      <linearGradient id="beamAreaGradient" x1="0" y1="1" x2="1" y2="0">
+                        <stop offset="0" stop-color="#35d4e9" stop-opacity=".05"/>
+                        <stop offset="1" stop-color="#35d4e9" stop-opacity=".28"/>
+                      </linearGradient>
+                      <marker id="beamArrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                        <path d="M 0 0 L 10 5 L 0 10 z" fill="#8aa9b2"/>
+                      </marker>
+                    </defs>
+
+                    <path class="beam-fill" d="M32 174 C104 157 174 86 286 54 L268 112 C171 121 104 163 32 174 Z"/>
+                    <path class="beam-edge" d="M32 174 C104 157 174 86 286 54"/>
+                    <path class="beam-edge" d="M32 174 C104 170 171 126 268 112"/>
+                    <path class="beam-ray" d="M32 174 C105 163 173 106 277 83"/>
+
+                    <line class="beam-axis" x1="32" y1="174" x2="32" y2="26" marker-end="url(#beamArrow)"/>
+                    <line class="beam-axis" x1="32" y1="174" x2="322" y2="174" marker-end="url(#beamArrow)"/>
+                    <circle class="beam-source" cx="32" cy="174" r="7"/>
+                    <circle class="beam-station" cx="198" cy="116" r="4"/>
+
+                    <line class="beam-normal" x1="198" y1="116" x2="182" y2="87" marker-start="url(#beamArrow)" marker-end="url(#beamArrow)"/>
+                    <line class="beam-tangent" x1="185" y1="122" x2="231" y2="100" marker-end="url(#beamArrow)"/>
+                    <line class="beam-width" x1="244" y1="93" x2="232" y2="67" marker-start="url(#beamArrow)" marker-end="url(#beamArrow)"/>
+
+                    <text x="11" y="20">z</text>
+                    <text x="327" y="181">r</text>
+                    <text x="8" y="204">Source</text>
+                    <text x="121" y="151">center ray</text>
+                    <text class="beam-accent-label" x="203" y="113">s</text>
+                    <text x="167" y="91">d</text>
+                    <text x="247" y="71">ρ(s)</text>
+                    <text class="beam-caption" x="180" y="208">GEOMETRIC BEAM</text>
+                  </svg>
+                  <figcaption>中心声线与相邻声线围成几何波束，横向扩展决定幅度和有效波束宽度。</figcaption>
+                </figure>
+              </div>
+            </section>
+
+            <section class="equation-section pressure-ray-section" aria-labelledby="pressureEquationTitle">
+              <div class="equation-section-head"><span>03 · ACOUSTIC PRESSURE</span><strong id="pressureEquationTitle">波束声压与相干叠加</strong></div>
+              <p class="equation-note">动态射线给出幅度和波束宽度后，第 <i>α</i> 条声线对接收点的复声压贡献为：</p>
+              <div class="equation-system pressure-equation-system">
+                <math display="block">
+                  <mrow>
+                    <msup><mi>p</mi><mrow><mo stretchy="false">(</mo><mi>α</mi><mo stretchy="false">)</mo></mrow></msup>
+                    <mo stretchy="false">(</mo><mi>s</mi><mo>,</mo><mi>n</mi><mo stretchy="false">)</mo>
+                    <mo>=</mo>
+                    <mi>A</mi><mo stretchy="false">(</mo><mi>s</mi><mo stretchy="false">)</mo>
+                    <mi>φ</mi><mo stretchy="false">(</mo><mi>s</mi><mo>,</mo><mi>d</mi><mo stretchy="false">)</mo>
+                    <msup><mi>e</mi><mrow><mi>i</mi><mo stretchy="false">[</mo><mi>ω</mi><mi>τ</mi><mo stretchy="false">(</mo><mi>s</mi><mo stretchy="false">)</mo><mo>+</mo><mi>ϕ</mi><mo stretchy="false">(</mo><mi>s</mi><mo stretchy="false">)</mo><mo stretchy="false">]</mo></mrow></msup><mo>.</mo>
+                  </mrow>
+                </math>
+                <math display="block" class="pressure-sum-equation">
+                  <mrow><mi>p</mi><mo>=</mo><munder><mo>∑</mo><mi>α</mi></munder><msup><mi>p</mi><mrow><mo stretchy="false">(</mo><mi>α</mi><mo stretchy="false">)</mo></mrow></msup><mo>.</mo></mrow>
+                </math>
+              </div>
+              <div class="pressure-legend">
+                <span><i>A(s)</i> 动态射线确定的幅度</span>
+                <span><i>φ(s,d)</i> 几何波束横向加权</span>
+                <span><i>τ(s)</i> 传播走时</span>
+                <span><i>ϕ(s)</i> 反射、焦散等相位修正</span>
+                <span><i>ω</i> 声源角频率</span>
+                <strong>所有声线贡献按复数相位相加，得到总声压 <i>p</i>。</strong>
+              </div>
+            </section>
           </div>
         </div>
 
         <div class="intro-visual panel">
           <div class="intro-visual-head">
-            <div><span class="micro">NUMERICAL MARCHING</span><h3>二阶 Runge–Kutta 声线步进</h3></div>
+            <div><span class="micro">MUNK CHANNEL · COHERENT SUM</span><h3>从声线、波束到声压叠加</h3></div>
             <button id="introReplay" class="intro-replay" aria-label="重新播放声线动画">↻ REPLAY</button>
           </div>
           <div class="intro-canvas-wrap">
-            <canvas id="introRayCanvas" aria-label="逐条传播的声线计算动画"></canvas>
-            <div class="marching-note"><i></i><span>当前步进方向</span></div>
-            <div class="intro-source-label" id="intro-source-label">SOURCE</div>
+            <canvas id="introRayCanvas" aria-label="Munk 声速剖面、声线、几何波束和声压相干叠加动画"></canvas>
           </div>
           <div class="intro-progress">
-            <div><span>当前声线</span><strong id="introRayNumber">01 / 09</strong></div>
-            <div><span>发射角</span><strong id="introAngle">−20.3°</strong></div>
-            <div class="progress-track"><span>积分进度</span><i><b id="introProgressBar"></b></i><strong id="introProgressText">0%</strong></div>
-            <div><span>步长</span><strong>Δr = 0.5 km</strong></div>
+            <div><span>已发射声线</span><strong id="introRayNumber">00 / 09</strong></div>
+            <div><span>当前发射角</span><strong id="introAngle">−12.0°</strong></div>
+            <div class="progress-track"><span>逐条叠加进度</span><i><b id="introProgressBar"></b></i><strong id="introProgressText">0%</strong></div>
+            <div><span>相干叠加</span><strong class="intro-sum"><i>p</i> = ∑<sub>α</sub> <i>p</i><sup>(α)</sup></strong></div>
           </div>
         </div>
       </section>
@@ -107,6 +201,12 @@
               <div class="drag-hint">拖动节点水平修改声速 ↔</div>
               <div class="ssp-readout" id="sspReadout">选择节点</div>
             </div>
+
+            <details class="ssp-table-editor" id="sspTableEditor">
+              <summary><span>表格编辑声速剖面</span><small>DEPTH · SPEED</small></summary>
+              <div class="ssp-table-wrap"><table><thead><tr><th>深度 / m</th><th>声速 / m/s</th><th></th></tr></thead><tbody id="sspTableRows"></tbody></table></div>
+              <button type="button" class="ssp-add-row" id="addSSPRow">＋ 新增一行</button>
+            </details>
 
             <div class="slider-block">
               <div class="slider-title"><label for="axisDepth">声道轴深度</label><output id="axisDepthOut">1,300 m</output></div>
@@ -155,6 +255,7 @@
               <div class="canvas-axis x-axis">距离 / km</div>
               <div class="canvas-axis y-axis">深度 / m</div>
               <div class="sim-badge"><span id="simPulse"></span><b id="simStatus">CALCULATING</b><small id="simTime">00.0 ms</small></div>
+              <div class="source-drag-hint">拖动声源上下调整深度 ↕</div>
             </div>
             <div class="ray-footer">
               <div><span>发射角</span><strong>−20.3° — +20.3°</strong></div>
@@ -172,13 +273,37 @@
               <canvas id="lossCanvas" aria-label="传播损失图"></canvas>
               <div class="canvas-axis x-axis">距离 / km</div>
               <div class="canvas-axis y-axis">深度 / m</div>
-              <div class="colorbar"><div><span>TRANSMISSION LOSS / dB</span><strong>1,000 RAY FIELD</strong></div><i></i><p><span>60</span><span>75</span><span>90</span><span>105</span><span>120</span></p></div>
+              <div class="colorbar"><div><span>TRANSMISSION LOSS / dB</span><strong>INCOHERENT · INTERP</strong></div><i></i><p><span>40</span><span>55</span><span>70</span><span>85</span><span>100</span></p></div>
               <div class="receiver-readout"><span>●</span><div><small>光标位置损失</small><strong id="tlReadout">— dB</strong></div></div>
             </div>
             <div class="loss-summary">
               <span>当前环境形成的低损失声道集中在</span>
               <strong id="channelSummary">1,300 m 附近</strong>
             </div>
+          </section>
+
+          <section class="velocity-panel panel">
+            <div class="panel-head canvas-heading">
+              <div><span class="micro">OOB NATIVE PARTICLE VELOCITY</span><h3>水平与垂直质点振速</h3></div>
+              <div class="velocity-formula">velocity_enabled = true</div>
+            </div>
+            <div class="velocity-grid">
+              <div class="main-canvas-wrap velocity-wrap velocity-component">
+                <canvas id="horizontalVelocityCanvas" aria-label="OOB原生水平质点振速级图"></canvas>
+                <div class="velocity-component-title">HORIZONTAL · 水平振速 v<sub>r</sub></div>
+                <div class="canvas-axis x-axis">距离 / km</div><div class="canvas-axis y-axis">深度 / m</div>
+                <div class="velocity-colorbar"><div><span>−20 log₁₀ |v<sub>r</sub>| / dB</span><strong>OOB NATIVE</strong></div><i></i><p><span>30</span><span>50</span><span>70</span><span>90</span><span>120</span></p></div>
+                <div class="velocity-readout"><span>●</span><div><small>水平振速幅值</small><strong id="horizontalVelocityReadout">—</strong></div></div>
+              </div>
+              <div class="main-canvas-wrap velocity-wrap velocity-component">
+                <canvas id="verticalVelocityCanvas" aria-label="OOB原生垂直质点振速级图"></canvas>
+                <div class="velocity-component-title">VERTICAL · 垂直振速 v<sub>z</sub></div>
+                <div class="canvas-axis x-axis">距离 / km</div><div class="canvas-axis y-axis">深度 / m</div>
+                <div class="velocity-colorbar"><div><span>−20 log₁₀ |v<sub>z</sub>| / dB</span><strong>OOB NATIVE</strong></div><i></i><p><span>30</span><span>50</span><span>70</span><span>90</span><span>120</span></p></div>
+                <div class="velocity-readout"><span>●</span><div><small>垂直振速幅值</small><strong id="verticalVelocityReadout">—</strong></div></div>
+              </div>
+            </div>
+            <div class="velocity-summary"><span>OOB 原生结果句柄</span><strong>ResultHandle.horizontal_velocity · ResultHandle.vertical_velocity</strong></div>
           </section>
         </div>
       </section>
@@ -201,10 +326,32 @@
       <section class="advanced-section" id="advanced">
         <div class="section-heading">
           <div><span class="section-no">03</span><h2>精确本征声线</h2></div>
-          <p>1000 等角度基线 → OOB MODE_E_PC 精确求解 → 原生到达结果</p>
+          <p>OOB EIGENRAY → MODE_E_PC 精确本征求解 → 原生到达结果</p>
         </div>
 
         <div class="eigen-lab panel">
+          <div class="eigen-lab-shell">
+          <aside class="eigen-env-panel">
+            <div class="eigen-env-head"><div><span class="micro">ENVIRONMENT</span><h3>环境参数</h3></div><span class="live-dot">LINKED</span></div>
+            <label class="eigen-env-label" for="eigenProfile">声速剖面</label>
+            <div class="eigen-env-select"><select id="eigenProfile"><option value="munk">Munk 深海声道</option><option value="surface">表层跃变</option><option value="constant">等声速水体</option><option value="custom">自定义 500 m 节点</option></select></div>
+            <div class="eigen-ssp-mini"><canvas id="eigenSSPCanvas" aria-label="本征声线环境声速剖面"></canvas><span>声速剖面 · 声源深度</span></div>
+            <details class="ssp-table-editor eigen-ssp-table" id="eigenSSPTableEditor">
+              <summary><span>表格编辑声速剖面</span><small>DEPTH · SPEED</small></summary>
+              <div class="ssp-table-wrap"><table><thead><tr><th>深度 / m</th><th>声速 / m/s</th><th></th></tr></thead><tbody id="eigenSSPTableRows"></tbody></table></div>
+              <button type="button" class="ssp-add-row" id="eigenAddSSPRow">＋ 新增一行</button>
+            </details>
+            <div class="eigen-env-control"><div><label for="eigenAxisDepth">声道轴深度</label><output id="eigenAxisDepthOut">1,300 m</output></div><input id="eigenAxisDepth" type="range" min="500" max="2600" step="50" value="1300"></div>
+            <div class="eigen-env-control"><div><label for="eigenGradient">剖面强度</label><output id="eigenGradientOut">1.00×</output></div><input id="eigenGradient" type="range" min="30" max="180" step="5" value="100"></div>
+            <div class="eigen-env-pair"><label>声源深度<div><input id="eigenSourceDepth" type="number" min="50" max="4800" step="10" value="1000"><span>m</span></div></label><label>中心频率<div><input id="eigenFrequency" type="number" min="50" max="5000" step="50" value="500"><span>Hz</span></div></label></div>
+            <div class="eigen-bottom-box">
+              <div class="eigen-bottom-head"><span class="micro">SEABED HALF-SPACE</span><strong>海底介质</strong></div>
+              <div class="eigen-env-control compact"><div><label for="eigenBottomSpeed">纵波声速</label><output id="eigenBottomSpeedOut">1,700 m/s</output></div><input id="eigenBottomSpeed" type="range" min="1450" max="2200" step="10" value="1700"></div>
+              <div class="eigen-env-control compact"><div><label for="eigenBottomDensity">密度</label><output id="eigenBottomDensityOut">1,800 kg/m³</output></div><input id="eigenBottomDensity" type="range" min="1200" max="2600" step="20" value="1800"></div>
+              <div class="eigen-env-control compact"><div><label for="eigenBottomAbsorption">吸收</label><output id="eigenBottomAbsorptionOut">0.50 dB/λ</output></div><input id="eigenBottomAbsorption" type="range" min="0" max="2" step="0.05" value="0.5"></div>
+            </div>
+          </aside>
+          <div class="eigen-stage">
           <div class="eigen-toolbar">
             <div class="eigen-title"><span class="micro">OOB · PRECISE EIGENRAY</span><h3>接收点反向约束实验</h3><p>不再依赖某条离散声线“恰好经过”接收器，而是求解使声线深度残差为零的精确发射角。</p></div>
             <div class="eigen-inputs">
@@ -216,19 +363,19 @@
           </div>
 
           <div class="eigen-statusbar">
-            <div id="eigenStatus" class="eigen-running"><i></i><span>正在搜索根区间</span></div>
-            <p>环境沿用上方实验台：<strong id="eigenEnv">Munk · 声源 1,000 m · 500 Hz</strong></p>
+            <div id="eigenStatus" class="eigen-running"><i></i><span>正在计算两种本征声线</span></div>
+            <p>当前接入环境：<strong id="eigenEnv">Munk · 声源 1,000 m · 500 Hz</strong></p>
             <code>F(α) = z<sub>ray</sub>(r<sub>R</sub>, α) − z<sub>R</sub> = 0</code>
           </div>
 
           <div class="eigen-grid">
             <section class="eigen-chart-card">
-              <div class="chart-head"><div><span class="micro">GEOMETRY COMPARISON</span><h4>1000 等角度法 vs. 精确本征声线</h4></div><div class="eigen-legend"><span><i class="coarse-line"></i>粗划分扇区</span><span><i class="equal-line"></i>等角度本征</span><span><i class="exact-line"></i>精确本征</span><span><i class="receiver-dot"></i>接收器</span></div></div>
-              <div class="eigen-canvas-wrap"><canvas id="eigenCanvas" aria-label="等角度声线与精确本征声线对比图"></canvas><div class="receiver-drag-hint">拖动 <i></i> 接收器修改距离与深度</div><div class="zoom-label">RECEIVER ±1 km / ±180 m</div></div>
+              <div class="chart-head"><div><span class="micro">EIGENRAY COMPARISON</span><h4>本征声线模式 vs. 精确本征声线模式</h4></div><div class="eigen-legend"><span><i class="equal-line"></i>本征声线</span><span><i class="exact-line"></i>精确本征声线</span><span><i class="receiver-dot"></i>接收器</span></div></div>
+              <div class="eigen-canvas-wrap"><canvas id="eigenCanvas" aria-label="可拖动声源和接收器的本征声线对比图"></canvas><div class="receiver-drag-hint">拖动左侧声源上下调整深度 · 拖动 <i></i> 接收器修改距离与深度</div><div class="zoom-label">RECEIVER ±1 km / ±180 m</div></div>
               <div class="metric-row">
-                <div><span>等角度残差 RMSE</span><strong id="coarseMiss">— m</strong></div>
+                <div><span>本征声线残差 RMSE</span><strong id="coarseMiss">— m</strong></div>
                 <div><span>精确残差 RMSE</span><strong id="exactResidual">— m</strong></div>
-                <div><span>等角度 / 精确数量</span><strong id="eigenCount">— / — paths</strong></div>
+                <div><span>本征 / 精确数量</span><strong id="eigenCount">— / — paths</strong></div>
                 <div><span>精确求解引擎</span><strong id="eigenIterations">—</strong></div>
               </div>
             </section>
@@ -244,12 +391,14 @@
               </div>
             </section>
           </div>
-          <div class="method-note"><span>算法说明</span><p>−20.3° 至 +20.3° 共使用 1000 个等间隔发射角。蓝色结果由 OOB 的传统 EIGENRAY / ARRIVALS 模式计算；彩色结果由 OOB 原生 MODE_E_PC 精确本征声线算法（PARTICLE_RAY / PARTICLE_ARRIVALS）计算。Python 后端只读取 ResultHandle 的内存结果，灰色扇区仅对 OOB RAY 输出抽样显示。</p></div>
+          <div class="method-note"><span>算法说明</span><p>−20.3° 至 +20.3° 使用 1000 个等间隔初始角。蓝色结果由 OOB 的 EIGENRAY / ARRIVALS 模式计算；彩色结果由 OOB 原生 MODE_E_PC 精确本征算法（PARTICLE_RAY / PARTICLE_ARRIVALS）计算。此处不再运行或绘制普通 R 模式声线；OOB 默认使用电脑逻辑线程数的一半执行。</p></div>
+          </div>
+          </div>
         </div>
 
         <div class="capability-heading"><span>MORE CAPABILITIES</span><h3>从本征声线扩展到完整声场</h3></div>
         <div class="feature-grid">
-          <article class="feature-card featured"><span class="feature-index">01 / FIELD</span><div class="feature-symbol">◫</div><h3>二维相干声场</h3><p>输出距离—深度网格上的复声压与传播损失，识别会聚区、干涉条纹和声影区。</p><ul><li>Coherent / Incoherent</li><li>60–120 dB 标准色标</li></ul></article>
+          <article class="feature-card featured"><span class="feature-index">01 / FIELD</span><div class="feature-symbol">◫</div><h3>二维相干声场</h3><p>输出距离—深度网格上的复声压与传播损失，识别会聚区、干涉条纹和声影区。</p><ul><li>Coherent / Incoherent</li><li>40–100 dB 标准色标</li></ul></article>
           <article class="feature-card"><span class="feature-index">02 / ARRIVALS</span><div class="feature-symbol">⌁</div><h3>多途到达结构</h3><p>计算每条到达路径的时延、幅度、相位和出入射角，支撑信道脉冲响应分析。</p><ul><li>Eigenrays</li><li>Travel time & phase</li></ul></article>
           <article class="feature-card"><span class="feature-index">03 / BOUNDARY</span><div class="feature-symbol">◇</div><h3>复杂海面与海底</h3><p>引入真实地形、边界材料、粗糙度和反射损失，刻画浅海多次反射传播。</p><ul><li>Range-dependent bathymetry</li><li>Material half-space</li></ul></article>
           <article class="feature-card"><span class="feature-index">04 / SDK</span><div class="feature-symbol">{ }</div><h3>多语言工程接口</h3><p>通过统一的类型化输入在 C++、Python 和 MATLAB 中复用同一 Bellhop2D 核心。</p><ul><li>Standalone facade</li><li>FieldCore runtime</li></ul></article>
