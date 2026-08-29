@@ -1,3 +1,5 @@
+import { initializeWasm, preciseEigenrays, simulate } from './wasm-adapter.js';
+
 const $ = (id) => document.getElementById(id);
 const initialSSP = Array.from({length:11},(_,i)=>{
   const z=i*500,eta=2*(z-1300)/1300,c=1500*(1+.00737*(eta+Math.exp(-Math.max(-8,Math.min(8,eta)))-1));
@@ -473,19 +475,18 @@ function renderEigenSummary() {
 async function runEigen() {
   const token=++state.eigenRequest,p=params();p.receiver_range=Math.max(5,Math.min(95,Number($('receiverRange').value)||50));p.receiver_depth=Math.max(20,Math.min(4980,Number($('receiverDepth').value)||1000));p.tolerance=Number($('eigenTolerance').value);
   const names={munk:'Munk 深海声道',surface:'表层跃变',constant:'等声速水体',custom:'自定义 500 m 节点'};$('eigenEnv').textContent=`${names[p.profile]} · 声源 ${p.source_depth.toLocaleString('zh-CN')} m · ${p.frequency} Hz`;$('eigenStatus').classList.add('eigen-running');$('eigenStatus').querySelector('span').textContent='正在计算本征声线与精确本征声线';$('eigenRun').disabled=true;
-  try{const res=await fetch('/api/eigenrays',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)});if(!res.ok)throw new Error(`HTTP ${res.status}`);const data=await res.json();if(token!==state.eigenRequest)return;state.eigen=data;state.solvedEigenSourceDepth=p.source_depth;state.receiverPreview=null;state.receiverDragging=false;state.eigenSourceDragging=false;canvases.eigen.classList.remove('dragging');syncEigenEnvironmentFromMain();drawEigen();drawArrivals();renderEigenSummary();$('eigenEnv').textContent=`${names[p.profile]} · 声源 ${p.source_depth.toLocaleString('zh-CN')} m · ${p.frequency} Hz · ${data.thread_count} threads`;$('eigenStatus').querySelector('span').textContent=`本征 ${data.equal_angle_eigenrays.length} 条 · 精确 ${data.eigenrays.length} 条 · ${data.compute_ms.toFixed(1)} ms`;$('eigenStatus').classList.remove('eigen-running');}
-  catch(e){$('eigenStatus').querySelector('span').textContent='求解失败 · 请确认 Python 服务已启动';$('eigenStatus').classList.remove('eigen-running');console.error(e);}finally{if(token===state.eigenRequest)$('eigenRun').disabled=false;}
+  try{const data=await preciseEigenrays(p);if(token!==state.eigenRequest)return;state.eigen=data;state.solvedEigenSourceDepth=p.source_depth;state.receiverPreview=null;state.receiverDragging=false;state.eigenSourceDragging=false;canvases.eigen.classList.remove('dragging');syncEigenEnvironmentFromMain();drawEigen();drawArrivals();renderEigenSummary();$('eigenEnv').textContent=`${names[p.profile]} · 声源 ${p.source_depth.toLocaleString('zh-CN')} m · ${p.frequency} Hz · ${data.thread_count} WASM threads`;$('eigenStatus').querySelector('span').textContent=`本征 ${data.equal_angle_eigenrays.length} 条 · 精确 ${data.eigenrays.length} 条 · ${data.compute_ms.toFixed(1)} ms`;$('eigenStatus').classList.remove('eigen-running');}
+  catch(e){$('eigenStatus').querySelector('span').textContent='WASM 求解失败 · 请使用支持跨源隔离的浏览器服务';$('eigenStatus').classList.remove('eigen-running');console.error(e);}finally{if(token===state.eigenRequest)$('eigenRun').disabled=false;}
 }
 
 async function run() {
   const token=++state.request;syncLabels();$('simStatus').textContent='CALCULATING';$('simTime').textContent='PLEASE WAIT';$('simPulse').parentElement.classList.add('loading');
   const started=performance.now();
   try {
-    const res=await fetch('/api/simulate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(params())});
-    if(!res.ok)throw new Error(`HTTP ${res.status}`);const data=await res.json();if(token!==state.request)return;state.data=data;state.solvedSourceDepth=params().source_depth;state.animation=1;$('bottomReflectionLoss').textContent=data.bottom.absorption_db_per_wavelength.toFixed(2)+' dB/λ';$('fieldRayCount').textContent=data.field_ray_count.toLocaleString('zh-CN')+' RAYS · INCOHERENT';buildLossImage();buildVelocityImages();drawSSP();drawRay(1);drawLoss(1);drawVelocity(1);drawIntroRay(state.introProgress||1);
+    await initializeWasm();const data=await simulate(params());if(token!==state.request)return;state.data=data;state.solvedSourceDepth=params().source_depth;state.animation=1;$('bottomReflectionLoss').textContent=data.bottom.absorption_db_per_wavelength.toFixed(2)+' dB/λ';$('fieldRayCount').textContent=data.field_ray_count.toLocaleString('zh-CN')+' RAYS · INCOHERENT · WASM';buildLossImage();buildVelocityImages();drawSSP();drawRay(1);drawLoss(1);drawVelocity(1);drawIntroRay(state.introProgress||1);
     $('simStatus').textContent='SIMULATION COMPLETE';$('simTime').textContent=`${(performance.now()-started).toFixed(1)} ms`;
   } catch(e) {
-    $('simStatus').textContent='OFFLINE';$('simTime').textContent='START server.py';console.error(e);
+    $('simStatus').textContent='WASM ERROR';$('simTime').textContent='CHECK COOP / COEP';console.error(e);
   } finally { if(token===state.request)$('simPulse').parentElement.classList.remove('loading'); }
 }
 

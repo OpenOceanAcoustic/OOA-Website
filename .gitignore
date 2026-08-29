@@ -2,3 +2,9 @@ __pycache__/
 *.py[cod]
 oob-page*.png
 venv/
+node_modules/
+dist/
+.wasm-build/
+.wasm-cache/
+.wasm-packages/
+.vite/

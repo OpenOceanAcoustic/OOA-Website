@@ -1,23 +1,69 @@
-# OOA-RayMode 交互实验室
+# OOA-RayMode WebAssembly 交互实验室
 
-一个使用 OOB 原生 Bellhop2D Python 接口的交互教学网页：左侧设置声速环境，中间展示声线，右侧联动显示传播损失。SSP 在 0–5000 m 范围内每 500 m 提供一个可水平拖动的声速节点；海底半空间的纵波声速、密度和吸收也可实时调节。进阶实验在 −20.3° 至 +20.3° 使用 1000 条等角度声线，对比 OOB 的传统 `EIGENRAY/ARRIVALS` 与精确 `PARTICLE_RAY/PARTICLE_ARRIVALS`（C++ `MODE_E_PC_*`）结果。接收器可直接在距离—深度图上拖动，松开后由原生求解器重新计算。
+Bellhop2D 声线、传播损失、质点振速和本征声线计算全部在浏览器
+Web Worker 中执行。页面不再把环境参数发送给 Python 计算后端；服务器仅提供
+HTML、JavaScript 和 WebAssembly 静态文件。
 
-页面首屏给出经典 Hamilton 射线方程，并从 OOB 原生 `RAY` 结果中选择 9 条代表声线依次播放。动画只控制已计算轨迹的显示进度，同步标注 OOB 发射角、传播进度和局部步进方向，不在浏览器中重复求解射线方程。
+## 首次构建
 
-传播链路实验台采用即时刷新：19 条代表声线来自 OOB `RAY` 模式；TL 场由 OOB `COHERENT_TL` 模式使用 1000 个发射角计算。海底半空间参数直接进入 OOB 输入，因此底质变化由原生边界反射模型反映到传播损失中。完整 60–120 dB colorbar 用于对照环境变化。
-
-先安装同目录中的 OOB Python wheel（正式包名为 `openocean_field.ray_mode`，旧 `py_bellhop` 接口已移除）。OOB 构建过程会执行类型存根生成，因此在复用当前虚拟环境时需要显式安装构建工具：
+Emscripten SDK 默认位于 `/opt/emsdk`。新终端会自动加载已配置的用户环境；
+也可以手动执行：
 
 ```bash
-python3 -m pip install "numpy>=1.23" \
-  "pybind11-stubgen==2.5.5" "mypy==1.17.1" wheel
-python3 -m pip install ./OpenOcean-Field-RayMode --no-build-isolation
+source /home/qp/.config/oob/wasm-env.sh
 ```
 
+先编译并打包本地 WASM npm SDK，再安装网站依赖：
+
 ```bash
+cd /mnt/repo/qp/OOA-Website
+npm run build:wasm
+npm install
+```
+
+`npm run build:wasm` 会执行 Emscripten/CMake 编译、TypeScript 类型检查、
+`npm pack` 和干净项目安装冒烟测试。构建产物位于 `.wasm-build/`，本地包位于
+`.wasm-packages/`，可复用的 Emscripten、ccache 与 npm 缓存位于
+`.wasm-cache/`。
+
+## 开发运行
+
+```bash
+npm run dev
+```
+
+浏览器打开终端显示的地址。Vite 已配置 WebAssembly pthread 所需的：
+
+- `Cross-Origin-Opener-Policy: same-origin`
+- `Cross-Origin-Embedder-Policy: require-corp`
+
+因此页面中的 `crossOriginIsolated` 和 `SharedArrayBuffer` 可以正常使用。
+
+## 生产构建与静态预览
+
+```bash
+npm run build
 python3 server.py
 ```
 
-浏览器打开 <http://127.0.0.1:8000>。
+浏览器打开 <http://127.0.0.1:8000>。`server.py` 只服务 `dist/` 静态文件并
+添加跨源隔离响应头，不再提供 `/api/simulate` 或 `/api/eigenrays`。
 
-后端不生成 `.ray/.arr/.shd` 中间文件。轨迹、到达和压力场均直接读取 OOB `ResultHandle` 所拥有的只读 NumPy 内存视图。
+部署到其他 Web 服务器时也必须配置上述 COOP/COEP 响应头，并以
+`application/wasm` 类型提供 `.wasm` 文件。
+
+## 运行结构
+
+```text
+页面参数
+  → TypeScript npm SDK
+  → Web Worker
+  → Bellhop2D C++ WebAssembly
+  → TypedArray 结果
+  → Canvas 绘图
+```
+
+场数据使用 TypedArray 在 Worker 和页面之间转移，不经过 JSON 或网络传输。
+WASM npm 包名为 `@openocean/field-bellhop-2d`。页面会按设备逻辑核心数选择
+原生线程数并限制为最多 4 条；线程池由 solver 持有，替换输入或清除缓存时不会
+重复创建。

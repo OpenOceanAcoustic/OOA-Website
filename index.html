@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#07131b">
+  <link rel="icon" href="data:,">
   <title>OOA-RayMode · 声传播交互实验室</title>
   <link rel="stylesheet" href="styles.css">
 </head>
@@ -202,7 +203,7 @@
           <p class="lead">从声速剖面到声线路径，再到传播损失。拖动参数，观察海洋环境如何一步步改变声能抵达的位置。</p>
         </div>
         <div class="hero-meta">
-          <span>BACKEND</span><strong>ray_mode.bellhop.2d</strong>
+          <span>ENGINE</span><strong>bellhop.2d · WASM</strong>
           <span>PROFILE</span><strong id="hero-profile">MUNK / DEEP CHANNEL</strong>
         </div>
       </section>
@@ -411,7 +412,7 @@
               </div>
             </section>
           </div>
-          <div class="method-note"><span>算法说明</span><p>−20.3° 至 +20.3° 使用 1000 个等间隔初始角。蓝色结果由 OOB 的 EIGENRAY / ARRIVALS 模式计算；彩色结果由 OOB 原生 MODE_E_PC 精确本征算法（PARTICLE_RAY / PARTICLE_ARRIVALS）计算。此处不再运行或绘制普通 R 模式声线；OOB 默认使用电脑逻辑线程数的一半执行。</p></div>
+          <div class="method-note"><span>算法说明</span><p>−20.3° 至 +20.3° 使用 1000 个等间隔初始角。蓝色结果由 OOB 的 EIGENRAY / ARRIVALS 模式计算；彩色结果由 OOB 原生 MODE_E_PC 精确本征算法（PARTICLE_RAY / PARTICLE_ARRIVALS）计算。计算在浏览器 Web Worker 的 WebAssembly 模块中完成，不向后端上传环境参数。</p></div>
           </div>
           </div>
         </div>
@@ -421,13 +422,13 @@
           <article class="feature-card featured"><span class="feature-index">01 / FIELD</span><div class="feature-symbol">◫</div><h3>二维相干声场</h3><p>输出距离—深度网格上的复声压与传播损失，识别会聚区、干涉条纹和声影区。</p><ul><li>Coherent / Incoherent</li><li>40–100 dB 标准色标</li></ul></article>
           <article class="feature-card"><span class="feature-index">02 / ARRIVALS</span><div class="feature-symbol">⌁</div><h3>多途到达结构</h3><p>计算每条到达路径的时延、幅度、相位和出入射角，支撑信道脉冲响应分析。</p><ul><li>Eigenrays</li><li>Travel time & phase</li></ul></article>
           <article class="feature-card"><span class="feature-index">03 / BOUNDARY</span><div class="feature-symbol">◇</div><h3>复杂海面与海底</h3><p>引入真实地形、边界材料、粗糙度和反射损失，刻画浅海多次反射传播。</p><ul><li>Range-dependent bathymetry</li><li>Material half-space</li></ul></article>
-          <article class="feature-card"><span class="feature-index">04 / SDK</span><div class="feature-symbol">{ }</div><h3>多语言工程接口</h3><p>通过统一的类型化输入在 C++、Python 和 MATLAB 中复用同一 Bellhop2D 核心。</p><ul><li>Standalone facade</li><li>FieldCore runtime</li></ul></article>
+          <article class="feature-card"><span class="feature-index">04 / SDK</span><div class="feature-symbol">{ }</div><h3>浏览器原生计算</h3><p>通过类型化 npm SDK 在 Web Worker 中运行 Bellhop2D WebAssembly 核心。</p><ul><li>No compute backend</li><li>WASM typed arrays</li></ul></article>
         </div>
       </section>
     </main>
 
     <footer><div class="brand footer-brand"><span class="brand-mark"><i></i><i></i><i></i></span><span><strong>OOA-RayMode</strong><small>FIELD RAY MODE · 2D</small></span></div><p>交互结果用于原理演示；工程计算请使用 OOB 原生求解器及经验证的环境数据。</p><a href="#top">BACK TO TOP ↑</a></footer>
   </div>
-  <script src="app.js"></script>
+  <script type="module" src="/app.js"></script>
 </body>
 </html>

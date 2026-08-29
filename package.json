@@ -1,0 +1,21 @@
+{
+  "name": "ooa-raymode-wasm-lab",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build:wasm": "bash scripts/build-wasm.sh",
+    "dev": "vite --host 127.0.0.1",
+    "build": "vite build",
+    "preview": "vite preview --host 127.0.0.1"
+  },
+  "dependencies": {
+    "@openocean/field-bellhop-2d": "file:.wasm-packages/OpenOcean-Field-RayMode-Bellhop/2.0.0/wasm/openocean-field-bellhop-2d-2.0.0.tgz"
+  },
+  "devDependencies": {
+    "vite": "7.1.3"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

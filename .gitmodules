@@ -1,4 +1,4 @@
 [submodule "OpenOcean-Field-RayMode"]
 	path = OpenOcean-Field-RayMode
 	url = ../OpenOcean-Field-RayMode.git
-	branch = main
+	branch = website
