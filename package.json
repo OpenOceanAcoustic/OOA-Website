@@ -5,12 +5,18 @@
   "type": "module",
   "scripts": {
     "build:wasm": "bash scripts/build-wasm.sh",
+    "build:wasm:ray": "bash scripts/build-ray-wasm.sh",
+    "build:wasm:normal": "bash scripts/build-normal-mode-wasm.sh",
+    "build:wasm:pe": "bash scripts/build-pe-wasm.sh",
     "dev": "vite --host 127.0.0.1",
+    "test": "node --test shared/*.test.mjs",
     "build": "vite build",
     "preview": "vite preview --host 127.0.0.1"
   },
   "dependencies": {
-    "@openocean/field-bellhop-2d": "file:.wasm-packages/OpenOcean-Field-RayMode-Bellhop/2.0.0/wasm/openocean-field-bellhop-2d-2.0.0.tgz"
+    "@openocean/field-bellhop-2d": "file:.wasm-packages/OpenOcean-Field-RayMode-Bellhop/2.0.0/wasm/openocean-field-bellhop-2d-2.0.0.tgz",
+    "@openocean/field-normal-mode-kraken": "file:.wasm-packages/OpenOcean-Field-NormalMode/2.0.0/wasm/openocean-field-normal-mode-kraken-2.0.0.tgz",
+    "@openocean/field-pe-ram": "file:.wasm-packages/OpenOcean-Field-PE/2.0.0/wasm/openocean-field-pe-ram-2.0.0.tgz"
   },
   "devDependencies": {
     "vite": "7.1.3"

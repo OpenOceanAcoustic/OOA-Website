@@ -1,0 +1,14 @@
+{
+  "title": "Sloped JSON Browser Test",
+  "profilePoints": [[0, 1500], [260, 1500]],
+  "waterDepthM": 260,
+  "frequencyHz": 100,
+  "sourceDepthM": 50,
+  "maximumRangeKm": 20,
+  "bottomSoundSpeedMps": 1700,
+  "bottomDensityKgM3": 1800,
+  "bottomAttenuationDbPerWavelength": 0.5,
+  "bathymetry": [[0, 240], [10, 200], [20, 250]],
+  "angleRangeDegrees": [-35, 30],
+  "beamCount": 600
+}

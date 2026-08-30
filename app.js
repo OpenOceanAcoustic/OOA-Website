@@ -1,15 +1,33 @@
-import { initializeWasm, preciseEigenrays, simulate } from './wasm-adapter.js';
+import { importEnvironment, initializeWasm, preciseEigenrays, simulate } from './wasm-adapter.js';
+import { parseEnvironmentFiles } from './shared/environment-import.js';
+import {
+  DEFAULT_WATER_DEPTH_M,
+  generateSspProfile,
+  profileDefaults,
+  resampleSspPoints,
+  sanitizeSspPoints,
+} from './ssp-profiles.js';
 
 const $ = (id) => document.getElementById(id);
-const initialSSP = Array.from({length:11},(_,i)=>{
-  const z=i*500,eta=2*(z-1300)/1300,c=1500*(1+.00737*(eta+Math.exp(-Math.max(-8,Math.min(8,eta)))-1));
-  return [z,Math.max(1450,Math.min(1600,Math.round(c*2)/2))];
-});
-const state = { data: null, animation: 0, raf: null, request: 0, lossImage: null, velocityImages: { horizontal: null, vertical: null }, eigen: null, eigenRequest: 0, customSSP: initialSSP, customInitialized: false, sspDrag: -1, sourceDragging: false, solvedSourceDepth: null, eigenSourceDragging: false, solvedEigenSourceDepth: null, receiverDragging: false, receiverPreview: null, introRaf: null, introStart: 0, introProgress: 0 };
+const initialProfile = generateSspProfile({profile:'munk'});
+const initialSSP = resampleSspPoints(
+  initialProfile.depths.map((depth,index)=>[depth,initialProfile.speeds[index]]),
+  initialProfile.waterDepthM,
+);
+const state = { data: null, animation: 0, raf: null, request: 0, environmentRequest: 0, lossImage: null, velocityImages: { horizontal: null, vertical: null }, eigen: null, eigenRequest: 0, environmentMode: 'munk', importedEnvironment: null, customEnvironment: null, customSSP: initialSSP, customWaterDepthM: DEFAULT_WATER_DEPTH_M, maximumDepthM: DEFAULT_WATER_DEPTH_M, sspDrag: -1, sourceDragging: false, solvedSourceDepth: null, eigenSourceDragging: false, solvedEigenSourceDepth: null, receiverDragging: false, receiverPreview: null, introRaf: null, introStart: 0, introProgress: 0 };
 const controls = {
   profile: $('profile'), axisDepth: $('axisDepth'), gradient: $('gradient'),
   sourceDepth: $('sourceDepth'), frequency: $('frequency'), bottomSpeed: $('bottomSpeed'),
   bottomDensity: $('bottomDensity'), bottomAbsorption: $('bottomAbsorption')
+};
+const bottomSliders = {
+  bottomSpeed: $('bottomSpeedSlider'),
+  bottomDensity: $('bottomDensitySlider'),
+  bottomAbsorption: $('bottomAbsorptionSlider'),
+};
+const fieldControls = {
+  beamType: $('beamType'),
+  fieldMode: $('fieldMode'),
 };
 const eigenEnvControls = {
   profile: $('eigenProfile'), axisDepth: $('eigenAxisDepth'), gradient: $('eigenGradient'),
@@ -17,6 +35,33 @@ const eigenEnvControls = {
   bottomDensity: $('eigenBottomDensity'), bottomAbsorption: $('eigenBottomAbsorption')
 };
 const canvases = { intro: $('introRayCanvas'), ssp: $('sspCanvas'), ray: $('rayCanvas'), loss: $('lossCanvas'), horizontalVelocity: $('horizontalVelocityCanvas'), verticalVelocity: $('verticalVelocityCanvas'), eigenSSP: $('eigenSSPCanvas'), eigen: $('eigenCanvas'), arrival: $('arrivalCanvas') };
+const profileNames = { env:'ENV 原始剖面', munk:'Munk 深海声道', surface:'表层跃变', constant:'等声速水体', pekeris:'Pekeris 浅海波导', custom:'自定义 500 m 节点' };
+const beamTypeNames = {
+  GEOMETRIC_CARTESIAN:'几何波束 · 笛卡尔',
+  GEOMETRIC_RAY_CENTERED:'几何波束 · 声线中心',
+  GAUSSIAN_CARTESIAN:'Gaussian · 笛卡尔',
+  GAUSSIAN_RAY_CENTERED:'Gaussian · 声线中心',
+  GAUSSIAN_SIMPLE:'简化 Gaussian',
+  CERVENY_CARTESIAN:'Červený · 笛卡尔',
+  CERVENY_RAY_CENTERED:'Červený · 声线中心',
+  PRECISE_EIGENRAY:'精确本征声线',
+};
+const beamTypeShortNames = {
+  GEOMETRIC_CARTESIAN:'GEOM CART',
+  GEOMETRIC_RAY_CENTERED:'GEOM RAY-CENTERED',
+  GAUSSIAN_CARTESIAN:'GAUSS CART',
+  GAUSSIAN_RAY_CENTERED:'GAUSS RAY-CENTERED',
+  GAUSSIAN_SIMPLE:'SIMPLE GAUSS',
+  CERVENY_CARTESIAN:'CERVENY CART',
+  CERVENY_RAY_CENTERED:'CERVENY RAY-CENTERED',
+};
+const fieldModeNames = {COHERENT_TL:'COHERENT',INCOHERENT_TL:'INCOHERENT'};
+const selectableFieldBeamTypes = new Set(['GEOMETRIC_CARTESIAN','GEOMETRIC_RAY_CENTERED','GAUSSIAN_CARTESIAN','GAUSSIAN_RAY_CENTERED','GAUSSIAN_SIMPLE']);
+
+function displayDepthM(){return Math.max(50,Number(state.maximumDepthM)||state.data?.maximum_depth_m||DEFAULT_WATER_DEPTH_M);}
+function environmentWaterDepthM(){const depth=state.environmentMode==='custom'?state.customWaterDepthM:state.environmentMode==='env'?state.importedEnvironment?.maximumDepthM:state.maximumDepthM;return Math.max(50,Number(depth)||DEFAULT_WATER_DEPTH_M);}
+function formatAngle(value){const normalized=Math.abs(value)<.00005?0:value;return `${normalized<0?'−':normalized>0?'+':''}${Math.abs(normalized).toFixed(1)}°`;}
+function formatAngleRange(range){return `${formatAngle(range?.[0]??-20.3)} — ${formatAngle(range?.[1]??20.3)}`;}
 
 function fitCanvas(canvas) {
   const ratio = Math.min(window.devicePixelRatio || 1, 2);
@@ -30,68 +75,131 @@ function fitCanvas(canvas) {
 }
 
 function params() {
+  const waterDepthM=environmentWaterDepthM();
   const result = {
-    profile: controls.profile.value,
+    profile: state.environmentMode,
     axis_depth: Number(controls.axisDepth.value),
     gradient: Number(controls.gradient.value) / 100,
-    source_depth: Math.max(50, Math.min(4800, Number(controls.sourceDepth.value) || 1000)),
-    frequency: Math.max(50, Math.min(5000, Number(controls.frequency.value) || 500)),
+    water_depth_m: waterDepthM,
+    source_depth: Math.max(20, Math.min(waterDepthM-20, Number(controls.sourceDepth.value) || 1000)),
+    frequency: Math.max(20, Math.min(5000, Number(controls.frequency.value) || 500)),
     bottom_speed: Number(controls.bottomSpeed.value),
     bottom_density: Number(controls.bottomDensity.value),
-    bottom_absorption: Number(controls.bottomAbsorption.value)
+    bottom_absorption: Number(controls.bottomAbsorption.value),
+    beam_type: fieldControls.beamType.value,
+    field_mode: fieldControls.fieldMode.value,
   };
-  if(result.profile==='custom')result.ssp_points=state.customSSP.map(point=>[point[0],point[1]]);
+  if(result.profile==='custom'){
+    result.ssp_points=state.customSSP.map(point=>[point[0],point[1]]);
+    if(state.customEnvironment){
+      result.maximum_range_km=state.customEnvironment.maximumRangeKm;
+      result.bathymetry=state.customEnvironment.bathymetry;
+      result.angle_range_degrees=state.customEnvironment.angleRangeDegrees;
+      result.beam_count=state.customEnvironment.beamCount;
+    }
+  }
   return result;
+}
+
+function fieldOptionDescription(beamType=fieldControls.beamType.value,fieldMode=fieldControls.fieldMode.value){
+  const mode=fieldModeNames[fieldMode]??String(fieldMode),beam=beamTypeNames[beamType]??String(beamType);
+  return {mode,beam,shortBeam:beamTypeShortNames[beamType]??String(beamType)};
+}
+
+function updateFieldOptionStatus(data=null){
+  const beamType=data?.beam_type??fieldControls.beamType.value,fieldMode=data?.field_mode??fieldControls.fieldMode.value,{mode,beam,shortBeam}=fieldOptionDescription(beamType,fieldMode);
+  $('fieldModeLabel').textContent=`${mode} · ${shortBeam}`;
+  $('fieldOptionStatus').textContent=`OOB RunMode.${fieldMode} · BeamType.${beamType} · ${beam}`;
+  $('fieldOptionStatus').title=$('fieldOptionStatus').textContent;
+}
+
+function clearImportedBeamOption(){
+  [...fieldControls.beamType.options].filter(option=>option.dataset.envOriginal==='true').forEach(option=>option.remove());
+  if(!selectableFieldBeamTypes.has(fieldControls.beamType.value))fieldControls.beamType.value='GEOMETRIC_CARTESIAN';
+}
+
+function applyImportedFieldOptions(imported){
+  clearImportedBeamOption();
+  const beamType=String(imported?.beamType??'');
+  if(beamType&&beamType!=='PRECISE_EIGENRAY'){
+    let option=[...fieldControls.beamType.options].find(item=>item.value===beamType);
+    if(!option&&['CERVENY_CARTESIAN','CERVENY_RAY_CENTERED'].includes(beamType)){
+      option=document.createElement('option');option.value=beamType;option.dataset.envOriginal='true';option.textContent=`ENV 原始 · ${beamTypeNames[beamType]??beamType}`;fieldControls.beamType.append(option);
+    }
+    if(option)fieldControls.beamType.value=beamType;
+  }
+  if(['COHERENT_TL','INCOHERENT_TL'].includes(imported?.fieldMode))fieldControls.fieldMode.value=imported.fieldMode;
 }
 
 function syncLabels() {
   const p = params();
   $('axisDepthOut').textContent = p.axis_depth.toLocaleString('zh-CN') + ' m';
   $('gradientOut').textContent = p.gradient.toFixed(2) + '×';
-  $('bottomSpeedOut').textContent=p.bottom_speed.toLocaleString('zh-CN')+' m/s';
-  $('bottomDensityOut').textContent=p.bottom_density.toLocaleString('zh-CN')+' kg/m³';
-  $('bottomAbsorptionOut').textContent=p.bottom_absorption.toFixed(2)+' dB/λ';
-  $('axisDepth').disabled = p.profile === 'constant' || p.profile === 'custom';
-  $('gradient').disabled = p.profile === 'constant' || p.profile === 'custom';
-  $('channelSummary').textContent = p.profile === 'constant' ? '无明显声道轴' : p.profile==='custom' ? '由 11 个自定义节点共同决定' : `${p.axis_depth.toLocaleString('zh-CN')} m 附近`;
-  const names = { munk: 'MUNK / DEEP CHANNEL', surface: 'THERMOCLINE / SURFACE', constant: 'ISOVELOCITY / CONTROL', custom:'CUSTOM / 500 M NODES' };
-  $('hero-profile').textContent = names[p.profile];
+  bottomSliders.bottomSpeed.value=String(p.bottom_speed);
+  bottomSliders.bottomDensity.value=String(p.bottom_density);
+  bottomSliders.bottomAbsorption.value=String(p.bottom_absorption);
+  const parametric=['munk','surface'].includes(p.profile);$('axisDepth').disabled=!parametric;$('gradient').disabled=!parametric;
+  $('channelSummary').textContent=p.profile==='env'?(state.importedEnvironment?.rangeDependent?'ENV 原始二维声速场':'ENV 原始一维声速剖面'):p.profile==='pekeris'?`水深 ${displayDepthM().toLocaleString('zh-CN')} m · 等声速浅海波导`:p.profile==='constant'?'无明显声道轴':p.profile==='custom'?`由 ${state.customSSP.length} 个自定义节点决定`:`${p.axis_depth.toLocaleString('zh-CN')} m 附近`;
+  const names={env:'ENV / ORIGINAL PROFILE',munk:'MUNK / DEEP CHANNEL',surface:'THERMOCLINE / SURFACE',constant:'ISOVELOCITY / CONTROL',pekeris:'PEKERIS / SHALLOW WATER',custom:'CUSTOM / 500 M NODES'};$('hero-profile').textContent=names[p.profile];
+  controls.profile.value=p.profile;$('environmentModeBadge').textContent=p.profile==='env'?'ENV LINKED':p.profile.toUpperCase();$('profileDescription').textContent=p.profile==='env'?'保留 ENV 的原始 SSP、边界、接收网格与 Nbeams；可切换预设后再返回。':p.profile==='pekeris'?'200 m 等声速水层叠加流体海底半空间，适合浅海基准实验。':p.profile==='custom'?'拖动节点或用表格编辑；ENV 原始输入仍保留，可随时切回。':'预设曲线由页面预览与 WASM 求解器共享同一份采样数据。';$('convertToCustomButton').hidden=p.profile==='custom';
 }
 
 function syncEigenEnvironmentFromMain(){
   Object.keys(eigenEnvControls).forEach(key=>{eigenEnvControls[key].value=controls[key].value;});
-  const p=params();$('eigenAxisDepthOut').textContent=p.axis_depth.toLocaleString('zh-CN')+' m';$('eigenGradientOut').textContent=p.gradient.toFixed(2)+'×';$('eigenBottomSpeedOut').textContent=p.bottom_speed.toLocaleString('zh-CN')+' m/s';$('eigenBottomDensityOut').textContent=p.bottom_density.toLocaleString('zh-CN')+' kg/m³';$('eigenBottomAbsorptionOut').textContent=p.bottom_absorption.toFixed(2)+' dB/λ';eigenEnvControls.axisDepth.disabled=['constant','custom'].includes(p.profile);eigenEnvControls.gradient.disabled=['constant','custom'].includes(p.profile);drawEigenEnvironment();renderSSPTables();
+  const p=params();eigenEnvControls.profile.value=p.profile;$('eigenAxisDepthOut').textContent=p.axis_depth.toLocaleString('zh-CN')+' m';$('eigenGradientOut').textContent=p.gradient.toFixed(2)+'×';$('eigenBottomSpeedOut').textContent=p.bottom_speed.toLocaleString('zh-CN')+' m/s';$('eigenBottomDensityOut').textContent=p.bottom_density.toLocaleString('zh-CN')+' kg/m³';$('eigenBottomAbsorptionOut').textContent=p.bottom_absorption.toFixed(2)+' dB/λ';const parametric=['munk','surface'].includes(p.profile);eigenEnvControls.axisDepth.disabled=!parametric;eigenEnvControls.gradient.disabled=!parametric;drawEigenEnvironment();renderSSPTables();
 }
 
 function environmentProfile(){
-  const p=params();if(p.profile==='custom')return state.customSSP.map(point=>[point[0],point[1]]);
-  return Array.from({length:101},(_,index)=>{const depth=index*50;let speed;if(p.profile==='constant')speed=1500;else if(p.profile==='surface'){const thermocline=28*Math.tanh((p.axis_depth-depth)/420),deep=Math.max(0,depth-p.axis_depth)*.012;speed=1490+p.gradient*(thermocline+deep);}else{const eta=Math.max(-8,Math.min(8,2*(depth-p.axis_depth)/1300));speed=1500*(1+.00737*p.gradient*(eta+Math.exp(-eta)-1));}return[depth,speed];});
+  const p=params();if(p.profile==='env'&&state.importedEnvironment)return state.importedEnvironment.sspPoints.map(point=>[point[0],point[1]]);const generated=generateSspProfile({profile:p.profile,axisDepthM:p.axis_depth,gradient:p.gradient,waterDepthM:p.water_depth_m,sspPoints:p.ssp_points});return generated.depths.map((depth,index)=>[depth,generated.speeds[index]]);
 }
 
 function drawEigenEnvironment(){
-  if(!canvases.eigenSSP)return;const {ctx,w,h}=fitCanvas(canvases.eigenSSP);ctx.clearRect(0,0,w,h);ctx.fillStyle='#061720';ctx.fillRect(0,0,w,h);const a={l:31,r:10,t:29,b:25};a.pw=w-a.l-a.r;a.ph=h-a.t-a.b;const x=c=>a.l+(c-1450)/150*a.pw,y=z=>a.t+z/5000*a.ph,profile=environmentProfile(),p=params();
+  if(!canvases.eigenSSP)return;const {ctx,w,h}=fitCanvas(canvases.eigenSSP);ctx.clearRect(0,0,w,h);ctx.fillStyle='#061720';ctx.fillRect(0,0,w,h);const a={l:38,r:10,t:29,b:25};a.pw=w-a.l-a.r;a.ph=h-a.t-a.b;const profile=environmentProfile(),domain=sspPlotDomain(profile),maximumDepthM=displayDepthM(),x=c=>a.l+(c-domain.minimum)/(domain.maximum-domain.minimum)*a.pw,y=z=>a.t+z/maximumDepthM*a.ph,p=params();
   ctx.strokeStyle='rgba(92,151,169,.13)';ctx.lineWidth=1;for(let i=0;i<=4;i++){const py=a.t+a.ph*i/4;ctx.beginPath();ctx.moveTo(a.l,py);ctx.lineTo(a.l+a.pw,py);ctx.stroke();const px=a.l+a.pw*i/4;ctx.beginPath();ctx.moveTo(px,a.t);ctx.lineTo(px,a.t+a.ph);ctx.stroke();}
   ctx.beginPath();profile.forEach(([depth,speed],index)=>index?ctx.lineTo(x(speed),y(depth)):ctx.moveTo(x(speed),y(depth)));ctx.strokeStyle='#62d8e7';ctx.lineWidth=2;ctx.shadowColor='rgba(98,216,231,.5)';ctx.shadowBlur=6;ctx.stroke();ctx.shadowBlur=0;
-  if(!['constant','custom'].includes(p.profile)){ctx.setLineDash([3,3]);ctx.strokeStyle='rgba(197,241,107,.62)';ctx.beginPath();ctx.moveTo(a.l,y(p.axis_depth));ctx.lineTo(a.l+a.pw,y(p.axis_depth));ctx.stroke();ctx.setLineDash([]);}
+  if(['munk','surface'].includes(p.profile)){ctx.setLineDash([3,3]);ctx.strokeStyle='rgba(197,241,107,.62)';ctx.beginPath();ctx.moveTo(a.l,y(p.axis_depth));ctx.lineTo(a.l+a.pw,y(p.axis_depth));ctx.stroke();ctx.setLineDash([]);}
   const nearest=profile.reduce((best,point)=>Math.abs(point[0]-p.source_depth)<Math.abs(best[0]-p.source_depth)?point:best,profile[0]),sy=y(p.source_depth),sx=x(nearest[1]);ctx.setLineDash([3,3]);ctx.strokeStyle='rgba(248,180,76,.45)';ctx.beginPath();ctx.moveTo(a.l,sy);ctx.lineTo(a.l+a.pw,sy);ctx.stroke();ctx.setLineDash([]);ctx.fillStyle='#f8b44c';ctx.shadowColor='#f8b44c';ctx.shadowBlur=8;ctx.beginPath();ctx.arc(sx,sy,3.5,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;
-  ctx.fillStyle='#64848e';ctx.font='9px ui-monospace,monospace';ctx.textAlign='left';ctx.fillText('1450',a.l,h-9);ctx.textAlign='right';ctx.fillText('1600 m/s',a.l+a.pw,h-9);ctx.fillStyle='#dfb76f';ctx.fillText(`${p.source_depth.toLocaleString('zh-CN')} m`,a.l+a.pw,Math.max(a.t+10,Math.min(a.t+a.ph-3,sy-5)));
+  ctx.fillStyle='#64848e';ctx.font='9px ui-monospace,monospace';for(let i=0;i<=4;i++){const depth=maximumDepthM*i/4;ctx.textAlign='right';ctx.fillText(depth>=1000?`${(depth/1000).toFixed(depth%1000?1:0)}k`:depth.toFixed(0),a.l-4,a.t+a.ph*i/4+3);}ctx.textAlign='left';ctx.fillText(String(domain.minimum),a.l,h-9);ctx.textAlign='right';ctx.fillText(`${domain.maximum} m/s`,a.l+a.pw,h-9);ctx.fillStyle='#dfb76f';ctx.fillText(`${p.source_depth.toLocaleString('zh-CN')} m`,a.l+a.pw,Math.max(a.t+10,Math.min(a.t+a.ph-3,sy-5)));
 }
 
 function sspTablePoints(){
-  if(controls.profile.value==='custom')return state.customSSP;
-  const profile=environmentProfile();return Array.from({length:11},(_,index)=>{const target=index*500,point=profile.reduce((best,current)=>Math.abs(current[0]-target)<Math.abs(best[0]-target)?current:best,profile[0]);return[point[0],point[1]];});
+  if(state.environmentMode==='custom')return state.customSSP;
+  return resampleSspPoints(environmentProfile(),displayDepthM());
 }
 
 function normalizeCustomSSP(){
-  const unique=new Map();state.customSSP.forEach(point=>{const depth=Math.round(Math.max(0,Math.min(5000,Number(point[0])||0))*10)/10,speed=Math.round(Math.max(1400,Math.min(1650,Number(point[1])||1500))*10)/10;unique.set(depth,speed);});state.customSSP=Array.from(unique,([depth,speed])=>[depth,speed]).sort((a,b)=>a[0]-b[0]).slice(0,64);
+  state.customSSP=sanitizeSspPoints(state.customSSP,state.customWaterDepthM);
 }
 
-function ensureCustomSSP(){
-  if(controls.profile.value!=='custom')state.customSSP=sspTablePoints().map(point=>[point[0],point[1]]);state.customInitialized=true;controls.profile.value='custom';eigenEnvControls.profile.value='custom';normalizeCustomSSP();
+function updateDepthBounds(){
+  const maximumDepth=environmentWaterDepthM(),maximumSource=Math.max(20,maximumDepth-20);controls.sourceDepth.max=String(maximumSource);eigenEnvControls.sourceDepth.max=String(maximumSource);$('receiverDepth').max=String(maximumSource);controls.sourceDepth.value=String(Math.max(20,Math.min(maximumSource,Number(controls.sourceDepth.value)||20)));$('receiverDepth').value=String(Math.max(20,Math.min(maximumSource,Number($('receiverDepth').value)||Math.min(1000,maximumSource))));controls.axisDepth.max=String(Math.max(50,Math.min(2600,maximumSource)));eigenEnvControls.axisDepth.max=controls.axisDepth.max;
+}
+
+function ensureCustomSSP(points=environmentProfile()){
+  if(state.environmentMode==='custom')return;const maximumDepth=displayDepthM(),sampled=resampleSspPoints(points,maximumDepth);if(sampled.length>=2)state.customSSP=sampled;state.customWaterDepthM=maximumDepth;state.customEnvironment=null;state.environmentMode='custom';state.maximumDepthM=maximumDepth;controls.profile.value='custom';eigenEnvControls.profile.value='custom';clearImportedBeamOption();normalizeCustomSSP();updateDepthBounds();$('envImportStatus').textContent=state.importedEnvironment?'已转为一维自定义剖面 · ENV 原始模式仍可切回':'已转为一维自定义剖面';
+}
+
+function setImportedOptionAvailability(){
+  const available=state.importedEnvironment!==null;['profileEnvOption','eigenProfileEnvOption'].forEach(id=>{const option=$(id);if(!option)return;option.disabled=!available;option.hidden=!available;});
+}
+
+function applyProfileDefaults(profile){
+  if(profile==='env'){
+    const imported=state.importedEnvironment;if(!imported)return false;state.maximumDepthM=imported.maximumDepthM;controls.axisDepth.value='1300';controls.gradient.value='100';controls.sourceDepth.value=String(imported.sourceDepth);controls.frequency.value=String(imported.frequency);if(imported.bottomSpeed>0)controls.bottomSpeed.value=String(imported.bottomSpeed);if(imported.bottomDensity>0)controls.bottomDensity.value=String(imported.bottomDensity);if(imported.bottomAbsorption>=0)controls.bottomAbsorption.value=String(imported.bottomAbsorption);
+  }else if(profile==='custom'){
+    state.maximumDepthM=state.customWaterDepthM;const defaults=profileDefaults('custom');controls.axisDepth.value=String(defaults.axisDepthM);controls.gradient.value=String(defaults.gradientPercent);controls.sourceDepth.value=String(defaults.sourceDepthM);controls.frequency.value=String(defaults.frequencyHz);controls.bottomSpeed.value=String(defaults.bottomSpeedMps);controls.bottomDensity.value=String(defaults.bottomDensityKgm3);controls.bottomAbsorption.value=String(defaults.bottomAbsorptionDbPerWavelength);
+  }else{
+    const defaults=profileDefaults(profile);state.maximumDepthM=defaults.waterDepthM;controls.axisDepth.value=String(defaults.axisDepthM);controls.gradient.value=String(defaults.gradientPercent);controls.sourceDepth.value=String(defaults.sourceDepthM);controls.frequency.value=String(defaults.frequencyHz);controls.bottomSpeed.value=String(defaults.bottomSpeedMps);controls.bottomDensity.value=String(defaults.bottomDensityKgm3);controls.bottomAbsorption.value=String(defaults.bottomAbsorptionDbPerWavelength);
+  }
+  updateDepthBounds();return true;
+}
+
+function activateProfile(profile,{defaults=true}={}){
+  if(profile==='env'&&!state.importedEnvironment)return false;if(!profileNames[profile])profile='munk';state.environmentMode=profile;if(profile==='env')applyImportedFieldOptions(state.importedEnvironment);else clearImportedBeamOption();if(defaults&&!applyProfileDefaults(profile))return false;controls.profile.value=profile;eigenEnvControls.profile.value=profile;setImportedOptionAvailability();syncLabels();syncEigenEnvironmentFromMain();drawSSP();return true;
 }
 
 function renderSSPTables(){
-  const points=sspTablePoints(),markup=points.map(([depth,speed],index)=>`<tr><td><input type="number" min="0" max="5000" step="10" value="${Number(depth).toFixed(depth%1?1:0)}" data-ssp-index="${index}" data-ssp-field="depth" aria-label="第 ${index+1} 行深度"></td><td><input type="number" min="1400" max="1650" step="0.1" value="${Number(speed).toFixed(1)}" data-ssp-index="${index}" data-ssp-field="speed" aria-label="第 ${index+1} 行声速"></td><td><button type="button" class="ssp-delete-row" data-ssp-delete="${index}" aria-label="删除第 ${index+1} 行">×</button></td></tr>`).join('');['sspTableRows','eigenSSPTableRows'].forEach(id=>{const body=$(id);if(body)body.innerHTML=markup;});
+  const points=sspTablePoints(),maximumDepth=displayDepthM(),markup=points.map(([depth,speed],index)=>`<tr><td><input type="number" min="0" max="${maximumDepth}" step="10" value="${Number(depth).toFixed(depth%1?1:0)}" data-ssp-index="${index}" data-ssp-field="depth" aria-label="第 ${index+1} 行深度"></td><td><input type="number" min="1300" max="2000" step="0.1" value="${Number(speed).toFixed(1)}" data-ssp-index="${index}" data-ssp-field="speed" aria-label="第 ${index+1} 行声速"></td><td><button type="button" class="ssp-delete-row" data-ssp-delete="${index}" aria-label="删除第 ${index+1} 行">×</button></td></tr>`).join('');['sspTableRows','eigenSSPTableRows'].forEach(id=>{const body=$(id);if(body)body.innerHTML=markup;});
 }
 
 function updateSSPTableCell(event){
@@ -99,7 +207,7 @@ function updateSSPTableCell(event){
 }
 
 function addSSPTableRow(){
-  ensureCustomSSP();if(state.customSSP.length>=64)return;const points=state.customSSP;let left=points[0],right=points[points.length-1],largest=-1;for(let index=0;index<points.length-1;index++){const gap=points[index+1][0]-points[index][0];if(gap>largest){largest=gap;left=points[index];right=points[index+1];}}let depth;if(largest>1)depth=Math.round((left[0]+right[0])/2);else depth=Math.min(5000,Math.max(0,(points.at(-1)?.[0]||0)+100));const mix=(depth-left[0])/Math.max(1,right[0]-left[0]),speed=left[1]+(right[1]-left[1])*Math.max(0,Math.min(1,mix));state.customSSP.push([depth,speed]);normalizeCustomSSP();syncLabels();syncEigenEnvironmentFromMain();drawSSP();markEigenStale();clearTimeout(debounce);debounce=setTimeout(recalculateEnvironment,80);
+  ensureCustomSSP();if(state.customSSP.length>=512)return;const points=state.customSSP;let left=points[0],right=points[points.length-1],largest=-1;for(let index=0;index<points.length-1;index++){const gap=points[index+1][0]-points[index][0];if(gap>largest){largest=gap;left=points[index];right=points[index+1];}}let depth;if(largest>1)depth=Math.round((left[0]+right[0])/2);else depth=Math.min(displayDepthM(),Math.max(0,(points.at(-1)?.[0]||0)+100));const mix=(depth-left[0])/Math.max(1,right[0]-left[0]),speed=left[1]+(right[1]-left[1])*Math.max(0,Math.min(1,mix));state.customSSP.push([depth,speed]);normalizeCustomSSP();syncLabels();syncEigenEnvironmentFromMain();drawSSP();markEigenStale();clearTimeout(debounce);debounce=setTimeout(recalculateEnvironment,80);
 }
 
 function deleteSSPTableRow(event){
@@ -108,58 +216,63 @@ function deleteSSPTableRow(event){
 
 function axes(ctx, w, h, opts = {}) {
   const pad = opts.pad || { l: 39, r: 12, t: 19, b: 28 };
+  const maximumRangeKm = opts.maximumRangeKm || 100;
+  const maximumDepthM = opts.maximumDepthM || 5000;
   const pw = w - pad.l - pad.r, ph = h - pad.t - pad.b;
   ctx.strokeStyle = 'rgba(92,151,169,.14)'; ctx.lineWidth = 1;
   ctx.fillStyle = '#5f7f89'; ctx.font = '10px ui-monospace, monospace';
   for (let i = 0; i <= 5; i++) {
     const x = pad.l + pw * i / 5;
     ctx.beginPath(); ctx.moveTo(x, pad.t); ctx.lineTo(x, pad.t + ph); ctx.stroke();
-    if (!opts.noLabels) { ctx.textAlign = 'center'; ctx.fillText(String(i * 20), x, h - 12); }
+    if (!opts.noLabels) { const label=maximumRangeKm*i/5;ctx.textAlign = 'center'; ctx.fillText(label>=10?label.toFixed(0):label.toFixed(1), x, h - 12); }
   }
   for (let i = 0; i <= 5; i++) {
     const y = pad.t + ph * i / 5;
     ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(pad.l + pw, y); ctx.stroke();
-    if (!opts.noLabels) { ctx.textAlign = 'right'; ctx.fillText(String(i * 1000), pad.l - 6, y + 3); }
+    if (!opts.noLabels) { const label=maximumDepthM*i/5;ctx.textAlign = 'right'; ctx.fillText(label>=1000?`${(label/1000).toFixed(label%1000?1:0)}k`:label.toFixed(0), pad.l - 6, y + 3); }
   }
   return { ...pad, pw, ph };
+}
+
+function sspPlotDomain(profile){
+  const speeds=profile.map(point=>Number(point[1])).filter(Number.isFinite),rawMin=Math.min(...speeds),rawMax=Math.max(...speeds),padding=Math.max(2,(rawMax-rawMin)*.08);let minimum=Math.floor((rawMin-padding)/10)*10,maximum=Math.ceil((rawMax+padding)/10)*10;if(maximum-minimum<20){const middle=(minimum+maximum)/2;minimum=middle-10;maximum=middle+10;}return{minimum,maximum};
 }
 
 function drawSSP() {
   const { ctx, w, h } = fitCanvas(canvases.ssp);
   ctx.clearRect(0, 0, w, h); ctx.fillStyle = '#061720'; ctx.fillRect(0, 0, w, h);
-  const p = axes(ctx, w, h, { pad: { l: 31, r: 12, t: 28, b: 34 }, noLabels: true });
-  const ssp = state.data?.ssp || [];
-  if (!ssp.length && !state.customSSP.length) return;
-  const min=1450,max=1600,displaySSP=ssp.length?ssp:state.customSSP;
+  const displaySSP=environmentProfile();if(!displaySSP.length)return;const maximumDepthM=displayDepthM(),{minimum:min,maximum:max}=sspPlotDomain(displaySSP),p = axes(ctx, w, h, { pad: { l: 38, r: 12, t: 28, b: 34 }, noLabels: true, maximumDepthM });
   ctx.beginPath();
-  displaySSP.forEach(([z,c], i) => { const x = p.l + (c-min)/(max-min)*p.pw; const y = p.t + z/5000*p.ph; i ? ctx.lineTo(x,y) : ctx.moveTo(x,y); });
+  displaySSP.forEach(([z,c], i) => { const x = p.l + (c-min)/(max-min)*p.pw; const y = p.t + z/maximumDepthM*p.ph; i ? ctx.lineTo(x,y) : ctx.moveTo(x,y); });
   ctx.strokeStyle = '#62d8e7'; ctx.lineWidth = 2; ctx.shadowColor = '#42c8db'; ctx.shadowBlur = 8; ctx.stroke(); ctx.shadowBlur = 0;
-  const axis = params().axis_depth; const ay = p.t + axis/5000*p.ph;
+  const axis = params().axis_depth; const ay = p.t + axis/maximumDepthM*p.ph;
   if (['munk','surface'].includes(params().profile)) { ctx.setLineDash([3,3]); ctx.strokeStyle = 'rgba(197,241,107,.65)'; ctx.beginPath(); ctx.moveTo(p.l,ay);ctx.lineTo(p.l+p.pw,ay);ctx.stroke();ctx.setLineDash([]); }
-  const nodes=sspNodes();nodes.forEach(([z,c],i)=>{const nx=p.l+(c-min)/(max-min)*p.pw,ny=p.t+z/5000*p.ph;ctx.fillStyle=i===state.sspDrag?'#f8b44c':'#071923';ctx.strokeStyle=i===state.sspDrag?'#f8b44c':'#62d8e7';ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(nx,ny,i===state.sspDrag?4.5:3.2,0,Math.PI*2);ctx.fill();ctx.stroke();});
-  ctx.fillStyle = '#688a94'; ctx.font = '10px ui-monospace, monospace'; ctx.textAlign='left'; ctx.fillText(`${min} m/s`, p.l, h-20); ctx.textAlign='right'; ctx.fillText(`${max} m/s`, w-p.r, h-20);
-  ctx.save();ctx.translate(9,h/2);ctx.rotate(-Math.PI/2);ctx.textAlign='center';ctx.fillText('DEPTH',0,0);ctx.restore();
+  const nodes=sspNodes(),nodeStep=Math.max(1,Math.ceil(nodes.length/20));nodes.forEach(([z,c],i)=>{if(i%nodeStep&&i!==nodes.length-1&&i!==state.sspDrag)return;const nx=p.l+(c-min)/(max-min)*p.pw,ny=p.t+z/maximumDepthM*p.ph;ctx.fillStyle=i===state.sspDrag?'#f8b44c':'#071923';ctx.strokeStyle=i===state.sspDrag?'#f8b44c':'#62d8e7';ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(nx,ny,i===state.sspDrag?4.5:2.6,0,Math.PI*2);ctx.fill();ctx.stroke();});
+  ctx.fillStyle = '#688a94'; ctx.font = '9px ui-monospace, monospace';for(let i=0;i<=5;i++){const depth=maximumDepthM*i/5,y=p.t+p.ph*i/5;ctx.textAlign='right';ctx.fillText(depth>=1000?`${(depth/1000).toFixed(depth%1000?1:0)}k`:depth.toFixed(0),p.l-5,y+3);}ctx.textAlign='left'; ctx.fillText(`${min} m/s`, p.l, h-20); ctx.textAlign='right'; ctx.fillText(`${max} m/s`, w-p.r, h-20);
+  ctx.save();ctx.translate(9,h/2);ctx.rotate(-Math.PI/2);ctx.textAlign='center';ctx.fillText('深度 / m',0,0);ctx.restore();
 }
 
 function sspNodes(){
-  if(controls.profile.value==='custom')return state.customSSP;
-  const ssp=state.data?.ssp;if(!ssp?.length)return state.customSSP;
-  return Array.from({length:11},(_,i)=>{const z=i*500,point=ssp.find(item=>item[0]===z)||ssp[Math.min(ssp.length-1,i*10)];return [z,point[1]];});
+  return state.environmentMode==='custom'?state.customSSP:resampleSspPoints(environmentProfile(),displayDepthM());
 }
 
 function sspPointer(event,commit=false){
-  const canvas=canvases.ssp,rect=canvas.getBoundingClientRect(),layout={l:31,r:12,t:28,b:34,pw:rect.width-43,ph:rect.height-62,min:1450,max:1600};
+  const canvas=canvases.ssp,rect=canvas.getBoundingClientRect(),nodes=sspNodes(),domain=sspPlotDomain(nodes),layout={l:38,r:12,t:28,b:34,pw:rect.width-50,ph:rect.height-62,min:domain.minimum,max:domain.maximum,maximumDepthM:displayDepthM()};
   const px=event.clientX-rect.left,py=event.clientY-rect.top;
   if(state.sspDrag<0){
-    let nearest=-1,distance=Infinity;sspNodes().forEach(([z,c],i)=>{const x=layout.l+(c-layout.min)/(layout.max-layout.min)*layout.pw,y=layout.t+z/5000*layout.ph,d=Math.hypot(px-x,py-y);if(d<distance){nearest=i;distance=d;}});
-    if(distance>18)return;state.customSSP=sspNodes().map(point=>[point[0],point[1]]);state.customInitialized=true;state.sspDrag=nearest;controls.profile.value='custom';canvas.setPointerCapture?.(event.pointerId);
+    let nearest=-1,distance=Infinity;nodes.forEach(([z,c],i)=>{const x=layout.l+(c-layout.min)/(layout.max-layout.min)*layout.pw,y=layout.t+z/layout.maximumDepthM*layout.ph,d=Math.hypot(px-x,py-y);if(d<distance){nearest=i;distance=d;}});
+    if(distance>18)return;const selectedDepth=nodes[nearest][0];ensureCustomSSP(nodes);state.sspDrag=state.customSSP.reduce((best,point,index)=>Math.abs(point[0]-selectedDepth)<Math.abs(state.customSSP[best][0]-selectedDepth)?index:best,0);canvas.setPointerCapture?.(event.pointerId);
   }
   const speed=Math.round(Math.max(layout.min,Math.min(layout.max,layout.min+(px-layout.l)/layout.pw*(layout.max-layout.min)))*2)/2;state.customSSP[state.sspDrag][1]=speed;$('sspReadout').textContent=`${state.customSSP[state.sspDrag][0].toLocaleString('zh-CN')} m · ${speed.toFixed(1)} m/s`;syncLabels();syncEigenEnvironmentFromMain();drawSSP();markEigenStale();clearTimeout(debounce);debounce=setTimeout(recalculateEnvironment,commit?10:180);
 }
 
 function sourceFromPointer(event){
-  const rect=canvases.ray.getBoundingClientRect(),a={l:39,r:12,t:19,b:28},ph=rect.height-a.t-a.b,px=event.clientX-rect.left,py=event.clientY-rect.top;
-  return {depth:Math.round(Math.max(50,Math.min(4800,(py-a.t)/ph*5000))/10)*10,px,py,sourceX:a.l,sourceY:a.t+params().source_depth/5000*ph};
+  const rect=canvases.ray.getBoundingClientRect(),a={l:39,r:12,t:19,b:28},ph=rect.height-a.t-a.b,px=event.clientX-rect.left,py=event.clientY-rect.top,maximumDepthM=displayDepthM();
+  return {depth:Math.round(Math.max(20,Math.min(maximumDepthM-20,(py-a.t)/ph*maximumDepthM))/10)*10,px,py,sourceX:a.l,sourceY:a.t+params().source_depth/maximumDepthM*ph};
+}
+
+function drawBathymetry(ctx,a,data,progress=1){
+  const points=data?.bathymetry;if(!points?.length)return;const maximumRangeKm=data.maximum_range_km||100,maximumDepthM=data.maximum_depth_m||5000,limit=maximumRangeKm*progress,x=range=>a.l+range/maximumRangeKm*a.pw,y=depth=>a.t+depth/maximumDepthM*a.ph,visible=points.filter(point=>point[0]<=limit);if(!visible.length)return;ctx.save();ctx.beginPath();visible.forEach((point,index)=>index?ctx.lineTo(x(point[0]),y(point[1])):ctx.moveTo(x(point[0]),y(point[1])));ctx.lineTo(x(visible.at(-1)[0]),a.t+a.ph);ctx.lineTo(x(visible[0][0]),a.t+a.ph);ctx.closePath();ctx.fillStyle='#281f19';ctx.fill();ctx.beginPath();visible.forEach((point,index)=>index?ctx.lineTo(x(point[0]),y(point[1])):ctx.moveTo(x(point[0]),y(point[1])));ctx.strokeStyle='#d5a968';ctx.lineWidth=1.6;ctx.shadowColor='rgba(213,169,104,.35)';ctx.shadowBlur=4;ctx.stroke();ctx.restore();
 }
 
 function startSourceDrag(event){
@@ -178,14 +291,15 @@ function finishSourceDrag(event){
 function drawRay(progress = 1) {
   const { ctx, w, h } = fitCanvas(canvases.ray);
   ctx.clearRect(0,0,w,h); ctx.fillStyle='#06161f';ctx.fillRect(0,0,w,h);
-  const a = axes(ctx,w,h); if (!state.data) return;
-  const y = z => a.t + z/5000*a.ph, x = r => a.l + r/100*a.pw, sourceDepth=params().source_depth, solvedDepth=state.solvedSourceDepth??sourceDepth, previewShift=sourceDepth-solvedDepth;
+  const maximumRangeKm=state.data?.maximum_range_km||100,maximumDepthM=state.data?.maximum_depth_m||displayDepthM(),a = axes(ctx,w,h,{maximumRangeKm,maximumDepthM}); if (!state.data) return;
+  const y = z => a.t + z/maximumDepthM*a.ph, x = r => a.l + r/maximumRangeKm*a.pw, sourceDepth=params().source_depth, solvedDepth=state.solvedSourceDepth??sourceDepth, previewShift=sourceDepth-solvedDepth;
   const grad = ctx.createLinearGradient(0,a.t,0,a.t+a.ph); grad.addColorStop(0,'rgba(20,72,89,.16)');grad.addColorStop(.5,'rgba(18,91,108,.08)');grad.addColorStop(1,'rgba(4,10,16,.25)');ctx.fillStyle=grad;ctx.fillRect(a.l,a.t,a.pw,a.ph);
-  ctx.strokeStyle='rgba(197,241,107,.28)';ctx.setLineDash([4,5]);ctx.beginPath();ctx.moveTo(a.l,y(params().axis_depth));ctx.lineTo(a.l+a.pw,y(params().axis_depth));ctx.stroke();ctx.setLineDash([]);
-  const maxRange = progress*100;
+  drawBathymetry(ctx,a,state.data,progress);
+  if(['munk','surface'].includes(params().profile)){ctx.strokeStyle='rgba(197,241,107,.28)';ctx.setLineDash([4,5]);ctx.beginPath();ctx.moveTo(a.l,y(params().axis_depth));ctx.lineTo(a.l+a.pw,y(params().axis_depth));ctx.stroke();ctx.setLineDash([]);}
+  const maxRange = progress*maximumRangeKm;
   state.data.rays.forEach((ray, idx) => {
     ctx.beginPath(); let started=false;
-    ray.forEach(pt => { if(pt[0]>maxRange)return; const px=x(pt[0]),previewDepth=Math.max(0,Math.min(5000,pt[1]+previewShift*Math.exp(-pt[0]/10))),py=y(previewDepth); if(!started){ctx.moveTo(px,py);started=true;}else ctx.lineTo(px,py); });
+    ray.forEach(pt => { if(pt[0]>maxRange)return; const px=x(pt[0]),previewDepth=Math.max(0,Math.min(maximumDepthM,pt[1]+previewShift*Math.exp(-pt[0]/10))),py=y(previewDepth); if(!started){ctx.moveTo(px,py);started=true;}else ctx.lineTo(px,py); });
     const alpha=.32+.58*(1-Math.abs(idx-(state.data.rays.length-1)/2)/(state.data.rays.length/2));
     ctx.strokeStyle=`rgba(98,216,231,${alpha})`;ctx.lineWidth=idx%3===0?1.15:.75;ctx.stroke();
   });
@@ -210,10 +324,10 @@ function buildLossImage() {
 }
 
 function drawLoss(progress=1) {
-  const {ctx,w,h}=fitCanvas(canvases.loss);ctx.clearRect(0,0,w,h);ctx.fillStyle='#06161f';ctx.fillRect(0,0,w,h);const a=axes(ctx,w,h);
+  const {ctx,w,h}=fitCanvas(canvases.loss);ctx.clearRect(0,0,w,h);ctx.fillStyle='#06161f';ctx.fillRect(0,0,w,h);const axisOptions={maximumRangeKm:state.data?.maximum_range_km||100,maximumDepthM:state.data?.maximum_depth_m||displayDepthM()},a=axes(ctx,w,h,axisOptions);
   if(!state.lossImage)return;
   ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';ctx.globalAlpha=.96;ctx.drawImage(state.lossImage,0,0,state.lossImage.width*progress,state.lossImage.height,a.l,a.t,a.pw*progress,a.ph);ctx.globalAlpha=1;
-  axes(ctx,w,h);
+  drawBathymetry(ctx,a,state.data,progress);axes(ctx,w,h,axisOptions);
   if(progress<1){const fx=a.l+a.pw*progress;const g=ctx.createLinearGradient(fx-18,0,fx+8,0);g.addColorStop(0,'rgba(98,216,231,0)');g.addColorStop(1,'rgba(98,216,231,.42)');ctx.fillStyle=g;ctx.fillRect(fx-18,a.t,26,a.ph);}
 }
 
@@ -224,7 +338,7 @@ function buildVelocityImages(){
 }
 
 function drawVelocityComponent(canvas,image,progress){
-  const {ctx,w,h}=fitCanvas(canvas);ctx.clearRect(0,0,w,h);ctx.fillStyle='#06161f';ctx.fillRect(0,0,w,h);const a=axes(ctx,w,h);if(!image)return;ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';ctx.globalAlpha=.96;ctx.drawImage(image,0,0,image.width*progress,image.height,a.l,a.t,a.pw*progress,a.ph);ctx.globalAlpha=1;axes(ctx,w,h);if(progress<1){const fx=a.l+a.pw*progress,g=ctx.createLinearGradient(fx-18,0,fx+8,0);g.addColorStop(0,'rgba(98,216,231,0)');g.addColorStop(1,'rgba(98,216,231,.42)');ctx.fillStyle=g;ctx.fillRect(fx-18,a.t,26,a.ph);}
+  const {ctx,w,h}=fitCanvas(canvas),axisOptions={maximumRangeKm:state.data?.maximum_range_km||100,maximumDepthM:state.data?.maximum_depth_m||displayDepthM()};ctx.clearRect(0,0,w,h);ctx.fillStyle='#06161f';ctx.fillRect(0,0,w,h);const a=axes(ctx,w,h,axisOptions);if(!image)return;ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';ctx.globalAlpha=.96;ctx.drawImage(image,0,0,image.width*progress,image.height,a.l,a.t,a.pw*progress,a.ph);ctx.globalAlpha=1;drawBathymetry(ctx,a,state.data,progress);axes(ctx,w,h,axisOptions);if(progress<1){const fx=a.l+a.pw*progress,g=ctx.createLinearGradient(fx-18,0,fx+8,0);g.addColorStop(0,'rgba(98,216,231,0)');g.addColorStop(1,'rgba(98,216,231,.42)');ctx.fillStyle=g;ctx.fillRect(fx-18,a.t,26,a.ph);}
 }
 
 function drawVelocity(progress=1){
@@ -391,23 +505,23 @@ function eigenColor(ray) {
   return '#f8b44c';
 }
 
-function eigenAxes(ctx,w,h,maxRange) {
+function eigenAxes(ctx,w,h,maxRange,maxDepth) {
   const a={l:46,r:16,t:18,b:34};a.pw=w-a.l-a.r;a.ph=h-a.t-a.b;
   ctx.strokeStyle='rgba(92,151,169,.14)';ctx.lineWidth=1;ctx.fillStyle='#5f7f89';ctx.font='10px ui-monospace, monospace';
   for(let i=0;i<=5;i++){const x=a.l+a.pw*i/5;ctx.beginPath();ctx.moveTo(x,a.t);ctx.lineTo(x,a.t+a.ph);ctx.stroke();ctx.textAlign='center';ctx.fillText((maxRange*i/5).toFixed(0),x,h-12);}
-  for(let i=0;i<=5;i++){const y=a.t+a.ph*i/5;ctx.beginPath();ctx.moveTo(a.l,y);ctx.lineTo(a.l+a.pw,y);ctx.stroke();ctx.textAlign='right';ctx.fillText(String(i*1000),a.l-6,y+3);}
+  for(let i=0;i<=5;i++){const y=a.t+a.ph*i/5,depth=maxDepth*i/5;ctx.beginPath();ctx.moveTo(a.l,y);ctx.lineTo(a.l+a.pw,y);ctx.stroke();ctx.textAlign='right';ctx.fillText(depth>=1000?`${(depth/1000).toFixed(depth%1000?1:0)}k`:depth.toFixed(0),a.l-6,y+3);}
   ctx.fillStyle='#486b76';ctx.textAlign='center';ctx.fillText('距离 / km',a.l+a.pw/2,h-3);ctx.save();ctx.translate(10,a.t+a.ph/2);ctx.rotate(-Math.PI/2);ctx.fillText('深度 / m',0,0);ctx.restore();
   return a;
 }
 
 function drawEigen() {
   const {ctx,w,h}=fitCanvas(canvases.eigen);ctx.clearRect(0,0,w,h);ctx.fillStyle='#06161f';ctx.fillRect(0,0,w,h);
-  const data=state.eigen,maxRange=100,a=eigenAxes(ctx,w,h,maxRange);if(!data)return;
-  const receiver=state.receiverPreview||data.receiver,x=r=>a.l+r/maxRange*a.pw,y=z=>a.t+z/5000*a.ph,sourceDepth=params().source_depth,solvedSource=state.solvedEigenSourceDepth??sourceDepth,sourceShift=sourceDepth-solvedSource,pathY=pt=>y(Math.max(0,Math.min(5000,pt[1]+sourceShift*Math.exp(-pt[0]/10))));
+  const data=state.eigen,maxRange=data?.maximum_range_km||100,maxDepth=data?.maximum_depth_m||displayDepthM(),a=eigenAxes(ctx,w,h,maxRange,maxDepth);if(!data)return;
+  const receiver=state.receiverPreview||data.receiver,x=r=>a.l+r/maxRange*a.pw,y=z=>a.t+z/maxDepth*a.ph,sourceDepth=params().source_depth,solvedSource=state.solvedEigenSourceDepth??sourceDepth,sourceShift=sourceDepth-solvedSource,pathY=pt=>y(Math.max(0,Math.min(maxDepth,pt[1]+sourceShift*Math.exp(-pt[0]/10))));drawBathymetry(ctx,a,data,1);
   ctx.setLineDash([5,4]);data.equal_angle_eigenrays.forEach(ray=>{ctx.beginPath();ray.path.forEach((pt,i)=>i?ctx.lineTo(x(pt[0]),pathY(pt)):ctx.moveTo(x(pt[0]),pathY(pt)));ctx.strokeStyle='rgba(91,157,255,.75)';ctx.lineWidth=1.15;ctx.stroke();});ctx.setLineDash([]);
   data.eigenrays.forEach(ray=>{ctx.beginPath();ray.path.forEach((pt,i)=>i?ctx.lineTo(x(pt[0]),pathY(pt)):ctx.moveTo(x(pt[0]),pathY(pt)));ctx.strokeStyle=eigenColor(ray);ctx.lineWidth=1.65;ctx.shadowColor=eigenColor(ray);ctx.shadowBlur=5;ctx.stroke();ctx.shadowBlur=0;});
   const sourceX=x(0),sourceY=y(sourceDepth);if(state.eigenSourceDragging){ctx.setLineDash([3,4]);ctx.strokeStyle='rgba(248,180,76,.34)';ctx.beginPath();ctx.moveTo(a.l,sourceY);ctx.lineTo(a.l+a.pw,sourceY);ctx.stroke();ctx.setLineDash([]);}ctx.fillStyle='#f8b44c';ctx.shadowColor='#f8b44c';ctx.shadowBlur=state.eigenSourceDragging?15:10;ctx.beginPath();ctx.arc(sourceX,sourceY,state.eigenSourceDragging?6:4.5,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;ctx.strokeStyle='rgba(248,180,76,.48)';ctx.beginPath();ctx.arc(sourceX,sourceY,9,0,Math.PI*2);ctx.stroke();ctx.fillStyle='#e2be78';ctx.font='10px ui-monospace,monospace';ctx.textAlign='left';ctx.fillText(`声源 ${sourceDepth.toLocaleString('zh-CN')} m`,sourceX+12,sourceY-10);
-  const rx=x(receiver.range_km),ry=y(receiver.depth_m),boxLeft=Math.max(0,receiver.range_km-1),boxRight=Math.min(100,receiver.range_km+1),boxTop=Math.max(0,receiver.depth_m-180),boxBottom=Math.min(5000,receiver.depth_m+180);
+  const rx=x(receiver.range_km),ry=y(receiver.depth_m),boxLeft=Math.max(0,receiver.range_km-1),boxRight=Math.min(maxRange,receiver.range_km+1),boxTop=Math.max(0,receiver.depth_m-180),boxBottom=Math.min(maxDepth,receiver.depth_m+180);
   if(state.receiverDragging){ctx.setLineDash([3,4]);ctx.strokeStyle='rgba(248,180,76,.36)';ctx.beginPath();ctx.moveTo(a.l,ry);ctx.lineTo(a.l+a.pw,ry);ctx.moveTo(rx,a.t);ctx.lineTo(rx,a.t+a.ph);ctx.stroke();ctx.setLineDash([]);}
   ctx.fillStyle='#f8b44c';ctx.shadowColor='#f8b44c';ctx.shadowBlur=12;ctx.beginPath();ctx.arc(rx,ry,state.receiverDragging?7:5,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;ctx.strokeStyle='#f8b44c';ctx.strokeRect(x(boxLeft),y(boxTop),x(boxRight)-x(boxLeft),y(boxBottom)-y(boxTop));
   ctx.fillStyle='#e2be78';ctx.font='10px ui-monospace, monospace';ctx.textAlign=rx>w-165?'right':'left';ctx.fillText(`${receiver.range_km.toFixed(1)} km · ${receiver.depth_m.toFixed(0)} m`,rx+(rx>w-165?-10:10),ry-10);
@@ -422,25 +536,25 @@ function drawEigen() {
 }
 
 function receiverFromPointer(event){
-  const rect=canvases.eigen.getBoundingClientRect(),a={l:46,r:16,t:18,b:34},pw=rect.width-62,ph=rect.height-52,px=event.clientX-rect.left,py=event.clientY-rect.top;
-  return {range_km:Math.round(Math.max(5,Math.min(95,(px-a.l)/pw*100))*2)/2,depth_m:Math.round(Math.max(20,Math.min(4980,(py-a.t)/ph*5000))/10)*10,px,py,a,pw,ph};
+  const rect=canvases.eigen.getBoundingClientRect(),a={l:46,r:16,t:18,b:34},pw=rect.width-62,ph=rect.height-52,px=event.clientX-rect.left,py=event.clientY-rect.top,maxRange=state.eigen?.maximum_range_km||100,maxDepth=state.eigen?.maximum_depth_m||displayDepthM(),upper=Math.min(95,maxRange),lower=Math.min(5,upper);
+  return {range_km:Math.round(Math.max(lower,Math.min(upper,(px-a.l)/pw*maxRange))*2)/2,depth_m:Math.round(Math.max(20,Math.min(maxDepth-20,(py-a.t)/ph*maxDepth))/10)*10,px,py,a,pw,ph,maxRange,maxDepth};
 }
 
 function startEigenInteraction(event){
-  if(!state.eigen||$('eigenRun').disabled)return;const point=receiverFromPointer(event),sourceX=point.a.l,sourceY=point.a.t+params().source_depth/5000*point.ph;
+  if(!state.eigen||$('eigenRun').disabled)return;const point=receiverFromPointer(event),sourceX=point.a.l,sourceY=point.a.t+params().source_depth/point.maxDepth*point.ph;
   if(Math.hypot(point.px-sourceX,point.py-sourceY)<=22){clearTimeout(debounce);state.eigenSourceDragging=true;canvases.eigen.classList.add('dragging');canvases.eigen.setPointerCapture?.(event.pointerId);moveEigenInteraction(event);return;}startReceiverDrag(event);
 }
 
 function moveEigenInteraction(event){
-  if(!state.eigenSourceDragging){moveReceiver(event);return;}const point=receiverFromPointer(event),depth=Math.round(Math.max(50,Math.min(4800,point.depth_m))/10)*10;controls.sourceDepth.value=String(depth);eigenEnvControls.sourceDepth.value=String(depth);syncLabels();drawEigenEnvironment();drawRay(1);$('eigenStatus').classList.add('eigen-running');$('eigenStatus').querySelector('span').textContent='拖动声源 · 松开后重新求解';drawEigen();
+  if(!state.eigenSourceDragging){moveReceiver(event);return;}const point=receiverFromPointer(event),depth=Math.round(Math.max(20,Math.min(point.maxDepth-20,point.depth_m))/10)*10;controls.sourceDepth.value=String(depth);eigenEnvControls.sourceDepth.value=String(depth);syncLabels();drawEigenEnvironment();drawRay(1);$('eigenStatus').classList.add('eigen-running');$('eigenStatus').querySelector('span').textContent='拖动声源 · 松开后重新求解';drawEigen();
 }
 
 function finishEigenInteraction(event){
-  if(!state.eigenSourceDragging){finishReceiverDrag(event);return;}moveEigenInteraction(event);state.eigenSourceDragging=false;canvases.eigen.classList.remove('dragging');run();runEigen();
+  if(!state.eigenSourceDragging){finishReceiverDrag(event);return;}moveEigenInteraction(event);state.eigenSourceDragging=false;canvases.eigen.classList.remove('dragging');recalculateAfterEigenDrag();
 }
 
 function startReceiverDrag(event){
-  if(!state.eigen||$('eigenRun').disabled)return;const point=receiverFromPointer(event),receiver=state.receiverPreview||state.eigen.receiver,rx=point.a.l+receiver.range_km/100*point.pw,ry=point.a.t+receiver.depth_m/5000*point.ph;
+  if(!state.eigen||$('eigenRun').disabled)return;const point=receiverFromPointer(event),receiver=state.receiverPreview||state.eigen.receiver,rx=point.a.l+receiver.range_km/point.maxRange*point.pw,ry=point.a.t+receiver.depth_m/point.maxDepth*point.ph;
   if(Math.hypot(point.px-rx,point.py-ry)>18)return;state.receiverDragging=true;state.receiverPreview={range_km:receiver.range_km,depth_m:receiver.depth_m};canvases.eigen.classList.add('dragging');canvases.eigen.setPointerCapture?.(event.pointerId);moveReceiver(event);
 }
 
@@ -449,7 +563,7 @@ function moveReceiver(event){
 }
 
 function finishReceiverDrag(event){
-  if(!state.receiverDragging)return;moveReceiver(event);state.receiverDragging=false;canvases.eigen.classList.remove('dragging');runEigen();
+  if(!state.receiverDragging)return;moveReceiver(event);state.receiverDragging=false;canvases.eigen.classList.remove('dragging');runEigen({comparison:false});
 }
 
 function drawArrivals() {
@@ -466,51 +580,127 @@ function drawArrivals() {
 
 function renderEigenSummary() {
   const data=state.eigen;if(!data)return;const rays=data.eigenrays,equal=data.equal_angle_eigenrays;
-  $('coarseMiss').textContent=data.equal_angle_residual_rmse_m.toFixed(2)+' m';$('exactResidual').textContent=data.precise_residual_rmse_m.toFixed(3)+' m';$('eigenCount').textContent=`${equal.length} / ${rays.length} paths`;$('eigenIterations').textContent=data.iterations==null?'MODE_E_PC':data.iterations+' iter';$('coherentTl').textContent=data.coherent_tl_db.toFixed(2)+' dB';$('incoherentTl').textContent=data.incoherent_tl_db.toFixed(2)+' dB';
+  $('coarseMiss').textContent=data.comparison_included?data.equal_angle_residual_rmse_m.toFixed(2)+' m':'—';$('exactResidual').textContent=data.precise_residual_rmse_m.toFixed(3)+' m';$('eigenCount').textContent=`${data.comparison_included?equal.length:'—'} / ${rays.length} paths`;$('eigenIterations').textContent=data.iterations==null?'MODE_E_PC':data.iterations+' iter';$('coherentTl').textContent=data.coherent_tl_db.toFixed(2)+' dB';$('incoherentTl').textContent=data.incoherent_tl_db.toFixed(2)+' dB';const scopeNote=`接收器轴为 ${data.receiver_grid_shape.join('×')}，仅计算图中标记的一个接收点。`;const comparisonNote=data.comparison_included?'蓝色结果由 OOB 的 EIGENRAY / ARRIVALS 模式计算；彩色结果由 OOB 原生 MODE_E_PC 精确本征算法（PARTICLE_RAY / PARTICLE_ARRIVALS）计算。':data.comparison_skip_reason==='range_dependent_environment'?'当前为距离相关 2D ENV，已跳过不适用且耗时的传统 EIGENRAY / ARRIVALS 对照，仅执行 OOB 原生 MODE_E_PC 精确算法。':'当前为拖动快速精确更新，仅执行 OOB 原生 MODE_E_PC；点击“搜索本征声线”可补算蓝色传统对照。';$('eigenMethodNote').textContent=`${scopeNote}${formatAngle(data.angle_range_degrees[0])} 至 ${formatAngle(data.angle_range_degrees[1])} 使用 ${data.launch_angle_count.toLocaleString('zh-CN')} 个等间隔初始角。${comparisonNote}计算在浏览器 Web Worker 的 WebAssembly 模块中完成，不向后端上传环境参数。`;
   const timeText=ray=>ray.arrival_valid&&Number.isFinite(ray.travel_time_s)?ray.travel_time_s.toFixed(4)+' s':'—',phaseText=ray=>ray.arrival_valid&&Number.isFinite(ray.phase_deg)?ray.phase_deg.toFixed(1)+'°':'—';
   const exactRows=rays.map(ray=>`<tr><td class="method-precise">精确</td><td>E${String(ray.id).padStart(2,'0')}</td><td style="color:${eigenColor(ray)}">${ray.kind}</td><td>${ray.launch_angle.toFixed(4)}°</td><td>${timeText(ray)}</td><td>${phaseText(ray)}</td><td>${Math.abs(ray.residual_m).toFixed(3)} m</td></tr>`),equalRows=equal.map(ray=>`<tr><td class="method-equal">本征</td><td>A${String(ray.id).padStart(2,'0')}</td><td>${ray.kind}</td><td>${ray.launch_angle.toFixed(4)}°</td><td>${timeText(ray)}</td><td>${phaseText(ray)}</td><td>${Math.abs(ray.residual_m).toFixed(2)} m</td></tr>`);
   $('arrivalRows').innerHTML=exactRows.length||equalRows.length?[...exactRows,...equalRows].join(''):'<tr><td colspan="7">当前角度范围内未发现本征声线，请调整接收点。</td></tr>';
 }
 
-async function runEigen() {
-  const token=++state.eigenRequest,p=params();p.receiver_range=Math.max(5,Math.min(95,Number($('receiverRange').value)||50));p.receiver_depth=Math.max(20,Math.min(4980,Number($('receiverDepth').value)||1000));p.tolerance=Number($('eigenTolerance').value);
-  const names={munk:'Munk 深海声道',surface:'表层跃变',constant:'等声速水体',custom:'自定义 500 m 节点'};$('eigenEnv').textContent=`${names[p.profile]} · 声源 ${p.source_depth.toLocaleString('zh-CN')} m · ${p.frequency} Hz`;$('eigenStatus').classList.add('eigen-running');$('eigenStatus').querySelector('span').textContent='正在计算本征声线与精确本征声线';$('eigenRun').disabled=true;
-  try{const data=await preciseEigenrays(p);if(token!==state.eigenRequest)return;state.eigen=data;state.solvedEigenSourceDepth=p.source_depth;state.receiverPreview=null;state.receiverDragging=false;state.eigenSourceDragging=false;canvases.eigen.classList.remove('dragging');syncEigenEnvironmentFromMain();drawEigen();drawArrivals();renderEigenSummary();$('eigenEnv').textContent=`${names[p.profile]} · 声源 ${p.source_depth.toLocaleString('zh-CN')} m · ${p.frequency} Hz · ${data.thread_count} WASM threads`;$('eigenStatus').querySelector('span').textContent=`本征 ${data.equal_angle_eigenrays.length} 条 · 精确 ${data.eigenrays.length} 条 · ${data.compute_ms.toFixed(1)} ms`;$('eigenStatus').classList.remove('eigen-running');}
-  catch(e){$('eigenStatus').querySelector('span').textContent='WASM 求解失败 · 请使用支持跨源隔离的浏览器服务';$('eigenStatus').classList.remove('eigen-running');console.error(e);}finally{if(token===state.eigenRequest)$('eigenRun').disabled=false;}
+async function runEigen(options={}) {
+  const token=++state.eigenRequest,p=params();p.receiver_range=Math.max(5,Math.min(95,Number($('receiverRange').value)||50));p.receiver_depth=Math.max(20,Math.min(displayDepthM()-20,Number($('receiverDepth').value)||1000));p.tolerance=Number($('eigenTolerance').value);
+  p.include_equal_angle_comparison=options.comparison!==false;const names=profileNames;$('eigenEnv').textContent=`${names[p.profile]} · 声源 ${p.source_depth.toLocaleString('zh-CN')} m · ${p.frequency} Hz`;$('eigenStatus').classList.add('eigen-running');$('eigenStatus').querySelector('span').textContent=p.include_equal_angle_comparison?'正在计算本征声线与精确本征声线':'正在精确求解单接收点';$('eigenRun').disabled=true;
+  try{const data=await preciseEigenrays(p);if(token!==state.eigenRequest)return;state.eigen=data;state.solvedEigenSourceDepth=p.source_depth;state.receiverPreview=null;state.receiverDragging=false;state.eigenSourceDragging=false;canvases.eigen.classList.remove('dragging');syncEigenEnvironmentFromMain();drawEigen();drawArrivals();renderEigenSummary();$('eigenEnv').textContent=`${names[p.profile]} · 声源 ${p.source_depth.toLocaleString('zh-CN')} m · ${p.frequency} Hz · ${data.thread_count} WASM threads`;$('eigenStatus').querySelector('span').textContent=data.comparison_included?`本征 ${data.equal_angle_eigenrays.length} 条 · 精确 ${data.eigenrays.length} 条 · ${data.compute_ms.toFixed(1)} ms`:`单接收点 · 精确 ${data.eigenrays.length} 条 · ${data.compute_ms.toFixed(1)} ms`;$('eigenStatus').classList.remove('eigen-running');}
+  catch(e){if(token!==state.eigenRequest)return;$('eigenStatus').querySelector('span').textContent='WASM 求解失败 · 请使用支持跨源隔离的浏览器服务';$('eigenStatus').classList.remove('eigen-running');console.error(e);}finally{if(token===state.eigenRequest)$('eigenRun').disabled=false;}
 }
 
 async function run() {
   const token=++state.request;syncLabels();$('simStatus').textContent='CALCULATING';$('simTime').textContent='PLEASE WAIT';$('simPulse').parentElement.classList.add('loading');
   const started=performance.now();
   try {
-    await initializeWasm();const data=await simulate(params());if(token!==state.request)return;state.data=data;state.solvedSourceDepth=params().source_depth;state.animation=1;$('bottomReflectionLoss').textContent=data.bottom.absorption_db_per_wavelength.toFixed(2)+' dB/λ';$('fieldRayCount').textContent=data.field_ray_count.toLocaleString('zh-CN')+' RAYS · INCOHERENT · WASM';buildLossImage();buildVelocityImages();drawSSP();drawRay(1);drawLoss(1);drawVelocity(1);drawIntroRay(state.introProgress||1);
+    await initializeWasm();const data=await simulate(params());if(token!==state.request)return;state.data=data;state.solvedSourceDepth=params().source_depth;state.animation=1;
+    const {mode,shortBeam}=fieldOptionDescription(data.beam_type,data.field_mode),rayCount=data.field_ray_count.toLocaleString('zh-CN');
+    $('bottomReflectionLoss').textContent=data.bottom.absorption_db_per_wavelength.toFixed(2)+' dB/λ';
+    $('fieldRayCount').textContent=data.field_ray_count===data.requested_field_ray_count?`${rayCount} RAYS · ${mode} · ${shortBeam} · WASM`:`${rayCount} / ENV ${data.requested_field_ray_count.toLocaleString('zh-CN')} · ${mode} · ${shortBeam} · MEMORY FIT`;
+    $('fieldRayCount').title=`RunMode.${data.field_mode} · BeamType.${data.beam_type}`;updateFieldOptionStatus(data);
+    $('launchAngleDisplay').textContent=formatAngleRange(data.angle_range_degrees);$('displayRayCount').textContent=`${data.display_ray_count.toLocaleString('zh-CN')} DISPLAY RAYS`;$('maximumRangeDisplay').textContent=`${data.maximum_range_km.toLocaleString('zh-CN')} km`;buildLossImage();buildVelocityImages();drawSSP();drawRay(1);drawLoss(1);drawVelocity(1);drawIntroRay(state.introProgress||1);
     $('simStatus').textContent='SIMULATION COMPLETE';$('simTime').textContent=`${(performance.now()-started).toFixed(1)} ms`;
   } catch(e) {
+    if(token!==state.request)return;
     $('simStatus').textContent='WASM ERROR';$('simTime').textContent='CHECK COOP / COEP';console.error(e);
   } finally { if(token===state.request)$('simPulse').parentElement.classList.remove('loading'); }
 }
 
 let debounce;
-function recalculateEnvironment(){run();runEigen();}
+async function recalculateEnvironment(){const token=++state.environmentRequest;await run();if(token!==state.environmentRequest)return;await runEigen();}
+async function recalculateAfterEigenDrag(){const token=++state.environmentRequest;await runEigen({comparison:false});if(token!==state.environmentRequest)return;await run();}
 function markEigenStale(){if(!$('eigenStatus'))return;$('eigenStatus').classList.add('eigen-running');$('eigenStatus').querySelector('span').textContent='环境参数已变化 · 正在重新计算';}
-function schedule(){syncLabels();syncEigenEnvironmentFromMain();markEigenStale();clearTimeout(debounce);debounce=setTimeout(recalculateEnvironment,180);}
-Object.values(controls).forEach(el=>el.addEventListener(el.type==='number'?'change':'input',schedule));
-Object.entries(eigenEnvControls).forEach(([key,el])=>el.addEventListener(el.type==='number'?'change':'input',()=>{controls[key].value=el.value;schedule();drawEigen();}));
+
+function describeImportError(error){
+  if(error instanceof Error&&error.message)return error.message;
+  if(typeof error==='string'&&error.trim())return error;
+  try{const serialized=JSON.stringify(error);if(serialized&&serialized!=='{}')return serialized;}catch{}
+  return '未能识别文件内容，请检查 ENV/JSON 格式及同名 SSP、BTY 伴随文件。';
+}
+
+function canonicalBathymetryVaries(points){
+  if(!Array.isArray(points)||points.length<2)return false;const first=Number(points[0]?.[1]);return Number.isFinite(first)&&points.some(point=>Math.abs(Number(point?.[1])-first)>1e-6);
+}
+
+function applyCanonicalEnvironment(imported){
+  if(!Array.isArray(imported?.profilePoints)||imported.profilePoints.length<2)throw new Error('环境文件中未找到至少两个有效的声速剖面节点');
+  const finiteOr=(value,fallback)=>Number.isFinite(Number(value))?Number(value):fallback;
+  const waterDepthM=Math.max(50,Math.min(12000,finiteOr(imported.waterDepthM,finiteOr(imported.profilePoints.at(-1)?.[0],DEFAULT_WATER_DEPTH_M))));
+  const bathymetry=Array.isArray(imported.bathymetry)?imported.bathymetry.map(point=>[Number(point[0]),Number(point[1])]):null;
+  const deepestBottomM=bathymetry?.reduce((maximum,point)=>Math.max(maximum,Number(point[1])||0),waterDepthM)??waterDepthM;
+  state.customWaterDepthM=waterDepthM;
+  state.maximumDepthM=Math.max(waterDepthM,deepestBottomM);
+  state.customSSP=sanitizeSspPoints(imported.profilePoints.map(point=>[Number(point[0]),Number(point[1])]),waterDepthM);
+  state.customEnvironment={
+    ...imported,
+    maximumRangeKm:finiteOr(imported.maximumRangeKm,100),
+    bathymetry,
+    angleRangeDegrees:Array.isArray(imported.angleRangeDegrees)?imported.angleRangeDegrees.map(Number):undefined,
+    beamCount:finiteOr(imported.beamCount,1000),
+  };
+  controls.frequency.value=String(Math.max(20,Math.min(5000,finiteOr(imported.frequencyHz,500))));
+  controls.bottomSpeed.value=String(Math.max(1400,Math.min(3000,finiteOr(imported.bottomSoundSpeedMps,1700))));
+  controls.bottomDensity.value=String(Math.max(1000,Math.min(3500,finiteOr(imported.bottomDensityKgM3,1800))));
+  controls.bottomAbsorption.value=String(Math.max(0,Math.min(5,finiteOr(imported.bottomAttenuationDbPerWavelength,0.5))));
+  applyImportedFieldOptions(imported);
+  activateProfile('custom',{defaults:false});
+  controls.sourceDepth.value=String(Math.max(20,Math.min(waterDepthM-20,finiteOr(imported.sourceDepthM,Math.min(1000,waterDepthM/2)))));
+  updateDepthBounds();
+  const receiverRange=Math.max(5,Math.min(95,finiteOr(imported.maximumRangeKm,50),finiteOr($('receiverRange').value,50)));
+  $('receiverRange').value=String(receiverRange);
+  syncLabels();syncEigenEnvironmentFromMain();renderSSPTables();drawSSP();
+}
+
+async function handleEnvImport(event){
+  const files=[...event.target.files];if(!files.length)return;++state.environmentRequest;++state.request;++state.eigenRequest;const button=$('envImportButton'),status=$('envImportStatus');button.disabled=true;status.className='';status.textContent='正在浏览器中解析环境文件…';
+  try{
+    const hasEnv=files.some(file=>/\.env$/i.test(file.name));
+    if(hasEnv){
+      const imported=await importEnvironment(files);if(imported.sspPoints.length<2)throw new Error('ENV 中未找到有效的声速剖面');
+      state.customEnvironment=null;state.importedEnvironment={...imported,sspPoints:imported.sspPoints.map(point=>[point[0],point[1]])};applyImportedFieldOptions(imported);setImportedOptionAvailability();activateProfile('env');
+      $('receiverRange').value=String(Math.max(5,Math.min(Number($('receiverRange').value)||50,imported.maximumRangeKm)));
+      $('launchAngleDisplay').textContent=formatAngleRange(imported.angleRangeDegrees);$('displayRayCount').textContent='50 DISPLAY RAYS';$('fieldRayCount').textContent=`${imported.fieldRayCount.toLocaleString('zh-CN')} RAYS · ENV ${imported.fieldGridRows}×${imported.fieldGridColumns}`;
+      syncLabels();syncEigenEnvironmentFromMain();renderSSPTables();drawSSP();markEigenStale();status.className='success';status.textContent=`已导入：${imported.title}${imported.rangeDependent?' · 2D SSP':''} · ${files.length} 个文件 · TL ${imported.fieldRayCount.toLocaleString('zh-CN')} beams · ENV ${imported.beamType} / ${imported.runMode}`;
+    }else{
+      const imported=await parseEnvironmentFiles(files);applyCanonicalEnvironment(imported);markEigenStale();status.className='success';status.textContent=`已导入：${imported.title} · JSON · ${state.customSSP.length} 个 SSP 节点${canonicalBathymetryVaries(imported.bathymetry)?` · ${imported.bathymetry.length} 个地形节点`:''}`;
+    }
+    recalculateEnvironment();
+  }catch(error){status.className='error';status.textContent=`导入失败：${describeImportError(error)}`;}
+  finally{button.disabled=false;event.target.value='';}
+}
+function schedule(){++state.eigenRequest;syncLabels();syncEigenEnvironmentFromMain();markEigenStale();clearTimeout(debounce);debounce=setTimeout(recalculateEnvironment,180);}
+function selectProfileFromControl(event){const previous=state.environmentMode;if(!activateProfile(event.target.value)){controls.profile.value=previous;eigenEnvControls.profile.value=previous;return;}schedule();drawEigen();}
+controls.profile.addEventListener('change',selectProfileFromControl);
+Object.entries(controls).filter(([key])=>key!=='profile').forEach(([,el])=>el.addEventListener(el.type==='number'?'change':'input',schedule));
+Object.entries(bottomSliders).forEach(([key,slider])=>{
+  slider.addEventListener('input',()=>{controls[key].value=slider.value;});
+  slider.addEventListener('change',schedule);
+  controls[key].addEventListener('input',()=>{slider.value=controls[key].value;});
+});
+Object.values(fieldControls).forEach(control=>control.addEventListener('change',()=>{++state.environmentRequest;clearTimeout(debounce);$('fieldOptionStatus').textContent=`正在应用 ${fieldControls.fieldMode.value} / ${fieldControls.beamType.value}…`;run();}));
+eigenEnvControls.profile.addEventListener('change',selectProfileFromControl);
+Object.entries(eigenEnvControls).filter(([key])=>key!=='profile').forEach(([key,el])=>el.addEventListener(el.type==='number'?'change':'input',()=>{controls[key].value=el.value;schedule();drawEigen();}));
 ['sspTableRows','eigenSSPTableRows'].forEach(id=>{$(id).addEventListener('change',updateSSPTableCell);$(id).addEventListener('click',deleteSSPTableRow);});
 $('addSSPRow').addEventListener('click',addSSPTableRow);$('eigenAddSSPRow').addEventListener('click',addSSPTableRow);
+$('convertToCustomButton').addEventListener('click',()=>{ensureCustomSSP();syncLabels();syncEigenEnvironmentFromMain();drawSSP();schedule();});
 $('sspCanvas').addEventListener('pointerdown',e=>sspPointer(e));
 $('sspCanvas').addEventListener('pointermove',e=>{if(state.sspDrag>=0)sspPointer(e);});
 function finishSSPDrag(e){if(state.sspDrag<0)return;sspPointer(e,true);state.sspDrag=-1;drawSSP();}
 $('sspCanvas').addEventListener('pointerup',finishSSPDrag);$('sspCanvas').addEventListener('pointercancel',finishSSPDrag);
 $('rayCanvas').addEventListener('pointerdown',startSourceDrag);$('rayCanvas').addEventListener('pointermove',moveSource);$('rayCanvas').addEventListener('pointerup',finishSourceDrag);$('rayCanvas').addEventListener('pointercancel',finishSourceDrag);
 $('runButton').addEventListener('click',run);$('replayButton').addEventListener('click',()=>{drawRay(1);drawLoss(1);drawVelocity(1);});
+$('envImportButton').addEventListener('click',()=>$('envFileInput').click());$('envFileInput').addEventListener('change',handleEnvImport);
 $('introReplay').addEventListener('click',()=>startIntroAnimation());
 canvases.loss.addEventListener('mousemove',e=>{if(!state.data)return;const rect=e.target.getBoundingClientRect(),a={l:39,r:12,t:19,b:28};const px=Math.max(0,Math.min(1,(e.clientX-rect.left-a.l)/(rect.width-a.l-a.r))),py=Math.max(0,Math.min(1,(e.clientY-rect.top-a.t)/(rect.height-a.t-a.b)));const {cols,rows,values}=state.data.loss;const v=values[Math.min(rows-1,Math.floor(py*rows))*cols+Math.min(cols-1,Math.floor(px*cols))];$('tlReadout').textContent=v.toFixed(1)+' dB';});
 function bindVelocityReadout(canvas,key,readoutId){canvas.addEventListener('mousemove',event=>{if(!state.data?.velocity)return;const rect=event.target.getBoundingClientRect(),a={l:39,r:12,t:19,b:28},px=Math.max(0,Math.min(1,(event.clientX-rect.left-a.l)/(rect.width-a.l-a.r))),py=Math.max(0,Math.min(1,(event.clientY-rect.top-a.t)/(rect.height-a.t-a.b))),{cols,rows}=state.data.velocity,level=state.data.velocity[key][Math.min(rows-1,Math.floor(py*rows))*cols+Math.min(cols-1,Math.floor(px*cols))],magnitude=Math.pow(10,-level/20);$(readoutId).textContent=`${magnitude.toExponential(2)} · ${level.toFixed(1)} dB`;});}
 bindVelocityReadout(canvases.horizontalVelocity,'horizontal_db','horizontalVelocityReadout');bindVelocityReadout(canvases.verticalVelocity,'vertical_db','verticalVelocityReadout');
 window.addEventListener('resize',()=>{drawIntroRay(state.introProgress||1);drawSSP();drawEigenEnvironment();drawRay(state.animation||1);drawLoss(state.animation||1);drawVelocity(state.animation||1);});
 document.querySelectorAll('nav a').forEach(a=>a.addEventListener('click',()=>{document.querySelectorAll('nav a').forEach(x=>x.classList.remove('active'));a.classList.add('active');}));
-$('eigenRun').addEventListener('click',runEigen);$('receiverRange').addEventListener('change',runEigen);$('receiverDepth').addEventListener('change',runEigen);$('eigenTolerance').addEventListener('change',runEigen);
+$('eigenRun').addEventListener('click',()=>runEigen());$('receiverRange').addEventListener('change',()=>runEigen({comparison:false}));$('receiverDepth').addEventListener('change',()=>runEigen({comparison:false}));$('eigenTolerance').addEventListener('change',()=>runEigen({comparison:false}));
 canvases.eigen.addEventListener('pointerdown',startEigenInteraction);canvases.eigen.addEventListener('pointermove',moveEigenInteraction);canvases.eigen.addEventListener('pointerup',finishEigenInteraction);canvases.eigen.addEventListener('pointercancel',finishEigenInteraction);
 window.addEventListener('resize',()=>{drawEigen();drawArrivals();});
-syncLabels();syncEigenEnvironmentFromMain();drawIntroRay(0);drawSSP();drawRay();drawLoss();drawVelocity();drawEigen();drawArrivals();startIntroAnimation(0);run();runEigen();
+setImportedOptionAvailability();activateProfile('munk',{defaults:false});updateFieldOptionStatus();drawIntroRay(0);drawSSP();drawRay();drawLoss();drawVelocity();drawEigen();drawArrivals();startIntroAnimation(0);recalculateEnvironment();

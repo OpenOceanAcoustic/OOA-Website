@@ -1,0 +1,21 @@
+{
+  "title": "Pekeris JSON Example",
+  "format": "json",
+  "profilePoints": [
+    [0, 1500],
+    [200, 1500]
+  ],
+  "waterDepthM": 200,
+  "frequencyHz": 100,
+  "sourceDepthM": 50,
+  "maximumRangeKm": 20,
+  "bottomSoundSpeedMps": 1700,
+  "bottomDensityKgM3": 1800,
+  "bottomAttenuationDbPerWavelength": 0.5,
+  "bathymetry": [
+    [0, 200],
+    [20, 200]
+  ],
+  "angleRangeDegrees": [-20, 20],
+  "beamCount": 1000
+}

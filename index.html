@@ -16,9 +16,9 @@
         <span><strong>OOA-RayMode</strong><small>ACOUSTIC PROPAGATION LAB</small></span>
       </a>
       <nav aria-label="主导航">
-        <a class="active" href="#lab">交互实验</a>
-        <a href="#principle">基础原理</a>
-        <a href="#advanced">进阶功能</a>
+        <a class="active" href="/">Ray Mode</a>
+        <a href="/normal-mode/">Normal Mode</a>
+        <a href="/pe/">PE</a>
       </nav>
       <div class="status"><span></span> OOB LAB <b>READY</b></div>
     </header>
@@ -221,70 +221,111 @@
               <span class="live-dot">LIVE</span>
             </div>
 
-            <label class="control-label" for="profile">声速剖面</label>
-            <div class="select-wrap">
-              <select id="profile">
-                <option value="munk">Munk 深海声道</option>
-                <option value="surface">表层跃变</option>
-                <option value="constant">等声速水体</option>
-                <option value="custom">自定义 500 m 节点</option>
-              </select>
+            <div class="env-import">
+              <input id="envFileInput" type="file" accept=".env,.json,.bty,.ati,.ssp,.trc,.brc,.sbp" multiple hidden>
+              <button type="button" id="envImportButton"><span>↑</span> 导入环境文件 / JSON</button>
+              <small id="envImportStatus">支持 Bellhop ENV + 同名伴随文件，或统一环境 JSON</small>
             </div>
 
-            <div class="mini-plot">
-              <canvas id="sspCanvas" aria-label="声速剖面图"></canvas>
-              <div class="plot-tag"><span></span> SOUND SPEED PROFILE</div>
-              <div class="drag-hint">拖动节点水平修改声速 ↔</div>
-              <div class="ssp-readout" id="sspReadout">选择节点</div>
-            </div>
+            <section class="environment-group profile-group">
+              <div class="environment-group-head"><div><span class="micro">ONE-DIMENSIONAL SSP</span><h4>一维声速剖面</h4></div><span class="mode-badge" id="environmentModeBadge">MUNK</span></div>
+              <label class="control-label" for="profile">环境模式</label>
+              <div class="select-wrap">
+                <select id="profile">
+                  <option value="env" id="profileEnvOption" disabled hidden>ENV 原始剖面</option>
+                  <option value="munk">Munk 深海声道</option>
+                  <option value="surface">表层跃变</option>
+                  <option value="constant">等声速水体</option>
+                  <option value="pekeris">Pekeris 浅海波导</option>
+                  <option value="custom">自定义 500 m 节点</option>
+                </select>
+              </div>
+              <p class="profile-description" id="profileDescription">预设曲线由页面预览与 WASM 求解器共享同一份采样数据。</p>
 
-            <details class="ssp-table-editor" id="sspTableEditor">
-              <summary><span>表格编辑声速剖面</span><small>DEPTH · SPEED</small></summary>
-              <div class="ssp-table-wrap"><table><thead><tr><th>深度 / m</th><th>声速 / m/s</th><th></th></tr></thead><tbody id="sspTableRows"></tbody></table></div>
-              <button type="button" class="ssp-add-row" id="addSSPRow">＋ 新增一行</button>
-            </details>
+              <div class="mini-plot">
+                <canvas id="sspCanvas" aria-label="声速剖面图"></canvas>
+                <div class="plot-tag"><span></span> SOUND SPEED PROFILE</div>
+                <div class="drag-hint">拖动节点即转为自定义剖面 ↔</div>
+                <div class="ssp-readout" id="sspReadout">选择节点</div>
+              </div>
 
-            <div class="slider-block">
-              <div class="slider-title"><label for="axisDepth">声道轴深度</label><output id="axisDepthOut">1,300 m</output></div>
-              <input id="axisDepth" type="range" min="500" max="2600" step="50" value="1300">
-              <div class="range-label"><span>500 m</span><span>2,600 m</span></div>
-            </div>
+              <button type="button" class="convert-custom-button" id="convertToCustomButton">复制当前曲线为 500 m 自定义节点</button>
+              <details class="ssp-table-editor" id="sspTableEditor">
+                <summary><span>表格查看 / 编辑声速剖面</span><small>DEPTH · SPEED</small></summary>
+                <div class="ssp-table-wrap"><table><thead><tr><th>深度 / m</th><th>声速 / m/s</th><th></th></tr></thead><tbody id="sspTableRows"></tbody></table></div>
+                <button type="button" class="ssp-add-row" id="addSSPRow">＋ 新增一行</button>
+              </details>
 
-            <div class="slider-block">
-              <div class="slider-title"><label for="gradient">剖面强度</label><output id="gradientOut">1.00×</output></div>
-              <input id="gradient" type="range" min="30" max="180" step="5" value="100">
-              <div class="range-label"><span>平缓</span><span>强折射</span></div>
-            </div>
+              <div class="slider-block">
+                <div class="slider-title"><label for="axisDepth">声道轴深度</label><output id="axisDepthOut">1,300 m</output></div>
+                <input id="axisDepth" type="range" min="50" max="2600" step="50" value="1300">
+                <div class="range-label"><span>50 m</span><span>2,600 m</span></div>
+              </div>
 
-            <div class="two-controls">
-              <label>声源深度<input id="sourceDepth" type="number" min="50" max="4800" step="50" value="1000"><span>m</span></label>
-              <label>中心频率<input id="frequency" type="number" min="50" max="5000" step="50" value="500"><span>Hz</span></label>
-            </div>
+              <div class="slider-block">
+                <div class="slider-title"><label for="gradient">剖面强度</label><output id="gradientOut">1.00×</output></div>
+                <input id="gradient" type="range" min="30" max="180" step="5" value="100">
+                <div class="range-label"><span>平缓</span><span>强折射</span></div>
+              </div>
+            </section>
 
-            <div class="bottom-controls">
-              <div class="bottom-heading"><span class="micro">SEABED HALF-SPACE</span><strong>海底介质</strong></div>
+            <section class="environment-group source-frequency-group">
+              <div class="environment-group-head"><div><span class="micro">SOURCE</span><h4>声源与频率</h4></div></div>
+              <div class="two-controls">
+                <label>声源深度<input id="sourceDepth" type="number" min="20" max="4800" step="10" value="1000"><span>m</span></label>
+                <label>中心频率<input id="frequency" type="number" min="20" max="5000" step="10" value="500"><span>Hz</span></label>
+              </div>
+            </section>
+
+            <section class="environment-group bottom-controls">
+              <div class="environment-group-head bottom-heading"><div><span class="micro">SEABED HALF-SPACE</span><h4>海底半空间</h4></div><strong>流体底质</strong></div>
               <div class="compact-slider">
-                <div><label for="bottomSpeed">纵波声速</label><output id="bottomSpeedOut">1,700 m/s</output></div>
-                <input id="bottomSpeed" type="range" min="1450" max="2200" step="10" value="1700">
+                <div><label for="bottomSpeedSlider">纵波声速</label><span class="compact-number-editor"><input id="bottomSpeed" type="number" min="1400" max="3000" step="10" value="1700" aria-label="海底纵波声速"><i>m/s</i></span></div>
+                <input id="bottomSpeedSlider" type="range" min="1400" max="3000" step="10" value="1700">
               </div>
               <div class="compact-slider">
-                <div><label for="bottomDensity">密度</label><output id="bottomDensityOut">1,800 kg/m³</output></div>
-                <input id="bottomDensity" type="range" min="1200" max="2600" step="20" value="1800">
+                <div><label for="bottomDensitySlider">密度</label><span class="compact-number-editor"><input id="bottomDensity" type="number" min="1000" max="3500" step="20" value="1800" aria-label="海底密度"><i>kg/m³</i></span></div>
+                <input id="bottomDensitySlider" type="range" min="1000" max="3500" step="20" value="1800">
               </div>
               <div class="compact-slider">
-                <div><label for="bottomAbsorption">吸收</label><output id="bottomAbsorptionOut">0.50 dB/λ</output></div>
-                <input id="bottomAbsorption" type="range" min="0" max="2" step="0.05" value="0.5">
+                <div><label for="bottomAbsorptionSlider">吸收</label><span class="compact-number-editor"><input id="bottomAbsorption" type="number" min="0" max="5" step="0.05" value="0.5" aria-label="海底吸收"><i>dB/λ</i></span></div>
+                <input id="bottomAbsorptionSlider" type="range" min="0" max="5" step="0.05" value="0.5">
               </div>
               <div class="bottom-result"><span>送入 OOB 的底质吸收</span><strong id="bottomReflectionLoss">— dB/λ</strong></div>
-            </div>
+            </section>
 
-            <button class="run-button" id="runButton"><span class="play-icon"></span><span><b>重新发射声线</b><small>RUN OOB BELLHOP2D</small></span></button>
+            <section class="environment-group field-options-group">
+              <div class="environment-group-head"><div><span class="micro">FIELD OPTIONS</span><h4>波束与声场叠加</h4></div><span class="mode-badge">OOB NATIVE</span></div>
+              <div class="field-option-grid">
+                <label for="beamType">波束类型
+                  <span class="field-select-wrap"><select id="beamType">
+                    <option value="GEOMETRIC_CARTESIAN" selected>几何波束 · 笛卡尔</option>
+                    <option value="GEOMETRIC_RAY_CENTERED">几何波束 · 声线中心</option>
+                    <option value="GAUSSIAN_CARTESIAN">Gaussian · 笛卡尔</option>
+                    <option value="GAUSSIAN_RAY_CENTERED">Gaussian · 声线中心</option>
+                    <option value="GAUSSIAN_SIMPLE">简化 Gaussian</option>
+                  </select></span>
+                </label>
+                <label for="fieldMode">传播损失叠加
+                  <span class="field-select-wrap"><select id="fieldMode">
+                    <option value="INCOHERENT_TL" selected>非相干 TL</option>
+                    <option value="COHERENT_TL">相干 TL</option>
+                  </select></span>
+                </label>
+              </div>
+              <p id="fieldOptionStatus" class="field-option-status">OOB RunMode.INCOHERENT_TL · BeamType.GEOMETRIC_CARTESIAN · 几何波束 · 笛卡尔</p>
+            </section>
+
+            <section class="environment-group execution-group">
+              <div class="environment-group-head"><div><span class="micro">EXECUTION</span><h4>执行</h4></div><span class="execution-state">WASM · LOCAL</span></div>
+              <button class="run-button" id="runButton"><span class="play-icon"></span><span><b>重新发射声线</b><small>RUN OOB BELLHOP2D</small></span></button>
+            </section>
           </aside>
 
           <section class="ray-panel panel">
             <div class="panel-head canvas-heading">
               <div><span class="micro">RAY GEOMETRY</span><h3>声线轨迹</h3></div>
-              <div class="legend"><span><i class="source-key"></i>声源</span><span><i class="ray-key"></i>声线</span></div>
+              <div class="legend"><span><i class="source-key"></i>声源</span><span><i class="ray-key"></i>声线</span><span><i class="terrain-key"></i>海底地形</span></div>
             </div>
             <div class="main-canvas-wrap">
               <canvas id="rayCanvas" aria-label="声线路径动态图"></canvas>
@@ -294,9 +335,9 @@
               <div class="source-drag-hint">拖动声源上下调整深度 ↕</div>
             </div>
             <div class="ray-footer">
-              <div><span>发射角</span><strong>−20.3° — +20.3°</strong></div>
-              <div><span>显示声线数量</span><strong>19 DISPLAY RAYS</strong></div>
-              <div><span>最大距离</span><strong>100 km</strong></div>
+              <div><span>发射角</span><strong id="launchAngleDisplay">−20.3° — +20.3°</strong></div>
+              <div><span>显示声线数量</span><strong id="displayRayCount">50 DISPLAY RAYS</strong></div>
+              <div><span>最大距离</span><strong id="maximumRangeDisplay">100 km</strong></div>
             </div>
           </section>
 
@@ -309,7 +350,7 @@
               <canvas id="lossCanvas" aria-label="传播损失图"></canvas>
               <div class="canvas-axis x-axis">距离 / km</div>
               <div class="canvas-axis y-axis">深度 / m</div>
-              <div class="colorbar"><div><span>TRANSMISSION LOSS / dB</span><strong>INCOHERENT · INTERP</strong></div><i></i><p><span>40</span><span>55</span><span>70</span><span>85</span><span>100</span></p></div>
+              <div class="colorbar"><div><span>TRANSMISSION LOSS / dB</span><strong id="fieldModeLabel">INCOHERENT · GEOM CART</strong></div><i></i><p><span>40</span><span>55</span><span>70</span><span>85</span><span>100</span></p></div>
               <div class="receiver-readout"><span>●</span><div><small>光标位置损失</small><strong id="tlReadout">— dB</strong></div></div>
             </div>
             <div class="loss-summary">
@@ -355,16 +396,16 @@
           <aside class="eigen-env-panel">
             <div class="eigen-env-head"><div><span class="micro">ENVIRONMENT</span><h3>环境参数</h3></div><span class="live-dot">LINKED</span></div>
             <label class="eigen-env-label" for="eigenProfile">声速剖面</label>
-            <div class="eigen-env-select"><select id="eigenProfile"><option value="munk">Munk 深海声道</option><option value="surface">表层跃变</option><option value="constant">等声速水体</option><option value="custom">自定义 500 m 节点</option></select></div>
+            <div class="eigen-env-select"><select id="eigenProfile"><option value="env" id="eigenProfileEnvOption" disabled hidden>ENV 原始剖面</option><option value="munk">Munk 深海声道</option><option value="surface">表层跃变</option><option value="constant">等声速水体</option><option value="pekeris">Pekeris 浅海波导</option><option value="custom">自定义 500 m 节点</option></select></div>
             <div class="eigen-ssp-mini"><canvas id="eigenSSPCanvas" aria-label="本征声线环境声速剖面"></canvas><span>声速剖面 · 声源深度</span></div>
             <details class="ssp-table-editor eigen-ssp-table" id="eigenSSPTableEditor">
               <summary><span>表格编辑声速剖面</span><small>DEPTH · SPEED</small></summary>
               <div class="ssp-table-wrap"><table><thead><tr><th>深度 / m</th><th>声速 / m/s</th><th></th></tr></thead><tbody id="eigenSSPTableRows"></tbody></table></div>
               <button type="button" class="ssp-add-row" id="eigenAddSSPRow">＋ 新增一行</button>
             </details>
-            <div class="eigen-env-control"><div><label for="eigenAxisDepth">声道轴深度</label><output id="eigenAxisDepthOut">1,300 m</output></div><input id="eigenAxisDepth" type="range" min="500" max="2600" step="50" value="1300"></div>
+            <div class="eigen-env-control"><div><label for="eigenAxisDepth">声道轴深度</label><output id="eigenAxisDepthOut">1,300 m</output></div><input id="eigenAxisDepth" type="range" min="50" max="2600" step="50" value="1300"></div>
             <div class="eigen-env-control"><div><label for="eigenGradient">剖面强度</label><output id="eigenGradientOut">1.00×</output></div><input id="eigenGradient" type="range" min="30" max="180" step="5" value="100"></div>
-            <div class="eigen-env-pair"><label>声源深度<div><input id="eigenSourceDepth" type="number" min="50" max="4800" step="10" value="1000"><span>m</span></div></label><label>中心频率<div><input id="eigenFrequency" type="number" min="50" max="5000" step="50" value="500"><span>Hz</span></div></label></div>
+            <div class="eigen-env-pair"><label>声源深度<div><input id="eigenSourceDepth" type="number" min="20" max="4800" step="10" value="1000"><span>m</span></div></label><label>中心频率<div><input id="eigenFrequency" type="number" min="20" max="5000" step="10" value="500"><span>Hz</span></div></label></div>
             <div class="eigen-bottom-box">
               <div class="eigen-bottom-head"><span class="micro">SEABED HALF-SPACE</span><strong>海底介质</strong></div>
               <div class="eigen-env-control compact"><div><label for="eigenBottomSpeed">纵波声速</label><output id="eigenBottomSpeedOut">1,700 m/s</output></div><input id="eigenBottomSpeed" type="range" min="1450" max="2200" step="10" value="1700"></div>
@@ -412,14 +453,14 @@
               </div>
             </section>
           </div>
-          <div class="method-note"><span>算法说明</span><p>−20.3° 至 +20.3° 使用 1000 个等间隔初始角。蓝色结果由 OOB 的 EIGENRAY / ARRIVALS 模式计算；彩色结果由 OOB 原生 MODE_E_PC 精确本征算法（PARTICLE_RAY / PARTICLE_ARRIVALS）计算。计算在浏览器 Web Worker 的 WebAssembly 模块中完成，不向后端上传环境参数。</p></div>
+          <div class="method-note"><span>算法说明</span><p id="eigenMethodNote">−20.3° 至 +20.3° 使用 1000 个等间隔初始角。蓝色结果由 OOB 的 EIGENRAY / ARRIVALS 模式计算；彩色结果由 OOB 原生 MODE_E_PC 精确本征算法（PARTICLE_RAY / PARTICLE_ARRIVALS）计算。计算在浏览器 Web Worker 的 WebAssembly 模块中完成，不向后端上传环境参数。</p></div>
           </div>
           </div>
         </div>
 
         <div class="capability-heading"><span>MORE CAPABILITIES</span><h3>从本征声线扩展到完整声场</h3></div>
         <div class="feature-grid">
-          <article class="feature-card featured"><span class="feature-index">01 / FIELD</span><div class="feature-symbol">◫</div><h3>二维相干声场</h3><p>输出距离—深度网格上的复声压与传播损失，识别会聚区、干涉条纹和声影区。</p><ul><li>Coherent / Incoherent</li><li>40–100 dB 标准色标</li></ul></article>
+          <article class="feature-card featured"><span class="feature-index">01 / FIELD</span><div class="feature-symbol">◫</div><h3>二维传播损失场</h3><p>按所选相干或非相干模式输出距离—深度网格上的传播损失，识别会聚区、干涉条纹和声影区。</p><ul><li>Coherent / Incoherent</li><li>40–100 dB 标准色标</li></ul></article>
           <article class="feature-card"><span class="feature-index">02 / ARRIVALS</span><div class="feature-symbol">⌁</div><h3>多途到达结构</h3><p>计算每条到达路径的时延、幅度、相位和出入射角，支撑信道脉冲响应分析。</p><ul><li>Eigenrays</li><li>Travel time & phase</li></ul></article>
           <article class="feature-card"><span class="feature-index">03 / BOUNDARY</span><div class="feature-symbol">◇</div><h3>复杂海面与海底</h3><p>引入真实地形、边界材料、粗糙度和反射损失，刻画浅海多次反射传播。</p><ul><li>Range-dependent bathymetry</li><li>Material half-space</li></ul></article>
           <article class="feature-card"><span class="feature-index">04 / SDK</span><div class="feature-symbol">{ }</div><h3>浏览器原生计算</h3><p>通过类型化 npm SDK 在 Web Worker 中运行 Bellhop2D WebAssembly 核心。</p><ul><li>No compute backend</li><li>WASM typed arrays</li></ul></article>
