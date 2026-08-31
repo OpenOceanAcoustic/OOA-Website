@@ -4,12 +4,13 @@ import { extname, join, relative, resolve } from "node:path";
 const root = resolve(new URL("../..", import.meta.url).pathname);
 const sourceRoots = [join(root, "apps"), join(root, "packages")];
 const violations = [];
+const generatedDirectories = new Set(["dist", "node_modules", "storybook-static"]);
 
 async function walk(directory) {
   const result = [];
   for (const entry of await readdir(directory, { withFileTypes: true })) {
     const path = join(directory, entry.name);
-    if (entry.isDirectory()) result.push(...await walk(path));
+    if (entry.isDirectory() && !generatedDirectories.has(entry.name)) result.push(...await walk(path));
     else if ([".ts", ".tsx", ".mjs", ".js"].includes(extname(entry.name))) result.push(path);
   }
   return result;
@@ -19,8 +20,18 @@ for (const sourceRoot of sourceRoots) {
   for (const file of await walk(sourceRoot)) {
     const path = relative(root, file).replaceAll("\\", "/");
     const text = await readFile(file, "utf8");
+    if (text.includes("/legacy-sdk")) {
+      violations.push(`${path}: legacy model SDK passthrough exports are forbidden`);
+    }
+    if (/\b(?:fetch|XMLHttpRequest|WebSocket|sendBeacon)\b/.test(text)) {
+      violations.push(`${path}: browser compute code cannot upload work to an external service`);
+    }
     if (path.startsWith("apps/web/src/features/") && text.includes("@openocean/field-")) {
       violations.push(`${path}: feature must consume @ooa/runtime-* instead of a model SDK`);
+    }
+    if (path.startsWith("apps/web/src/features/")
+      && /\b(?:Bellhop2DInput|KrakenInput|RAMInput|nativeInput|ramInput)\b/.test(text)) {
+      violations.push(`${path}: feature cannot receive or construct a concrete model SDK input`);
     }
     if (/packages\/runtime-(?:ray|normal-mode|pe)\/src\//.test(path)) {
       if (text.includes("@openocean/field-") && !path.endsWith("/sdk-loader.ts") && !path.endsWith(".test.ts")) {

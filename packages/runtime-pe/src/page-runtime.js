@@ -1,5 +1,6 @@
-import { loadLegacyPeSdkModule } from "@ooa/runtime-pe/legacy-sdk";
-import { importPePageEnvironment } from "@ooa/runtime-pe";
+import { loadPeSdkModule } from "./sdk-loader";
+import { importPePageEnvironment } from "./environment-parser";
+import { RuntimeError, normalizeRuntimeError } from "@ooa/runtime-core";
 
 /**
  * PE page adapter contract.
@@ -206,9 +207,13 @@ function validateResult(result) {
 let nativePackagePromise;
 let nativeSolverPromise;
 const nativeSweepCache = new Map();
+const importedInputCache = new Map();
+let nextImportedSourceId = 1;
+let latestNativeRequestId = 0;
+let nativeRequestActive = false;
 
 function loadNativePackage() {
-  nativePackagePromise ??= loadLegacyPeSdkModule();
+  nativePackagePromise ??= loadPeSdkModule();
   return nativePackagePromise;
 }
 
@@ -239,8 +244,7 @@ function nativeEnvironmentKey(params) {
     bottomAttenuationDbPerWavelength: params.bottomAttenuationDbPerWavelength,
     sspPoints: params.sspPoints,
     bathymetry: params.bathymetry,
-    ramInput: params.ramInput,
-    ramBaseline: params.ramBaseline,
+    sourceId: params.sourceId,
   });
 }
 
@@ -301,7 +305,9 @@ function profilesEqual(left, right, tolerance = 1e-9) {
 }
 
 function clonedRamInput(params, nativePackage) {
-  const original = params.ramInput;
+  const imported = importedInputCache.get(params.sourceId);
+  const original = imported?.input;
+  if (!original || !imported) throw new Error("导入的 RAM 环境已失效，请重新选择 .in 文件");
   const input = {
     environment: {
       title: original.environment.title,
@@ -323,7 +329,7 @@ function clonedRamInput(params, nativePackage) {
     options: { ...original.options },
     outputRequest: { ...original.outputRequest },
   };
-  const baseline = params.ramBaseline || {};
+  const baseline = imported.baseline;
   input.environment.frequencyHz = params.frequencyHz;
   input.source.depthM = params.sourceDepthM;
   input.outputRequest.maximumRangeM = params.maximumRangeKm * 1000;
@@ -470,7 +476,7 @@ async function calculateNativeSweep(params) {
   const rangeOutputDecimation = Math.max(1, Math.ceil(rangeSteps / Math.max(41, params.rangeCount || 181)));
   const depthOutputDecimation = Math.max(1, Math.ceil(depthCells / Math.max(41, params.depthCount || 131)));
   const nativePackage = await loadNativePackage();
-  const input = params.ramInput
+  const input = params.sourceId
     ? clonedRamInput({ ...params, sourceDepthM }, nativePackage)
     : ramInputFromCanonicalEnvironment(
       { ...params, sourceDepthM },
@@ -553,11 +559,73 @@ export async function parseRamEnvironment(input) {
   if (!input || typeof input.text !== "string") {
     throw new TypeError("RAM import requires a text string");
   }
-  return importPePageEnvironment([{
-    name: input.name || "ram.in",
+  const name = input.name || "ram.in";
+  const nativePackage = await loadNativePackage();
+  let nativeInput;
+  try {
+    nativeInput = nativePackage.RAMInput.fromRamIn({ name, text: input.text });
+  } catch (error) {
+    throw new RuntimeError("INPUT_INVALID", "RAM .in 无法解析", { cause: error });
+  }
+  const pageEnvironment = await importPePageEnvironment([{
+    name,
     kind: "ram-in",
     content: input.text,
   }]);
+  const sourceId = `pe-source-${nextImportedSourceId++}`;
+  const firstSection = nativeInput.environment.mediumSections[0];
+  const water = firstSection.waterSoundSpeedMps;
+  const bathymetry = nativeInput.environment.bathymetry.map(
+    (point) => [point.rangeM / 1000, point.depthM],
+  );
+  const profilePoints = Array.from(
+    water.depthsM,
+    (depth, index) => [depth, water.values[index]],
+  );
+  const baseline = {
+    waterDepthM: bathymetry[0]?.[1] ?? nativeInput.outputRequest.plotMaximumDepthM,
+    maximumRangeKm: nativeInput.outputRequest.maximumRangeM / 1000,
+    maximumDepthM: nativeInput.outputRequest.maximumDepthM,
+    profilePoints,
+    bottomSoundSpeedMps: firstSection.bottomCompressionalSpeedMps.values[0],
+    bottomDensityKgM3: firstSection.bottomDensityKgM3.values[0],
+    bottomAttenuationDbPerWavelength:
+      firstSection.bottomCompressionalAttenuationDbPerWavelength.values[0],
+  };
+  importedInputCache.set(sourceId, {
+    input: nativeInput,
+    baseline,
+    documents: [{ name, kind: "ram-in", content: input.text }],
+  });
+  while (importedInputCache.size > 3) {
+    importedInputCache.delete(importedInputCache.keys().next().value);
+  }
+  return {
+    ...pageEnvironment,
+    sourceId,
+    sourceFiles: [name],
+    documents: undefined,
+    title: nativeInput.environment.title,
+    frequencyHz: nativeInput.environment.frequencyHz,
+    sourceDepthM: nativeInput.source.depthM,
+    maximumRangeKm: baseline.maximumRangeKm,
+    maximumDepthM: baseline.maximumDepthM,
+    waterDepthM: baseline.waterDepthM,
+    rangeStepM: nativeInput.options.rangeStepM,
+    depthStepM: nativeInput.options.depthStepM,
+    nPade: nativeInput.options.padeTerms,
+    profilePoints,
+    bathymetry,
+    bottomSoundSpeedMps: baseline.bottomSoundSpeedMps,
+    bottomDensityKgM3: baseline.bottomDensityKgM3,
+    bottomAttenuationDbPerWavelength: baseline.bottomAttenuationDbPerWavelength,
+    modelHints: {
+      ...pageEnvironment.modelHints,
+      model: "RAM",
+      mediumSectionCount: nativeInput.environment.mediumSections.length,
+      receiverDepthCount: nativeInput.receivers.depthsM.length,
+    },
+  };
 }
 
 async function runNativePE(params) {
@@ -567,7 +635,9 @@ async function runNativePE(params) {
     sweepPromise = calculateNativeSweep(params);
     nativeSweepCache.set(key, sweepPromise);
     trimNativeSweepCache();
-    sweepPromise.catch(() => nativeSweepCache.delete(key));
+    sweepPromise.catch(() => {
+      if (nativeSweepCache.get(key) === sweepPromise) nativeSweepCache.delete(key);
+    });
   }
   const sweep = await sweepPromise;
   const current = sweep.fields.find((field) => field.padeTerms === params.nPade);
@@ -650,6 +720,27 @@ async function runNativePE(params) {
   });
 }
 
+function cancelledNativeRequest() {
+  return new RuntimeError("CANCELLED", "A newer PE request replaced this calculation");
+}
+
+async function runLatestNativePE(params) {
+  const requestId = ++latestNativeRequestId;
+  if (nativeRequestActive && nativeSolverPromise) {
+    const solver = await nativeSolverPromise;
+    solver.cancel();
+    nativeSweepCache.clear();
+  }
+  nativeRequestActive = true;
+  try {
+    const result = await runNativePE(params);
+    if (requestId !== latestNativeRequestId) throw cancelledNativeRequest();
+    return result;
+  } finally {
+    if (requestId === latestNativeRequestId) nativeRequestActive = false;
+  }
+}
+
 export async function runPE(params) {
   const backend = installedBackend || globalThis.OpenOceanPEWasm || null;
   if (backend && typeof backend.runPE === "function") {
@@ -661,5 +752,9 @@ export async function runPE(params) {
   if (new URLSearchParams(globalThis.location?.search || "").has("demo")) {
     return demonstrationResult(params, "URL requested the deterministic demo backend");
   }
-  return runNativePE(params);
+  try {
+    return await runLatestNativePE(params);
+  } catch (error) {
+    throw normalizeRuntimeError(error);
+  }
 }

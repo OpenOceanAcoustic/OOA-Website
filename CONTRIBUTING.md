@@ -78,7 +78,7 @@ test(pe): cover Padé convergence selection
 3. 运行 `npm run check:release`。
 4. 保存 `.wasm-packages/provenance.json` 作为发布构建记录。
 5. 部署 `dist/`，不要部署源码仓库或 `.wasm-build`。
-6. 在最终 HTTPS 地址验证三个公开 URL 和真实 WASM 计算。
+6. 在最终内网地址验证三个公开 URL 和真实 WASM 计算；HTTP 固定验收单线程，未来 HTTPS + COOP/COEP 再验收 pthread。
 
 ## Review checklist
 

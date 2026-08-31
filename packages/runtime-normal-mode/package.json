@@ -5,7 +5,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./legacy-sdk": "./src/sdk-loader.ts"
+    "./page-runtime": "./src/page-runtime.js"
   },
   "dependencies": {
     "@ooa/environment": "0.1.0",

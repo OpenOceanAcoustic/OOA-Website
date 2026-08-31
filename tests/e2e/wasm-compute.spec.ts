@@ -44,3 +44,46 @@ test("RAM reruns the original nPade sweep and comparison workflow", async ({ pag
   await expect(page.locator("#deltaCanvas")).toBeVisible();
   await expect(page.locator("#convergenceCanvas")).toBeVisible();
 });
+
+test("new model requests replace in-flight browser calculations", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.locator("#simStatus")).toHaveText("SIMULATION COMPLETE", { timeout: 30_000 });
+  await page.evaluate(() => {
+    const fieldMode = document.querySelector<HTMLSelectElement>("#fieldMode");
+    const beamType = document.querySelector<HTMLSelectElement>("#beamType");
+    if (!fieldMode || !beamType) throw new Error("Ray Mode controls are missing");
+    fieldMode.value = "COHERENT_TL";
+    fieldMode.dispatchEvent(new Event("change", { bubbles: true }));
+    beamType.value = "GAUSSIAN_SIMPLE";
+    beamType.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  await expect(page.locator("#simStatus")).toHaveText("SIMULATION COMPLETE", { timeout: 90_000 });
+
+  await page.goto("/normal-mode/");
+  await expect(page.locator("#solveStatus")).toHaveText("COMPLETE", { timeout: 30_000 });
+  await page.evaluate(() => {
+    const frequency = document.querySelector<HTMLInputElement>("#frequency");
+    const range = document.querySelector<HTMLInputElement>("#maximumRange");
+    if (!frequency || !range) throw new Error("Normal Mode controls are missing");
+    frequency.value = "110";
+    frequency.dispatchEvent(new Event("change", { bubbles: true }));
+    range.value = "3";
+    range.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  await expect(page.locator("#solveStatus")).toHaveText("COMPLETE", { timeout: 90_000 });
+  await expect(page.locator("#runtimeBadge")).toHaveText("WASM ACTIVE");
+
+  await page.goto("/pe/");
+  await expect(page.locator("#solveStatus")).toHaveText("COMPLETE", { timeout: 30_000 });
+  await page.evaluate(() => {
+    const range = document.querySelector<HTMLInputElement>("#maximumRange");
+    const step = document.querySelector<HTMLInputElement>("#rangeStep");
+    if (!range || !step) throw new Error("PE controls are missing");
+    range.value = "3";
+    range.dispatchEvent(new Event("change", { bubbles: true }));
+    step.value = "100";
+    step.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  await expect(page.locator("#solveStatus")).toHaveText("COMPLETE", { timeout: 90_000 });
+  await expect(page.locator("#runtimeBadge")).toHaveText("WASM ACTIVE");
+});

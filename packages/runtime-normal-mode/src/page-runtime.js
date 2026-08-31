@@ -1,5 +1,6 @@
-import { loadLegacyNormalModeSdkModule } from "@ooa/runtime-normal-mode/legacy-sdk";
-import { importNormalModePageEnvironment } from "@ooa/runtime-normal-mode";
+import { loadNormalModeSdkModule } from "./sdk-loader";
+import { importNormalModePageEnvironment } from "./environment-parser";
+import { RuntimeError, normalizeRuntimeError } from "@ooa/runtime-core";
 
 /**
  * Normal Mode page adapter contract.
@@ -257,21 +258,25 @@ let normalPackagePromise;
 let normalSolverPromise;
 const fullRunCache = new Map();
 const limitedRunCache = new Map();
+const importedInputCache = new Map();
+let nextImportedSourceId = 1;
+let latestNativeRequestId = 0;
+let nativeRequestActive = false;
 const FULL_MODE_LIMIT = 9999;
 const MODE_SHAPE_DEPTH_SAMPLES = 401;
 const MINIMUM_FLOAT32_MAGNITUDE = 1.1754943508222875e-38;
 
 function loadNormalPackage() {
-  normalPackagePromise ??= loadLegacyNormalModeSdkModule();
+  normalPackagePromise ??= loadNormalModeSdkModule();
   return normalPackagePromise;
 }
 
 async function normalSolver() {
   if (!normalSolverPromise) {
     const pending = loadNormalPackage().then(({ Kraken }) => (
-      Kraken.create(import.meta.env.DEV
-        ? { executionMode: "SINGLE_THREAD", threadCount: 1 }
-        : Kraken.recommendedRuntime())
+      Kraken.create(!import.meta.env.DEV && globalThis.crossOriginIsolated === true
+        ? Kraken.recommendedRuntime()
+        : { executionMode: "SINGLE_THREAD", threadCount: 1 })
     ));
     normalSolverPromise = pending;
     pending.catch(() => {
@@ -299,12 +304,22 @@ function normalEnvironmentKey(params) {
     sspPoints: params.sspPoints,
     rangeCount: params.rangeCount,
     depthCount: params.depthCount,
+    sourceId: params.sourceId,
   });
 }
 
 function trimNormalCaches() {
   while (fullRunCache.size > 3) fullRunCache.delete(fullRunCache.keys().next().value);
   while (limitedRunCache.size > 12) limitedRunCache.delete(limitedRunCache.keys().next().value);
+}
+
+function profilePointsEqual(left, right, tolerance = 1e-9) {
+  if (!Array.isArray(left) || !Array.isArray(right) || left.length !== right.length) return false;
+  return left.every((point, index) => (
+    Array.isArray(point) && Array.isArray(right[index])
+    && Math.abs(Number(point[0]) - Number(right[index][0])) <= tolerance
+    && Math.abs(Number(point[1]) - Number(right[index][1])) <= tolerance
+  ));
 }
 
 async function makeNativeInput(params, modeLimit) {
@@ -319,6 +334,90 @@ async function makeNativeInput(params, modeLimit) {
     SourceModel,
     WaveguideInterpolation,
   } = await loadNormalPackage();
+  const imported = importedInputCache.get(params.sourceId);
+  if (imported) {
+    let builder = KrakenInput.edit(imported.input);
+    const baseline = imported.baseline;
+    if (Math.abs(params.frequencyHz - baseline.frequencyHz) > 1e-9) {
+      builder = builder.environment().frequencyHz(params.frequencyHz);
+    }
+    if (Math.abs(params.phaseSpeedLowMps - baseline.phaseSpeedLowMps) > 1e-9
+      || Math.abs(params.phaseSpeedHighMps - baseline.phaseSpeedHighMps) > 1e-9) {
+      builder = builder.environment().phaseSpeedBoundsMps(
+        params.phaseSpeedLowMps,
+        params.phaseSpeedHighMps,
+      );
+    }
+    if (Math.abs(params.sourceDepthM - baseline.sourceDepthM) > 1e-9) {
+      builder = builder.source().depthsM([params.sourceDepthM]);
+      builder = builder.outputRequest().modeSamplingM(
+        [params.sourceDepthM],
+        imported.input.outputRequest.modeReceiverDepthsM,
+      );
+    }
+    if (Math.abs(params.maximumRangeKm - baseline.maximumRangeKm) > 1e-9) {
+      const rangesM = linspace(0, params.maximumRangeKm * 1000, params.rangeCount);
+      builder = builder.receivers().rangesM(rangesM);
+      builder = builder.outputRequest().rangeSamplesM(rangesM);
+    }
+    const profileChanged = !profilePointsEqual(params.sspPoints, baseline.profilePoints)
+      || Math.abs(params.waterDepthM - baseline.waterDepthM) > 1e-9
+      || Math.abs(params.bottomSoundSpeedMps - baseline.bottomSoundSpeedMps) > 1e-9
+      || Math.abs(params.bottomDensityRelative - baseline.bottomDensityRelative) > 1e-9
+      || Math.abs(
+        params.bottomAttenuationDbPerWavelength
+          - baseline.bottomAttenuationDbPerWavelength,
+      ) > 1e-9
+      || nativeInterpolation(params.interpolation, WaveguideInterpolation)
+        !== baseline.interpolation;
+    if (profileChanged) {
+      const points = nativeProfilePoints(params, params.waterDepthM);
+      const firstProfile = imported.input.environment.profiles[0];
+      const firstLayer = firstProfile.layers[0];
+      const count = points.length;
+      const fill = (values, fallback) => Float64Array.from(
+        { length: count },
+        () => Number(values?.[0] ?? fallback),
+      );
+      const profiles = imported.input.environment.profiles.map((profile, index) => (
+        index === 0
+          ? {
+            ...profile,
+            interpolation: nativeInterpolation(params.interpolation, WaveguideInterpolation),
+            layers: [{
+              ...firstLayer,
+              depthsM: Float64Array.from(points, (point) => point[0]),
+              compressionalSpeedMps: Float64Array.from(points, (point) => point[1]),
+              shearSpeedMps: fill(firstLayer.shearSpeedMps, 0),
+              densityRelative: fill(firstLayer.densityRelative, 1),
+              compressionalAttenuation: fill(firstLayer.compressionalAttenuation, 0),
+              shearAttenuation: fill(firstLayer.shearAttenuation, 0),
+            }, ...profile.layers.slice(1)],
+            bottom: {
+              ...profile.bottom,
+              compressionalSpeedMps: params.bottomSoundSpeedMps,
+              densityRelative: params.bottomDensityRelative,
+              compressionalAttenuation: params.bottomAttenuationDbPerWavelength,
+            },
+          }
+          : profile
+      ));
+      builder = builder.environment().profiles(profiles);
+    }
+    if (Math.abs(params.waterDepthM - baseline.waterDepthM) > 1e-9) {
+      const depthsM = linspace(0, params.waterDepthM, params.depthCount);
+      const modeDepthsM = linspace(0, params.waterDepthM, MODE_SHAPE_DEPTH_SAMPLES);
+      builder = builder.receivers().depthsM(depthsM);
+      builder = builder.outputRequest().depthSamplesM(depthsM);
+      builder = builder.outputRequest().modeSamplingM(
+        Math.abs(params.sourceDepthM - baseline.sourceDepthM) > 1e-9
+          ? [params.sourceDepthM]
+          : imported.input.outputRequest.modeSourceDepthsM,
+        modeDepthsM,
+      );
+    }
+    return builder.options().modeLimit(modeLimit).build();
+  }
   const waterDepthM = clamp(params.waterDepthM ?? 200, 50, 8000);
   const maximumRangeM = clamp(params.maximumRangeKm ?? 20, 0.001, 250) * 1000;
   const rangeCount = Math.round(clamp(params.rangeCount ?? 161, 2, 2048));
@@ -431,10 +530,72 @@ export async function parseKrakenEnvironment(input) {
   if (!input || typeof input.envText !== "string" || typeof input.flpText !== "string") {
     throw new TypeError("Kraken import requires envText and flpText strings");
   }
-  return importNormalModePageEnvironment([
-    { name: input.envName || "environment.env", kind: "kraken-env", content: input.envText },
-    { name: input.flpName || "environment.flp", kind: "kraken-flp", content: input.flpText },
-  ]);
+  const envName = input.envName || "environment.env";
+  const flpName = input.flpName || "environment.flp";
+  const documents = [
+    { name: envName, kind: "kraken-env", content: input.envText },
+    { name: flpName, kind: "kraken-flp", content: input.flpText },
+  ];
+  const { KrakenInput } = await loadNormalPackage();
+  let nativeInput;
+  try {
+    nativeInput = KrakenInput.fromEnvironmentFiles({
+      env: { name: envName, text: input.envText },
+      flp: { name: flpName, text: input.flpText },
+    });
+  } catch (error) {
+    throw new RuntimeError("INPUT_INVALID", "Kraken ENV/FLP 无法解析", { cause: error });
+  }
+  const pageEnvironment = await importNormalModePageEnvironment(documents);
+  const sourceId = `normal-source-${nextImportedSourceId++}`;
+  const rangesM = nativeInput.receivers.rangesM;
+  const firstProfile = nativeInput.environment.profiles[0];
+  const firstLayer = firstProfile?.layers[0];
+  const profilePoints = firstLayer
+    ? Array.from(firstLayer.depthsM, (depth, index) => [depth, firstLayer.compressionalSpeedMps[index]])
+    : pageEnvironment.profilePoints;
+  const baseline = {
+    frequencyHz: nativeInput.environment.frequencyHz,
+    sourceDepthM: Number(nativeInput.source.depthsM[0] ?? pageEnvironment.sourceDepthM),
+    maximumRangeKm: Math.max(...rangesM) / 1000,
+    phaseSpeedLowMps: nativeInput.environment.phaseSpeedLowMps,
+    phaseSpeedHighMps: nativeInput.environment.phaseSpeedHighMps,
+    waterDepthM: pageEnvironment.waterDepthM,
+    profilePoints,
+    interpolation: firstProfile.interpolation,
+    bottomSoundSpeedMps: firstProfile.bottom.compressionalSpeedMps,
+    bottomDensityRelative: firstProfile.bottom.densityRelative,
+    bottomAttenuationDbPerWavelength: firstProfile.bottom.compressionalAttenuation,
+  };
+  importedInputCache.set(sourceId, {
+    input: nativeInput,
+    baseline,
+    documents: documents.map((document) => ({ ...document })),
+  });
+  while (importedInputCache.size > 3) {
+    importedInputCache.delete(importedInputCache.keys().next().value);
+  }
+  return {
+    ...pageEnvironment,
+    sourceId,
+    sourceFiles: [envName, flpName],
+    documents: undefined,
+    frequencyHz: baseline.frequencyHz,
+    sourceDepthM: baseline.sourceDepthM,
+    maximumRangeKm: baseline.maximumRangeKm,
+    phaseSpeedLowMps: baseline.phaseSpeedLowMps,
+    phaseSpeedHighMps: baseline.phaseSpeedHighMps,
+    profilePoints,
+    receiverRangesM: rangesM.slice(),
+    receiverDepthsM: nativeInput.receivers.depthsM.slice(),
+    modelHints: {
+      ...pageEnvironment.modelHints,
+      model: "Kraken",
+      profileCount: nativeInput.environment.profiles.length,
+      receiverRangeCount: rangesM.length,
+      receiverDepthCount: nativeInput.receivers.depthsM.length,
+    },
+  };
 }
 
 function requestedModeLimit(params) {
@@ -472,7 +633,9 @@ function cachedNormalRuns(params) {
     full = makeNativeInput(params, FULL_MODE_LIMIT)
       .then((input) => rawNormalRun(input, FULL_MODE_LIMIT));
     fullRunCache.set(key, full);
-    full.catch(() => fullRunCache.delete(key));
+    full.catch(() => {
+      if (fullRunCache.get(key) === full) fullRunCache.delete(key);
+    });
   }
   const requested = requestedModeLimit(params);
   const limitedKey = `${key}|${requested}`;
@@ -488,7 +651,9 @@ function cachedNormalRuns(params) {
       return rawNormalRun(limitedInput, requested);
     });
     limitedRunCache.set(limitedKey, limited);
-    limited.catch(() => limitedRunCache.delete(limitedKey));
+    limited.catch(() => {
+      if (limitedRunCache.get(limitedKey) === limited) limitedRunCache.delete(limitedKey);
+    });
   }
   trimNormalCaches();
   return { full, limited };
@@ -657,6 +822,28 @@ async function runNativeNormalMode(params) {
   });
 }
 
+function cancelledNativeRequest() {
+  return new RuntimeError("CANCELLED", "A newer Normal Mode request replaced this calculation");
+}
+
+async function runLatestNativeNormalMode(params) {
+  const requestId = ++latestNativeRequestId;
+  if (nativeRequestActive && normalSolverPromise) {
+    const solver = await normalSolverPromise;
+    solver.cancel();
+    fullRunCache.clear();
+    limitedRunCache.clear();
+  }
+  nativeRequestActive = true;
+  try {
+    const result = await runNativeNormalMode(params);
+    if (requestId !== latestNativeRequestId) throw cancelledNativeRequest();
+    return result;
+  } finally {
+    if (requestId === latestNativeRequestId) nativeRequestActive = false;
+  }
+}
+
 export async function runNormalMode(params) {
   const backend = installedBackend || globalThis.OpenOceanNormalModeWasm || null;
   if (backend && typeof backend.runNormalMode === "function") {
@@ -671,5 +858,9 @@ export async function runNormalMode(params) {
   if (new URLSearchParams(globalThis.location?.search || "").has("demo")) {
     return demonstrationResult(params, "URL requested the deterministic demo backend");
   }
-  return runNativeNormalMode(params);
+  try {
+    return await runLatestNativeNormalMode(params);
+  } catch (error) {
+    throw normalizeRuntimeError(error);
+  }
 }

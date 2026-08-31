@@ -16,10 +16,8 @@ import {
 import { RuntimeError } from "@ooa/runtime-core";
 import type { RayFieldRequest, RaySdkAdapter, RaySdkRequest, RaySdkResult } from "./public-types";
 
-// Transitional compatibility surface for the parity controller. Keeping this
-// export here preserves the rule that the model package is only resolved by
-// the runtime SDK loader while the old page behavior is migrated behind the
-// typed RayRuntime interface.
+// Internal page-runtime vocabulary. This module is not a package export, so
+// React features cannot reach the model SDK directly.
 export {
   AttenuationUnit,
   AxisInput,

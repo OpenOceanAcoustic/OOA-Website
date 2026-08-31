@@ -14,6 +14,7 @@ test("Ray Mode imports a Bellhop ENV with SSP and BTY companions", async ({ page
   ]);
   await expect(page.locator("#envImportStatus")).toHaveClass(/success/, { timeout: 15_000 });
   await expect(page.locator("#envImportStatus")).toContainText("已导入");
+  await expect(page.locator("#envImportStatus")).toContainText("2D SSP");
   await expect(page.locator("#simStatus")).toHaveText("SIMULATION COMPLETE", { timeout: 30_000 });
 });
 
@@ -26,6 +27,8 @@ test("Normal Mode imports a same-stem Kraken ENV and FLP", async ({ page }) => {
   ]);
   await expect(page.locator("#environmentImportStatus")).toHaveClass(/success/, { timeout: 15_000 });
   await expect(page.locator("#environmentImportStatus")).toContainText("已导入");
+  await expect(page.locator("#environmentImportStatus")).toContainText("原生 Kraken 解析");
+  await expect(page.locator("#environmentImportStatus")).toContainText("FLP 网格");
   await expect(page.locator("#solveStatus")).toHaveText("COMPLETE", { timeout: 30_000 });
 });
 
@@ -35,5 +38,6 @@ test("PE imports a RAM .in file", async ({ page }) => {
   await page.locator("#environmentFileInput").setInputFiles(fixture("ram.in"));
   await expect(page.locator("#environmentImportStatus")).toHaveClass(/success/, { timeout: 15_000 });
   await expect(page.locator("#environmentImportStatus")).toContainText("已导入");
+  await expect(page.locator("#environmentImportStatus")).toContainText("2 个介质段");
   await expect(page.locator("#solveStatus")).toHaveText("COMPLETE", { timeout: 30_000 });
 });

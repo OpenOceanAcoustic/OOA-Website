@@ -11,8 +11,8 @@ import { RuntimeError } from "@ooa/runtime-core";
 import { transmissionLossFromPressure } from "./result-mapper";
 import type { NormalModeRequest, NormalModeSdkAdapter } from "./public-types";
 
-/** Model-module access used only by the original-page parity adapter. */
-export function loadLegacyNormalModeSdkModule() {
+/** Internal model-module access for the original-page runtime facade. */
+export function loadNormalModeSdkModule() {
   return import("@openocean/field-normal-mode-kraken");
 }
 

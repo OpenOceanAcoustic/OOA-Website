@@ -2,8 +2,8 @@ import { OutputMode, RAM, RAMInput } from "@openocean/field-pe-ram";
 import { RuntimeError } from "@ooa/runtime-core";
 import type { PeRequest, PeSdkAdapter } from "./public-types";
 
-/** Model-module access used only by the original-page parity adapter. */
-export function loadLegacyPeSdkModule() {
+/** Internal model-module access for the original-page runtime facade. */
+export function loadPeSdkModule() {
   return import("@openocean/field-pe-ram");
 }
 

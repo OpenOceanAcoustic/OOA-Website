@@ -12,6 +12,9 @@ const [headers, redirects, assets] = await Promise.all([
 assert.match(headers, /Cross-Origin-Opener-Policy:\s*same-origin/);
 assert.match(headers, /Cross-Origin-Embedder-Policy:\s*require-corp/);
 assert.match(headers, /Content-Type:\s*application\/wasm/);
+assert.match(headers, /\/index\.html[\s\S]*Cache-Control:\s*no-cache/);
+assert.match(headers, /\/assets\/\*\.js[\s\S]*Cache-Control:\s*public, max-age=31536000, immutable/);
+assert.match(headers, /\/assets\/\*\.wasm[\s\S]*Cache-Control:\s*no-cache/);
 assert.match(redirects, /\/index\.html\s+200/);
 assert.ok(assets.some((file) => file.endsWith(".wasm")), "dist/assets has no WASM binary");
 console.log("Static deployment headers, SPA fallback and WASM assets verified");

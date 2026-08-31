@@ -1,3 +1,4 @@
+/** Pure teaching-profile helpers shared by the Ray page and its runtime. */
 export const DEFAULT_WATER_DEPTH_M = 5000;
 
 export const PROFILE_DEFAULTS = Object.freeze({

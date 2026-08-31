@@ -11,13 +11,14 @@ import {
   RunStatus,
   SspInterpolation,
   VolumeAttenuation,
-} from "@ooa/runtime-ray/legacy-sdk";
-import { importRayPageEnvironment } from "@ooa/runtime-ray";
+} from "./sdk-loader";
+import { importRayPageEnvironment } from "./environment-parser";
 import { inferEnvironmentDocumentKind } from "@ooa/environment";
+import { RuntimeError, normalizeRuntimeError } from "@ooa/runtime-core";
 import {
   DEFAULT_WATER_DEPTH_M,
   generateSspProfile,
-} from "./ssp-profiles.js";
+} from "@ooa/environment/ssp-profiles";
 
 const MAX_RANGE_M = 100000;
 // Browser-interactive defaults. The server version could spend minutes on a
@@ -51,7 +52,33 @@ const THREAD_COUNT = Math.min(
 );
 
 let solverPromise;
+let activeThreadCount = 1;
 let importedInput = null;
+let importedDocuments = [];
+let importedSourceId = null;
+let nextImportedSourceId = 1;
+let latestPageRequestId = 0;
+let pageRequestActive = false;
+
+function cancelledRequest() {
+  return new RuntimeError("CANCELLED", "A newer Ray Mode request replaced this calculation");
+}
+
+async function runLatestPageRequest(operation) {
+  const requestId = ++latestPageRequestId;
+  if (pageRequestActive && solverPromise) {
+    const solver = await solverPromise;
+    solver.cancel();
+  }
+  pageRequestActive = true;
+  try {
+    const result = await operation();
+    if (requestId !== latestPageRequestId) throw cancelledRequest();
+    return result;
+  } finally {
+    if (requestId === latestPageRequestId) pageRequestActive = false;
+  }
+}
 
 export function normalizeFieldBeamType(
   value,
@@ -350,10 +377,13 @@ function plotMaximumDepthM(domain, payload) {
 
 export function initializeWasm() {
   if (!solverPromise) {
+    const supportsThreads = !import.meta.env.DEV && globalThis.crossOriginIsolated === true;
+    const runtime = supportsThreads
+      ? { ...Bellhop2D.recommendedRuntime(), threadCount: THREAD_COUNT }
+      : { executionMode: "SINGLE_THREAD", threadCount: 1 };
+    activeThreadCount = runtime.threadCount;
     solverPromise = Bellhop2D.create({
-      ...(import.meta.env.DEV
-        ? { executionMode: "SINGLE_THREAD", threadCount: 1 }
-        : { threadCount: THREAD_COUNT }),
+      ...runtime,
       memoryLimitBytes: MEMORY_LIMIT_BYTES,
     });
   }
@@ -372,8 +402,48 @@ export async function importEnvironment(files) {
     kind: inferEnvironmentDocumentKind(file.name, "ray"),
     content: await file.text(),
   })));
-  importedInput = null;
-  return importRayPageEnvironment(documents);
+  const environment = documents.find((document) => document.kind === "bellhop-env");
+  if (!environment) throw new TypeError("Bellhop import requires one ENV file");
+  const sidecar = (kind) => {
+    const document = documents.find((candidate) => candidate.kind === kind);
+    return document ? { name: document.name, text: document.content } : undefined;
+  };
+  let input;
+  try {
+    input = Bellhop2DInput.fromEnvironmentFiles({
+      env: { name: environment.name, text: environment.content },
+      ssp: sidecar("bellhop-ssp"),
+      bty: sidecar("bellhop-bty"),
+    });
+  } catch (error) {
+    throw new RuntimeError("INPUT_INVALID", "Bellhop 环境文件无法解析", { cause: error });
+  }
+  const pageEnvironment = await importRayPageEnvironment(documents);
+  importedInput = input;
+  importedDocuments = documents.map((document) => ({ ...document }));
+  importedSourceId = `ray-source-${nextImportedSourceId++}`;
+  const profile = sspProfile(input.environment.ssp);
+  const launchAngles = launchAngleConfiguration({ profile: "env" });
+  const maximumRangeKm = calculationDomain({ profile: "env" }).maximumRangeM / 1000;
+  return {
+    ...pageEnvironment,
+    sourceId: importedSourceId,
+    sourceFiles: documents.map((document) => document.name),
+    sspPoints: profile.depths.map((depth, index) => [depth, profile.speeds[index]]),
+    frequency: input.environment.frequencyHz,
+    sourceDepth: firstAxisValue(input.source.depths, pageEnvironment.sourceDepth),
+    maximumRangeKm,
+    maximumDepthM: calculationDomain({ profile: "env" }).maximumDepthM,
+    angleRangeDegrees: [launchAngles.minimumDegrees, launchAngles.maximumDegrees],
+    fieldRayCount: axisCount(input.source.launchAngles),
+    fieldGridRows: axisCount(input.receivers.depths),
+    fieldGridColumns: axisCount(input.receivers.ranges),
+    beamType: input.options.beam.beamType,
+    runMode: input.options.beam.runMode,
+    fieldMode: input.options.beam.runMode,
+    rangeDependent: "rangesM" in input.environment.ssp,
+    documents: undefined,
+  };
 }
 
 function clamp(value, lower, upper) {
@@ -647,6 +717,14 @@ function velocityLevels(interleaved, count) {
 }
 
 export async function simulate(payload) {
+  try {
+    return await runLatestPageRequest(() => simulateNative(payload));
+  } catch (error) {
+    throw normalizeRuntimeError(error);
+  }
+}
+
+async function simulateNative(payload) {
   const started = performance.now();
   const domain = calculationDomain(payload);
   const ranges = AxisInput.linspace(100, domain.maximumRangeM, FIELD_RANGE_COUNT);
@@ -727,7 +805,7 @@ export async function simulate(payload) {
     bathymetry: displayedBathymetry(domain, payload),
     field_mode: fieldSelection.runMode,
     beam_type: fieldSelection.configuration.input.options.beam.beamType,
-    thread_count: THREAD_COUNT,
+    thread_count: activeThreadCount,
     bottom: {
       speed_mps: rayConfig.bottom.bottomSpeed,
       density_kgm3: rayConfig.bottom.bottomDensity,
@@ -868,6 +946,14 @@ function serializeRays(items) {
 }
 
 export async function preciseEigenrays(payload) {
+  try {
+    return await runLatestPageRequest(() => preciseEigenraysNative(payload));
+  } catch (error) {
+    throw normalizeRuntimeError(error);
+  }
+}
+
+async function preciseEigenraysNative(payload) {
   const started = performance.now();
   const domain = calculationDomain(payload);
   const maximumReceiverRangeKm = Math.min(95, domain.maximumRangeM / 1000);
@@ -975,7 +1061,7 @@ export async function preciseEigenrays(payload) {
       pressureImaginary,
     ))), 2),
     incoherent_tl_db: round(-10 * Math.log10(Math.max(1e-30, incoherentPower)), 2),
-    thread_count: THREAD_COUNT,
+    thread_count: activeThreadCount,
     compute_ms: round(performance.now() - started, 2),
     engine: "OOB_BELLHOP2D_MODE_E_PC_WASM_WORKER",
   };

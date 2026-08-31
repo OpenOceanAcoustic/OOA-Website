@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { LegacyDocument } from "../../../app/legacy-document";
+import { OriginalPage } from "../../../app/original-page";
 import documentSource from "../legacy/index.html?raw";
 import "../legacy/page.css";
 
@@ -9,7 +9,7 @@ export function RayModeRoute() {
   }, []);
 
   return (
-    <LegacyDocument
+    <OriginalPage
       documentSource={documentSource}
       page="ray"
       title="OOA-RayMode · 声传播交互实验室"

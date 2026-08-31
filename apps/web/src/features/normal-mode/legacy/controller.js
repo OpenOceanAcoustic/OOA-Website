@@ -13,7 +13,7 @@ import {
   resampleProfilePoints,
 } from "../../shared-legacy/environment-presets.js";
 import { parseNormalModeEnvironmentFiles } from "../../shared-legacy/model-environment-import.js";
-import { parseKrakenEnvironment, runNormalMode } from "./wasm-adapter.js";
+import { parseKrakenEnvironment, runNormalMode } from "@ooa/runtime-normal-mode/page-runtime";
 import { synthesizeSingleModeField } from "./single-mode-field.js";
 
 const byId = (id) => document.getElementById(id);
@@ -118,6 +118,7 @@ function readParameters() {
     bottomDensityRelative: clamp(number(controls.bottomDensity.value, 1800) / 1000, 1, 3.5),
     bottomAttenuationDbPerWavelength: clamp(number(controls.bottomAbsorption.value, 0.5), 0, 5),
     interpolation: state.interpolation,
+    sourceId: profile === "custom" ? state.importedEnvironment?.sourceId || null : null,
     modeLimit: number(controls.modeLimit.value, 24),
     rangeCount: 161,
     depthCount: 121,
@@ -494,7 +495,12 @@ async function importEnvironmentFiles(files) {
   try {
     const parsed = await parseNormalModeEnvironmentFiles(
       selectedFiles,
-      ({ envText, flpText }) => parseKrakenEnvironment({ envText, flpText }),
+      ({ envText, flpText, envName, flpName }) => parseKrakenEnvironment({
+        envText,
+        flpText,
+        envName,
+        flpName,
+      }),
     );
     const imported = normalizeKrakenEnvironment(parsed);
     if (!imported || !Array.isArray(imported.profilePoints) || imported.profilePoints.length < 2) {
@@ -617,4 +623,3 @@ applyEnvironmentPreset(controls.profile.value);
 syncControlLabels();
 syncFieldViewControls();
 calculate();
-

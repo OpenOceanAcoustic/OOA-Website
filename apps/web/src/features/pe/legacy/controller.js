@@ -14,7 +14,7 @@ import {
   resampleProfilePoints,
 } from "../../shared-legacy/environment-presets.js";
 import { parsePEEnvironmentFiles } from "../../shared-legacy/model-environment-import.js";
-import { parseRamEnvironment, runPE } from "./wasm-adapter.js";
+import { parseRamEnvironment, runPE } from "@ooa/runtime-pe/page-runtime";
 
 const byId = (id) => document.getElementById(id);
 const controls = {
@@ -65,11 +65,11 @@ function syncBottomEditors() {
 
 function currentProfileDescription() {
   if (controls.profile.value === "custom" && state.importedEnvironment) {
-    const { title, format: sourceFormat, bathymetry, nativeInput } = state.importedEnvironment;
+    const { title, format: sourceFormat, bathymetry, modelHints } = state.importedEnvironment;
     const terrainNote = bathymetryVaries(bathymetry)
       ? " · 原生 RAM 距离相关地形"
       : "";
-    const sectionCount = nativeInput?.environment?.mediumSections?.length || 0;
+    const sectionCount = modelHints?.mediumSectionCount || 0;
     const sectionNote = sectionCount > 1
       ? ` · ${sectionCount} 个介质段`
       : "";
@@ -132,8 +132,7 @@ function readParameters() {
     bottomDensityKgM3: clamp(number(controls.bottomDensity.value, 1800), 1000, 3500),
     bottomAttenuationDbPerWavelength: clamp(number(controls.bottomAbsorption.value, 0.5), 0, 5),
     bathymetry: profile === "custom" ? state.importedEnvironment?.bathymetry || null : null,
-    ramInput: profile === "custom" ? state.importedEnvironment?.nativeInput || null : null,
-    ramBaseline: profile === "custom" ? state.importedEnvironment?.baseline || null : null,
+    sourceId: profile === "custom" ? state.importedEnvironment?.sourceId || null : null,
     nPade: Math.round(clamp(number(controls.nPade.value, 4), 1, 10)),
     referenceNPade: 10,
     rangeCount: 181,
@@ -141,57 +140,8 @@ function readParameters() {
   };
 }
 
-function firstProfileValue(profile, fallback) {
-  const values = profile?.values;
-  return values && typeof values.length === "number" && values.length
-    ? number(values[0], fallback)
-    : fallback;
-}
-
-function isNativeRamInput(value) {
-  return Boolean(value?.environment?.mediumSections && value?.source &&
-    value?.receivers && value?.options && value?.outputRequest);
-}
-
-function profileValues(values) {
-  return values && typeof values.length === "number"
-    ? Array.from(values, (value) => number(value, 0))
-    : [];
-}
-
 function normalizeRamEnvironment(imported) {
-  if (!isNativeRamInput(imported)) return imported;
-  const environment = imported.environment;
-  const profile = environment.mediumSections[0];
-  const waterProfile = profile?.waterSoundSpeedMps;
-  const depths = profileValues(waterProfile?.depthsM);
-  const speeds = profileValues(waterProfile?.values);
-  if (depths.length < 2 || depths.length !== speeds.length) {
-    throw new Error("RAM IN 中没有有效的水体声速剖面");
-  }
-  const bathymetry = Array.isArray(environment.bathymetry)
-    ? environment.bathymetry.map((point) => [number(point?.rangeM, 0) / 1000, number(point?.depthM, 0)])
-    : [];
-  return {
-    ...imported,
-    title: environment.title,
-    frequencyHz: environment.frequencyHz,
-    profilePoints: depths.map((depth, index) => [depth, speeds[index]]),
-    waterDepthM: bathymetry[0]?.[1] ?? imported.outputRequest.plotMaximumDepthM,
-    sourceDepthM: imported.source.depthM,
-    maximumRangeKm: number(imported.outputRequest.maximumRangeM, 0) / 1000,
-    maximumDepthM: imported.outputRequest.maximumDepthM,
-    rangeStepM: imported.options.rangeStepM,
-    depthStepM: imported.options.depthStepM,
-    nPade: imported.options.padeTerms,
-    bathymetry,
-    bottomSoundSpeedMps: firstProfileValue(profile?.bottomCompressionalSpeedMps, 1700),
-    bottomDensityKgM3: firstProfileValue(profile?.bottomDensityKgM3, 1800),
-    bottomAttenuationDbPerWavelength: firstProfileValue(
-      profile?.bottomCompressionalAttenuationDbPerWavelength,
-      0.5,
-    ),
-  };
+  return imported;
 }
 
 function profileDisplayPoints() {
@@ -293,7 +243,7 @@ async function importEnvironmentFiles(files) {
   try {
     const parsed = await parsePEEnvironmentFiles(
       files,
-      ({ text }) => parseRamEnvironment({ text }),
+      ({ name, text }) => parseRamEnvironment({ name, text }),
     );
     const imported = normalizeRamEnvironment(parsed);
     const suppliedPoints = Array.isArray(imported?.profilePoints) ? imported.profilePoints : [];
@@ -304,29 +254,12 @@ async function importEnvironmentFiles(files) {
     );
     const waterDepthM = clamp(number(imported.waterDepthM, deepestProfilePoint || 200), 50, 8000);
     state.customSSP = normalizeProfilePoints(suppliedPoints, waterDepthM);
-    const baseline = {
-      waterDepthM,
-      maximumRangeKm: number(imported.maximumRangeKm, controls.maximumRange.value),
-      maximumDepthM: number(imported.maximumDepthM, controls.maximumDepth.value),
-      profilePoints: state.customSSP.map((point) => [...point]),
-      bottomSoundSpeedMps: number(imported.bottomSoundSpeedMps, controls.bottomSpeed.value),
-      bottomDensityKgM3: number(imported.bottomDensityKgM3, controls.bottomDensity.value),
-      bottomAttenuationDbPerWavelength: number(
-        imported.bottomAttenuationDbPerWavelength,
-        controls.bottomAbsorption.value,
-      ),
-    };
-    const nativeInput = isNativeRamInput(parsed)
-      ? Object.fromEntries(Object.entries(parsed).filter(([key]) => (
-        key !== "format" && key !== "sourceFiles"
-      )))
-      : null;
     state.importedEnvironment = {
       title: String(imported.title || files[0]?.name || "导入环境"),
       format: String(imported.format || "ENVIRONMENT"),
       bathymetry: imported.bathymetry || null,
-      nativeInput,
-      baseline,
+      sourceId: parsed.sourceId || null,
+      modelHints: parsed.modelHints || null,
     };
 
     controls.profile.value = "custom";
@@ -356,8 +289,8 @@ async function importEnvironmentFiles(files) {
     const terrainPoints = bathymetryPointCount(state.importedEnvironment.bathymetry);
     setImportStatus(
       "success",
-      isNativeRamInput(parsed)
-        ? `已原生解析 ${state.importedEnvironment.title}；${terrainPoints} 个地形节点、${parsed.environment.mediumSections.length} 个介质段和 ${parsed.receivers.depthsM.length} 个接收深度将完整送入 RAM WASM。`
+      parsed.sourceId
+        ? `已导入并原生解析 ${state.importedEnvironment.title}；${terrainPoints} 个地形节点、${parsed.modelHints?.mediumSectionCount ?? 0} 个介质段和 ${parsed.modelHints?.receiverDepthCount ?? 0} 个接收深度将完整送入 RAM WASM。`
         : `已导入 ${state.importedEnvironment.title}；SSP、水深、声源与底质将送入本地 PE WASM。`,
     );
     await calculate();
@@ -588,4 +521,3 @@ window.addEventListener("resize", () => { if (state.result) render(); });
 applyEnvironmentPreset(controls.profile.value);
 syncControlLabels();
 calculate();
-

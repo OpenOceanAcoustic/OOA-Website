@@ -44,9 +44,10 @@ npm run storybook
 ```
 
 The public routes remain `/`, `/normal-mode/` and `/pe/`. Each route preserves
-the original `f45c697` document, styling and browser interactions. Its model SDK
-is loaded only when that page starts; the original navigation uses normal links,
-so changing model pages unloads the active page and its Worker.
+the original `f45c697` document, styling and browser interactions through a
+mechanical React renderer. Its model SDK is loaded only inside the corresponding
+Runtime when that page starts; the original navigation uses normal links, so
+changing model pages unloads the active page and its Worker.
 
 ## Verification
 
@@ -64,15 +65,19 @@ SHA-256 values from `.wasm-packages/provenance.json`.
 ## Deployment
 
 Serve `dist/` as an SPA with fallback to `index.html`, `.wasm` MIME type
-`application/wasm`, and these response headers:
+`application/wasm` and `.mjs` as JavaScript. The current intranet HTTP deployment
+uses single-thread WASM and does not require an SSL certificate. These headers
+are included for hosts that support cross-origin isolation:
 
 ```text
 Cross-Origin-Opener-Policy: same-origin
 Cross-Origin-Embedder-Policy: require-corp
 ```
 
-The build includes `_headers` and `_redirects` for compatible static hosts. Other
-hosts must express the same behavior in their own configuration.
+The build includes `_headers` and `_redirects` for compatible static hosts. A
+pthread runtime is selected only on a secure origin when `crossOriginIsolated`
+is true; otherwise the Runtime remains single-threaded. Other hosts must express
+the same MIME, fallback and cache behavior in their own configuration.
 
 Architecture details live in [`docs/architecture/workspace.md`](docs/architecture/workspace.md),
 the release-oriented completion audit is in

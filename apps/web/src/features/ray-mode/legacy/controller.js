@@ -1,4 +1,9 @@
-import { importEnvironment, initializeWasm, preciseEigenrays, simulate } from './wasm-adapter.js';
+import {
+  importEnvironment,
+  initializeWasm,
+  preciseEigenrays,
+  simulate,
+} from '@ooa/runtime-ray/page-runtime';
 import { parseEnvironmentFiles } from './shared/environment-import.js';
 import {
   DEFAULT_WATER_DEPTH_M,
@@ -6,7 +11,7 @@ import {
   profileDefaults,
   resampleSspPoints,
   sanitizeSspPoints,
-} from './ssp-profiles.js';
+} from '@ooa/environment/ssp-profiles';
 
 const $ = (id) => document.getElementById(id);
 const initialProfile = generateSspProfile({profile:'munk'});

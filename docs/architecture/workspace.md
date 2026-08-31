@@ -17,12 +17,13 @@ ui + environment + runtimes + visualization
                  apps/web
 ```
 
-The application has three route-level feature modules. Each route mounts the
-original page document and its page-specific controller; there is no shared
-Workbench or result-tab layout. The compatibility controllers consume their
-model SDK through the corresponding `@ooa/runtime-*` package. Each concrete
-OpenOcean SDK is imported in exactly one `sdk-loader.ts`; source and binding
-directories in sibling model repositories are never imported by the website.
+The application has three route-level feature modules. Each route mechanically
+renders the original page nodes as React elements and attaches its page-specific
+controller; there is no shared Workbench or result-tab layout. Controllers call
+the corresponding `@ooa/runtime-*/page-runtime` deep facade and never receive a
+model SDK Input. Each concrete OpenOcean SDK is imported in exactly one
+`sdk-loader.ts`; source and binding directories in sibling model repositories
+are never imported by the website.
 
 ## Package responsibilities
 
@@ -53,7 +54,8 @@ sibling model working tree
 The original top navigation uses document links. Changing model pages therefore
 unloads the active document and releases its Worker without adding another SPA
 lifecycle layer. Within a page, request tokens prevent an older calculation from
-overwriting a newer result. Large fields stay in typed arrays.
+overwriting a newer result. Native ENV/FLP/RAM inputs remain in a Runtime-owned
+`sourceId` cache, and large fields stay in typed arrays.
 
 WASM load or execution errors are surfaced as `RuntimeError`; there is no silent
 simulation fallback. A future demonstration adapter must be explicitly gated by
