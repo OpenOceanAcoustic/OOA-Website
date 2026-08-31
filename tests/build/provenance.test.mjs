@@ -4,6 +4,7 @@ import { mkdtemp, mkdir, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import test from "node:test";
+import { directorySha256 } from "../../scripts/wasm/provenance-utils.mjs";
 
 const script = resolve(import.meta.dirname, "../../scripts/wasm/write-provenance.mjs");
 const contracts = [
@@ -52,4 +53,19 @@ test("records clean and dirty model worktrees with package hashes", async () => 
     assert.match(item.activeContentSha256, /^[0-9a-f]{64}$/);
     assert.equal(item.packageVersion, "2.0.0");
   }
+});
+
+test("active package hashes ignore npm link installation metadata", async () => {
+  const root = await mkdtemp(join(tmpdir(), "ooa-active-package-"));
+  await mkdir(join(root, "dist"), { recursive: true });
+  await writeFile(join(root, "package.json"), "{}\n");
+  await writeFile(join(root, "dist", "index.js"), "export const version = 1;\n");
+  const beforeInstall = await directorySha256(root);
+
+  await mkdir(join(root, "node_modules", "tooling"), { recursive: true });
+  await writeFile(join(root, "node_modules", "tooling", "package.json"), "{}\n");
+  assert.equal(await directorySha256(root), beforeInstall);
+
+  await writeFile(join(root, "dist", "index.js"), "export const version = 2;\n");
+  assert.notEqual(await directorySha256(root), beforeInstall);
 });
