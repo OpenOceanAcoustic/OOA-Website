@@ -20,6 +20,9 @@ for (const sourceRoot of sourceRoots) {
   for (const file of await walk(sourceRoot)) {
     const path = relative(root, file).replaceAll("\\", "/");
     const text = await readFile(file, "utf8");
+    if (text.includes("@ts-nocheck")) {
+      violations.push(`${path}: production source cannot opt out of TypeScript checking`);
+    }
     if (text.includes("/legacy-sdk")) {
       violations.push(`${path}: legacy model SDK passthrough exports are forbidden`);
     }
@@ -28,6 +31,12 @@ for (const sourceRoot of sourceRoots) {
     }
     if (path.startsWith("apps/web/src/features/") && text.includes("@openocean/field-")) {
       violations.push(`${path}: feature must consume @ooa/runtime-* instead of a model SDK`);
+    }
+    if (path.startsWith("apps/web/src/features/") && /@ooa\/runtime-(?:ray|normal-mode|pe)\/page-runtime/.test(text)) {
+      violations.push(`${path}: feature cannot use the retired page-runtime deep export`);
+    }
+    if (path.includes("/controller/") && text.includes("@ooa/environment/model-file-import")) {
+      violations.push(`${path}: controllers pass File objects to Runtime and cannot unpack native model documents`);
     }
     if (path.startsWith("apps/web/src/features/")
       && (/\.html\?raw/.test(text) || /new DOMParser\s*\(/.test(text) || /dangerouslySetInnerHTML/.test(text))) {
@@ -38,7 +47,8 @@ for (const sourceRoot of sourceRoots) {
       violations.push(`${path}: feature cannot receive or construct a concrete model SDK input`);
     }
     if (/packages\/runtime-(?:ray|normal-mode|pe)\/src\//.test(path)) {
-      if (text.includes("@openocean/field-") && !path.endsWith("/sdk-loader.ts") && !path.endsWith(".test.ts")) {
+      const importsFieldPackage = /(?:from\s*|import\s*\(\s*)["']@openocean\/field-/.test(text);
+      if (importsFieldPackage && !path.endsWith("/sdk-loader.ts") && !path.endsWith(".test.ts")) {
         violations.push(`${path}: model SDK imports are restricted to sdk-loader.ts`);
       }
       if (/from ["'](?:react|zustand|.*canvas)/.test(text)) violations.push(`${path}: runtime packages cannot depend on React, Zustand or Canvas`);
