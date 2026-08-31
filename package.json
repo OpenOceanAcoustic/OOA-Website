@@ -21,7 +21,8 @@
     "check": "npm run verify:wasm && npm run verify:imports && npm run verify:structure && npm run typecheck && npm test",
     "check:release": "npm run check && node scripts/release/verify-clean-sources.mjs && npm run test:build && playwright test",
     "test:watch": "vitest",
-    "visual:capture": "node scripts/visual/capture-baseline.mjs"
+    "visual:test": "playwright test --config=playwright.visual.config.ts",
+    "visual:update": "playwright test --config=playwright.visual.config.ts --update-snapshots"
   },
   "dependencies": {
     "@openocean/field-bellhop-2d": "file:.wasm-packages/active/field-bellhop-2d",
