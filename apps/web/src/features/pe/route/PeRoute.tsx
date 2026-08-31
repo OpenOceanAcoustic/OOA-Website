@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { createPeRuntime } from "@ooa/runtime-pe";
 import { ModelPageFooter, ModelPageHeader, RuntimeBanner } from "../../shared-page/ModelPageChrome";
 import { PageDocument } from "../../shared-page/PageDocument";
 import { PeControls } from "../page/PeControls";
@@ -8,12 +9,21 @@ import { PeField } from "../page/PeField";
 import { PeHero } from "../page/PeHero";
 import { PeMethodNote } from "../page/PeMethodNote";
 import { PeProfile } from "../page/PeProfile";
+import { mountPePage } from "../controller/page-controller";
 import "@ooa/styles/model-lab.css";
+import "@ooa/styles/controls.css";
 import "../styles/page.css";
 
 export function PeRoute() {
   useEffect(() => {
-    void import("../controller/page-controller.js");
+    const root = document.querySelector<HTMLElement>('[data-ooa-page="pe"]');
+    if (root === null) throw new Error("PE page root is missing");
+    const runtime = createPeRuntime({
+      demonstration: new URLSearchParams(window.location.search).has("demo"),
+    });
+    const mounted = mountPePage(root, runtime);
+    void mounted.ready;
+    return () => { void mounted.dispose(); };
   }, []);
 
   return (
@@ -21,7 +31,7 @@ export function PeRoute() {
       <ModelPageHeader activePage="pe" />
       <main className="site-shell">
         <PeHero />
-        <RuntimeBanner message="WASM SDK 尚未注册，当前使用浏览器内演示数据；图表用于验证交互，不代表 RAM 数值结果。" />
+        <RuntimeBanner message="正在加载本地 RAM WebAssembly Runtime；输入和结果不会上传到服务器。" />
         <section className="workspace" aria-labelledby="workspaceTitle">
           <div className="workspace-heading">
             <div><p className="micro">02 · WIDE-ANGLE APPROXIMATION</p><h2 id="workspaceTitle">Padé 阶数影响实验台</h2></div>

@@ -41,3 +41,18 @@ test("PE imports a RAM .in file", async ({ page }) => {
   await expect(page.locator("#environmentImportStatus")).toContainText("2 个介质段");
   await expect(page.locator("#solveStatus")).toHaveText("COMPLETE", { timeout: 30_000 });
 });
+
+for (const model of [
+  { name: "Ray Mode", route: "/", input: "#envFileInput", status: "#envImportStatus", solve: "#simStatus", complete: "SIMULATION COMPLETE" },
+  { name: "Normal Mode", route: "/normal-mode/", input: "#environmentFileInput", status: "#environmentImportStatus", solve: "#solveStatus", complete: "COMPLETE" },
+  { name: "PE", route: "/pe/", input: "#environmentFileInput", status: "#environmentImportStatus", solve: "#solveStatus", complete: "COMPLETE" },
+] as const) {
+  test(`${model.name} imports the unified environment JSON without exposing native text to the page`, async ({ page }) => {
+    await page.goto(model.route);
+    await expect(page.locator(model.solve)).toHaveText(model.complete, { timeout: 30_000 });
+    await page.locator(model.input).setInputFiles(fixture("Pekeris.environment.json"));
+    await expect(page.locator(model.status)).toHaveClass(/success/, { timeout: 15_000 });
+    await expect(page.locator(model.status)).toContainText("已导入");
+    await expect(page.locator(model.solve)).toHaveText(model.complete, { timeout: 30_000 });
+  });
+}

@@ -1,9 +1,12 @@
-import { importEnvironmentDocuments, type EnvironmentDocument } from "@ooa/environment";
-import type { RayImportedEnvironment } from "./public-types";
+import {
+  importEnvironmentDocuments,
+  type EnvironmentDocument,
+  type ImportedEnvironment,
+} from "@ooa/environment";
 
 export async function importRayEnvironment(
   documents: readonly EnvironmentDocument[],
-): Promise<RayImportedEnvironment> {
+): Promise<ImportedEnvironment> {
   return importEnvironmentDocuments(documents);
 }
 
@@ -11,7 +14,7 @@ function finiteHint(value: unknown, fallback: number): number {
   return typeof value === "number" && Number.isFinite(value) ? value : fallback;
 }
 
-/** Compatibility DTO for the original Ray page; raw documents stay attached. */
+/** Compatibility DTO used internally while the Runtime retains raw documents. */
 export async function importRayPageEnvironment(documents: readonly EnvironmentDocument[]) {
   const imported = await importRayEnvironment(documents);
   const { environment, modelHints } = imported;
@@ -23,6 +26,7 @@ export async function importRayPageEnvironment(documents: readonly EnvironmentDo
     ? modelHints.angleRangeDegrees.map(Number).filter(Number.isFinite).slice(0, 2)
     : [];
   return {
+    environment,
     title: environment.title,
     frequency: environment.frequencyHz,
     sourceDepth: finiteHint(modelHints.sourceDepthM, Math.min(1000, environment.waterDepthM / 2)),

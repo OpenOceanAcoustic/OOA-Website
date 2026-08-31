@@ -37,9 +37,9 @@ export function ModelPageHeader({ activePage }: { readonly activePage: ModelPage
 
 export function RuntimeBanner({ message }: { readonly message: string }) {
   return (
-    <div className="runtime-banner" id="runtimeBanner" data-mode="demo" role="status" aria-live="polite">
+    <div className="runtime-banner" id="runtimeBanner" data-mode="loading" role="status" aria-live="polite">
       <span id="runtimeMessage">{message}</span>
-      <b id="runtimeBadge">DEMO FALLBACK</b>
+      <b id="runtimeBadge">WASM LOADING</b>
     </div>
   );
 }

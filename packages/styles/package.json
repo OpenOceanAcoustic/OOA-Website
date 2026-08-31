@@ -5,6 +5,7 @@
   "type": "module",
   "exports": {
     "./base.css": "./src/base.css",
+    "./controls.css": "./src/controls.css",
     "./model-lab.css": "./src/model-lab.css"
   }
 }

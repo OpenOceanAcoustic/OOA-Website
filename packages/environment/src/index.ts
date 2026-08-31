@@ -9,6 +9,7 @@ export type {
   EnvironmentDocumentKind,
   EnvironmentValidationIssue,
   ImportedEnvironment,
+  ImportedModelEnvironment,
   SoundSpeedPoint,
 } from "./types";
 export { assertEnvironment, validateEnvironment } from "./validation";

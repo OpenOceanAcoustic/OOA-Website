@@ -47,13 +47,6 @@ body:has(:is([data-ooa-page="normal"], [data-ooa-page="pe"])) {
   background-size: 30px 30px;
 }
 
-:where(:is([data-ooa-page="normal"], [data-ooa-page="pe"])) button, :where(:is([data-ooa-page="normal"], [data-ooa-page="pe"])) input, :where(:is([data-ooa-page="normal"], [data-ooa-page="pe"])) select { font: inherit; }
-:where(:is([data-ooa-page="normal"], [data-ooa-page="pe"])) button, :where(:is([data-ooa-page="normal"], [data-ooa-page="pe"])) select, :where(:is([data-ooa-page="normal"], [data-ooa-page="pe"])) input[type="range"] { cursor: pointer; }
-:where(:is([data-ooa-page="normal"], [data-ooa-page="pe"])) button:focus-visible, :where(:is([data-ooa-page="normal"], [data-ooa-page="pe"])) input:focus-visible, :where(:is([data-ooa-page="normal"], [data-ooa-page="pe"])) select:focus-visible, :where(:is([data-ooa-page="normal"], [data-ooa-page="pe"])) canvas:focus-visible {
-  outline: 2px solid var(--ooa-cyan);
-  outline-offset: 2px;
-}
-
 :where(:is([data-ooa-page="normal"], [data-ooa-page="pe"])) a { color: inherit; text-decoration: none; }
 
 :where(:is([data-ooa-page="normal"], [data-ooa-page="pe"])) .site-shell { width: min(1540px, calc(100% - 40px)); margin: 0 auto; }
@@ -156,84 +149,6 @@ body:has(:is([data-ooa-page="normal"], [data-ooa-page="pe"])) {
 :where(:is([data-ooa-page="normal"], [data-ooa-page="pe"])) .panel-head h3 { margin: 4px 0 0; font-size: 15px; }
 :where(:is([data-ooa-page="normal"], [data-ooa-page="pe"])) .panel-head-meta { color: #6f929c; font: 9px var(--ooa-mono); letter-spacing: 0.08em; }
 
-:where(:is([data-ooa-page="normal"], [data-ooa-page="pe"])) .control-panel { padding-bottom: 16px; }
-:where(:is([data-ooa-page="normal"], [data-ooa-page="pe"])) .control-section { padding: 15px 18px; border-bottom: 1px solid rgba(89, 173, 194, 0.12); }
-:where(:is([data-ooa-page="normal"], [data-ooa-page="pe"])) .control-section:last-child { border-bottom: 0; }
-:where(:is([data-ooa-page="normal"], [data-ooa-page="pe"])) .environment-section { padding-top: 14px; }
-:where(:is([data-ooa-page="normal"], [data-ooa-page="pe"])) .environment-section-title {
-  display: grid;
-  grid-template-columns: 24px 1fr auto;
-  align-items: center;
-  gap: 7px;
-  margin-bottom: 13px;
-  padding-bottom: 9px;
-  border-bottom: 1px solid rgba(89, 173, 194, 0.12);
-}
-:where(:is([data-ooa-page="normal"], [data-ooa-page="pe"])) .environment-section-title > span {
-  color: var(--ooa-amber);
-  font: 8px var(--ooa-mono);
-  letter-spacing: 0.08em;
-}
-:where(:is([data-ooa-page="normal"], [data-ooa-page="pe"])) .environment-section-title > strong {
-  color: #b8d1d7;
-  font-size: 11px;
-  font-weight: 600;
-}
-:where(:is([data-ooa-page="normal"], [data-ooa-page="pe"])) .environment-section-title > small {
-  color: #4f747f;
-  font: 8px var(--ooa-mono);
-}
-:where(:is([data-ooa-page="normal"], [data-ooa-page="pe"])) .preset-summary {
-  min-height: 31px;
-  margin: 9px 0 0;
-  color: #658792;
-  font-size: 9px;
-  line-height: 1.55;
-}
-:where(:is([data-ooa-page="normal"], [data-ooa-page="pe"])) .control-label { display: block; margin-bottom: 7px; color: #83a2ab; font-size: 11px; }
-:where(:is([data-ooa-page="normal"], [data-ooa-page="pe"])) .select-wrap, :where(:is([data-ooa-page="normal"], [data-ooa-page="pe"])) .number-wrap { position: relative; }
-:where(:is([data-ooa-page="normal"], [data-ooa-page="pe"])) .select-wrap::after { position: absolute; top: 50%; right: 12px; content: "⌄"; color: var(--ooa-cyan); pointer-events: none; transform: translateY(-58%); }
-:where(:is([data-ooa-page="normal"], [data-ooa-page="pe"])) select, :where(:is([data-ooa-page="normal"], [data-ooa-page="pe"])) input[type="number"] {
-  width: 100%;
-  height: 38px;
-  border: 1px solid rgba(80, 180, 203, 0.35);
-  border-radius: 5px;
-  padding: 0 12px;
-  appearance: none;
-  background: rgba(3, 21, 30, 0.84);
-  color: #dff5f8;
-  font: 11px var(--ooa-mono);
-}
-:where(:is([data-ooa-page="normal"], [data-ooa-page="pe"])) .control-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-:where(:is([data-ooa-page="normal"], [data-ooa-page="pe"])) .control-grid label { min-width: 0; color: #7899a3; font-size: 10px; }
-:where(:is([data-ooa-page="normal"], [data-ooa-page="pe"])) .control-grid input, :where(:is([data-ooa-page="normal"], [data-ooa-page="pe"])) .control-grid select { margin-top: 6px; }
-:where(:is([data-ooa-page="normal"], [data-ooa-page="pe"])) .range-control { margin-top: 14px; }
-:where(:is([data-ooa-page="normal"], [data-ooa-page="pe"])) .range-control:first-child { margin-top: 0; }
-:where(:is([data-ooa-page="normal"], [data-ooa-page="pe"])) .range-title { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 7px; color: #7899a3; font-size: 10px; }
-:where(:is([data-ooa-page="normal"], [data-ooa-page="pe"])) .range-title output { color: var(--ooa-cyan); font: 10px var(--ooa-mono); }
-:where(:is([data-ooa-page="normal"], [data-ooa-page="pe"])) input[type="range"] { width: 100%; height: 3px; margin: 8px 0; appearance: none; border-radius: 8px; background: linear-gradient(90deg, var(--ooa-cyan), rgba(71, 151, 170, 0.35)); }
-:where(:is([data-ooa-page="normal"], [data-ooa-page="pe"])) input[type="range"]::-webkit-slider-thumb { width: 13px; height: 13px; appearance: none; border: 2px solid var(--ooa-cyan); border-radius: 50%; background: #082531; box-shadow: 0 0 0 3px rgba(98, 216, 231, 0.11); }
-:where(:is([data-ooa-page="normal"], [data-ooa-page="pe"])) input[type="range"]::-moz-range-thumb { width: 11px; height: 11px; border: 2px solid var(--ooa-cyan); border-radius: 50%; background: #082531; }
-:where(:is([data-ooa-page="normal"], [data-ooa-page="pe"])) .range-ends { display: flex; justify-content: space-between; color: #536f78; font: 8px var(--ooa-mono); }
-
-:where(:is([data-ooa-page="normal"], [data-ooa-page="pe"])) .run-button {
-  width: 100%;
-  min-height: 50px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  border: 0;
-  border-radius: 5px;
-  background: var(--ooa-cyan);
-  color: #04202b;
-  font-weight: 800;
-  box-shadow: 0 8px 24px rgba(45, 166, 188, 0.16);
-}
-:where(:is([data-ooa-page="normal"], [data-ooa-page="pe"])) .run-button:hover { filter: brightness(1.08); }
-:where(:is([data-ooa-page="normal"], [data-ooa-page="pe"])) .run-button:disabled { cursor: wait; filter: saturate(0.45); opacity: 0.7; }
-:where(:is([data-ooa-page="normal"], [data-ooa-page="pe"])) .run-button small { display: block; font: 8px var(--ooa-mono); letter-spacing: 0.11em; }
-
 :where(:is([data-ooa-page="normal"], [data-ooa-page="pe"])) .plot-wrap { position: relative; min-height: 300px; background: #041721; }
 :where(:is([data-ooa-page="normal"], [data-ooa-page="pe"])) .plot-wrap canvas { display: block; width: 100%; height: 100%; min-height: inherit; }
 :where(:is([data-ooa-page="normal"], [data-ooa-page="pe"])) .plot-note { position: absolute; top: 11px; right: 12px; z-index: 2; padding: 5px 7px; border: 1px solid rgba(94, 190, 211, 0.2); background: rgba(2, 17, 25, 0.76); color: #6e929c; font: 8px var(--ooa-mono); pointer-events: none; }
@@ -247,87 +162,10 @@ body:has(:is([data-ooa-page="normal"], [data-ooa-page="pe"])) {
 :where(:is([data-ooa-page="normal"], [data-ooa-page="pe"])) .metric span { display: block; overflow: hidden; color: #698a94; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
 :where(:is([data-ooa-page="normal"], [data-ooa-page="pe"])) .metric strong { display: block; margin-top: 5px; color: #d8f1f5; font: 11px var(--ooa-mono); font-weight: 500; }
 
-:where(:is([data-ooa-page="normal"], [data-ooa-page="pe"])) .status-pill { display: inline-flex; align-items: center; gap: 7px; color: var(--ooa-lime); font: 9px var(--ooa-mono); letter-spacing: 0.09em; }
-:where(:is([data-ooa-page="normal"], [data-ooa-page="pe"])) .status-pill::before { width: 6px; height: 6px; content: ""; border-radius: 50%; background: currentColor; box-shadow: 0 0 8px currentColor; }
-:where(:is([data-ooa-page="normal"], [data-ooa-page="pe"])) .status-pill.busy { color: var(--ooa-amber); }
-:where(:is([data-ooa-page="normal"], [data-ooa-page="pe"])) .status-pill.error { color: var(--ooa-danger); }
-
 :where(:is([data-ooa-page="normal"], [data-ooa-page="pe"])) .mini-profile { height: 230px; margin: 10px 18px 0; overflow: hidden; border: 1px solid rgba(82, 175, 197, 0.22); border-radius: 5px; background: #041721; }
 :where(:is([data-ooa-page="normal"], [data-ooa-page="pe"])) .mini-profile canvas { width: 100%; height: 100%; display: block; }
 :where(:is([data-ooa-page="normal"], [data-ooa-page="pe"])) .embedded-profile { position: relative; height: 215px; margin: 11px 0 0; }
 :where(:is([data-ooa-page="normal"], [data-ooa-page="pe"])) .embedded-profile > span { position: absolute; top: 7px; left: 9px; color: #557985; font: 8px var(--ooa-mono); pointer-events: none; }
-
-:where(:is([data-ooa-page="normal"], [data-ooa-page="pe"])) .profile-table-editor {
-  margin-top: 10px;
-  overflow: hidden;
-  border: 1px solid rgba(82, 175, 197, 0.2);
-  border-radius: 5px;
-  background: rgba(3, 20, 29, 0.55);
-}
-:where(:is([data-ooa-page="normal"], [data-ooa-page="pe"])) .profile-table-editor summary {
-  min-height: 37px;
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  padding: 8px 9px;
-  color: #83a2ab;
-  cursor: pointer;
-  font-size: 9px;
-  list-style: none;
-}
-:where(:is([data-ooa-page="normal"], [data-ooa-page="pe"])) .profile-table-editor summary::-webkit-details-marker { display: none; }
-:where(:is([data-ooa-page="normal"], [data-ooa-page="pe"])) .profile-table-editor summary::before { color: var(--ooa-cyan); content: "+"; font: 12px var(--ooa-mono); }
-:where(:is([data-ooa-page="normal"], [data-ooa-page="pe"])) .profile-table-editor[open] summary::before { content: "−"; }
-:where(:is([data-ooa-page="normal"], [data-ooa-page="pe"])) .profile-table-editor summary small { margin-left: auto; color: #50717b; font: 8px var(--ooa-mono); }
-:where(:is([data-ooa-page="normal"], [data-ooa-page="pe"])) .profile-table-wrap { max-height: 230px; overflow: auto; border-top: 1px solid rgba(82, 175, 197, 0.14); }
-:where(:is([data-ooa-page="normal"], [data-ooa-page="pe"])) .profile-table-wrap table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-:where(:is([data-ooa-page="normal"], [data-ooa-page="pe"])) .profile-table-wrap th {
-  position: sticky;
-  top: 0;
-  z-index: 1;
-  padding: 7px 5px;
-  color: #5c7f89;
-  background: #061923;
-  font-size: 8px;
-  font-weight: 500;
-  text-align: left;
-}
-:where(:is([data-ooa-page="normal"], [data-ooa-page="pe"])) .profile-table-wrap th:last-child { width: 28px; }
-:where(:is([data-ooa-page="normal"], [data-ooa-page="pe"])) .profile-table-wrap td { padding: 4px; border-top: 1px solid rgba(82, 175, 197, 0.09); }
-:where(:is([data-ooa-page="normal"], [data-ooa-page="pe"])) .profile-table-wrap input {
-  width: 100%;
-  height: 29px;
-  padding: 3px 5px;
-  border: 1px solid rgba(80, 180, 203, 0.25);
-  border-radius: 3px;
-  background: rgba(2, 16, 24, 0.9);
-  color: #cae0e5;
-  font: 9px var(--ooa-mono);
-}
-:where(:is([data-ooa-page="normal"], [data-ooa-page="pe"])) .profile-table-wrap input:disabled { cursor: default; opacity: 0.62; }
-:where(:is([data-ooa-page="normal"], [data-ooa-page="pe"])) .profile-delete-row {
-  width: 24px;
-  height: 27px;
-  padding: 0;
-  border: 1px solid rgba(80, 180, 203, 0.2);
-  border-radius: 3px;
-  background: transparent;
-  color: #6d8d96;
-}
-:where(:is([data-ooa-page="normal"], [data-ooa-page="pe"])) .profile-delete-row:not(:disabled):hover { border-color: rgba(255, 125, 115, 0.5); color: var(--ooa-danger); }
-:where(:is([data-ooa-page="normal"], [data-ooa-page="pe"])) .profile-delete-row:disabled { cursor: default; opacity: 0.35; }
-:where(:is([data-ooa-page="normal"], [data-ooa-page="pe"])) .profile-add-row {
-  width: calc(100% - 16px);
-  min-height: 31px;
-  margin: 8px;
-  border: 1px dashed rgba(98, 216, 231, 0.3);
-  border-radius: 3px;
-  background: rgba(45, 145, 164, 0.08);
-  color: var(--ooa-cyan);
-  font-size: 9px;
-}
-:where(:is([data-ooa-page="normal"], [data-ooa-page="pe"])) .profile-add-row:disabled { cursor: default; opacity: 0.4; }
-:where(:is([data-ooa-page="normal"], [data-ooa-page="pe"])) .phase-speed-grid, :where(:is([data-ooa-page="normal"], [data-ooa-page="pe"])) .discretization-grid { margin-top: 12px; }
 
 :where(:is([data-ooa-page="normal"], [data-ooa-page="pe"])) .method-note { margin-top: 16px; padding: 15px 18px; display: grid; grid-template-columns: auto 1fr; gap: 15px; border: 1px solid var(--ooa-line); border-radius: 7px; background: rgba(4, 24, 34, 0.7); }
 :where(:is([data-ooa-page="normal"], [data-ooa-page="pe"])) .method-note span { color: var(--ooa-cyan); font: 9px var(--ooa-mono); letter-spacing: 0.12em; }
@@ -351,7 +189,5 @@ body:has(:is([data-ooa-page="normal"], [data-ooa-page="pe"])) {
   :where(:is([data-ooa-page="normal"], [data-ooa-page="pe"])) .metric-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   :where(:is([data-ooa-page="normal"], [data-ooa-page="pe"])) .metric:nth-child(2) { border-right: 0; }
   :where(:is([data-ooa-page="normal"], [data-ooa-page="pe"])) .metric:nth-child(-n + 2) { border-bottom: 1px solid rgba(89, 173, 194, 0.14); }
-  :where(:is([data-ooa-page="normal"], [data-ooa-page="pe"])) .control-grid { grid-template-columns: 1fr; }
   :where(:is([data-ooa-page="normal"], [data-ooa-page="pe"])) .site-footer .site-shell { flex-direction: column; }
 }
-

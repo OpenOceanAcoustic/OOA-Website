@@ -4,8 +4,7 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts",
-    "./page-runtime": "./src/page-runtime.js"
+    ".": "./src/index.ts"
   },
   "dependencies": {
     "@ooa/environment": "0.1.0",

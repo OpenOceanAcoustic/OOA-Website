@@ -49,3 +49,13 @@ export interface ImportedEnvironment {
   readonly documents: readonly EnvironmentDocument[];
   readonly modelHints: Readonly<Record<string, unknown>>;
 }
+
+export interface ImportedModelEnvironment<Hints extends Readonly<Record<string, unknown>> = Readonly<Record<string, unknown>>> {
+  readonly sourceId: string;
+  readonly environment: AcousticEnvironment;
+  readonly modelHints: Hints;
+  readonly documents: readonly {
+    readonly name: string;
+    readonly kind: EnvironmentDocumentKind;
+  }[];
+}

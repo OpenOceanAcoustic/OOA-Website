@@ -10,6 +10,7 @@ export async function importPePageEnvironment(documents: readonly EnvironmentDoc
   const imported = await importPeEnvironment(documents);
   const { environment, modelHints } = imported;
   return {
+    environment,
     title: environment.title,
     frequencyHz: environment.frequencyHz,
     waterDepthM: environment.waterDepthM,
