@@ -1,0 +1,4 @@
+import type { PeRequest } from "@ooa/runtime-pe";
+import type { PeState } from "../state/types";
+function linspace(start: number, end: number, count: number) { return Float64Array.from({ length: count }, (_, index) => start + (end - start) * index / Math.max(1, count - 1)); }
+export function createPeRequest(state: PeState, nPade = state.parameters.nPade): PeRequest { return { environment: state.environment, sourceDepthM: state.parameters.sourceDepthM, maximumRangeM: state.parameters.maximumRangeKm * 1000, maximumDepthM: state.parameters.maximumDepthM, receiverDepthsM: linspace(0, state.parameters.maximumDepthM, 101), rangeStepM: state.parameters.rangeStepM, depthStepM: state.parameters.depthStepM, rangeDecimation: state.parameters.rangeDecimation, depthDecimation: state.parameters.depthDecimation, nPade }; }

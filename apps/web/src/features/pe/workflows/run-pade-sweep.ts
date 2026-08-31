@@ -1,0 +1,4 @@
+import { compareFields, runPadeSweep, type PeRuntime } from "@ooa/runtime-pe";
+import { usePeStore } from "../state/store";
+import { createPeRequest } from "./request";
+export async function runPePadeSweep(runtime: PeRuntime): Promise<void> { const state = usePeStore.getState(); state.start("RAM 正在执行 Padé 1–10 扫描"); try { const sweep = await runPadeSweep(runtime, createPeRequest(state), Array.from({ length: 10 }, (_, index) => index + 1)); const reference = sweep.at(-1)?.result; if (reference === undefined) throw new Error("Padé 扫描没有参考结果"); usePeStore.getState().setConvergence(sweep.map((point) => ({ nPade: point.nPade, ...compareFields(point.result.transmissionLossDb, reference.transmissionLossDb), totalTimeMs: point.result.totalTimeMs })).map(({ nPade, rms, maximum, totalTimeMs }) => ({ nPade, rms, maximum, totalTimeMs }))); } catch (error) { usePeStore.getState().fail(error instanceof Error ? error.message : String(error)); } }

@@ -1,0 +1,9 @@
+{
+  "family.sans": "Inter, ui-sans-serif, system-ui, sans-serif",
+  "family.mono": "JetBrains Mono, ui-monospace, monospace",
+  "size.xs": "0.75rem",
+  "size.sm": "0.875rem",
+  "size.md": "1rem",
+  "size.lg": "1.25rem",
+  "size.xl": "1.75rem"
+}

@@ -1,0 +1,4 @@
+.hero { margin-bottom: 1rem; } .hero p { color: var(--ooa-text-secondary); margin: .45rem 0 0; }
+.controls { display: grid; gap: 1rem; } .fields { display: grid; grid-template-columns: 1fr 1fr; gap: .7rem; } .actions, .tabs { display: flex; flex-wrap: wrap; gap: .45rem; }
+.tabs { margin-bottom: .75rem; } .tab { border: 1px solid var(--ooa-border); border-radius: .5rem; padding: .45rem .65rem; background: transparent; color: var(--ooa-text-secondary); cursor: pointer; } .active { color: var(--ooa-text-primary); border-color: var(--ooa-accent-primary); background: var(--ooa-surface-raised); }
+@media (max-width: 520px) { .fields { grid-template-columns: 1fr; } }

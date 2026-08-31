@@ -1,0 +1,4 @@
+import { EmptyState, MetricStrip, PlotPanel } from "@ooa/ui";
+import { HeatmapCanvas } from "@ooa/visualization";
+import { useRayModeStore } from "../state/store";
+export function FieldPanel() { const result = useRayModeStore((state) => state.fieldResult); if (result === null) return <PlotPanel title="传播损失声场"><EmptyState>运行 Bellhop2D 主声场后显示二维 TL 网格。</EmptyState></PlotPanel>; return <PlotPanel title="传播损失声场" description="TypedArray 直接送入 Canvas renderer"><MetricStrip metrics={[{ label: "距离采样", value: result.receiverRangesM.length }, { label: "深度采样", value: result.receiverDepthsM.length }, { label: "耗时", value: `${result.totalTimeMs.toFixed(1)} ms` }]} /><HeatmapCanvas values={result.transmissionLossDb} columns={result.receiverRangesM.length} rows={result.receiverDepthsM.length} minimum={20} maximum={120} /></PlotPanel>; }

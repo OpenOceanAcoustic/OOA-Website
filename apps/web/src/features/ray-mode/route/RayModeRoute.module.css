@@ -1,0 +1,9 @@
+.hero { display: flex; justify-content: space-between; gap: 1rem; align-items: end; margin-bottom: 1rem; }
+.hero p { margin: .45rem 0 0; color: var(--ooa-text-secondary); }
+.controls { display: grid; gap: 1rem; }
+.fields { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; }
+.actions { display: flex; flex-wrap: wrap; gap: .6rem; }
+.tabs { display: flex; flex-wrap: wrap; gap: .35rem; margin-bottom: .75rem; }
+.tab { border: 1px solid var(--ooa-border); border-radius: .5rem; padding: .45rem .65rem; background: transparent; color: var(--ooa-text-secondary); cursor: pointer; }
+.active { background: var(--ooa-surface-raised); color: var(--ooa-text-primary); border-color: var(--ooa-accent-primary); }
+@media (max-width: 520px) { .fields { grid-template-columns: 1fr; } }

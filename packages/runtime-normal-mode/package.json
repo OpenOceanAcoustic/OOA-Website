@@ -1,0 +1,15 @@
+{
+  "name": "@ooa/runtime-normal-mode",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./legacy-sdk": "./src/sdk-loader.ts"
+  },
+  "dependencies": {
+    "@ooa/environment": "0.1.0",
+    "@ooa/runtime-core": "0.1.0",
+    "@openocean/field-normal-mode-kraken": "2.0.0"
+  }
+}

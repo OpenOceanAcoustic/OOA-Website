@@ -1,0 +1,13 @@
+{
+  "surface.canvas": "#07111f",
+  "surface.panel": "#0d1b2d",
+  "surface.raised": "#13253b",
+  "text.primary": "#eef7ff",
+  "text.secondary": "#9fb5c9",
+  "accent.primary": "#32d5ff",
+  "accent.secondary": "#7c8cff",
+  "status.success": "#4be0a0",
+  "status.warning": "#ffc861",
+  "status.danger": "#ff718b",
+  "border.default": "#294059"
+}

@@ -1,0 +1,5 @@
+{
+  "transmissionLoss": ["#07111f", "#173b69", "#1c84a6", "#58d5c9", "#f4e66d", "#ff7b5d"],
+  "difference": ["#2936a3", "#f5f8ff", "#bd284f"],
+  "rayLines": ["#32d5ff", "#ffc861", "#ff718b", "#7c8cff"]
+}
