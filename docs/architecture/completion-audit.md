@@ -17,13 +17,18 @@
 - 生产 Playwright 覆盖三个模型启动、重新计算和模型原生环境导入；`dist` 只包含 Bellhop2D、Kraken 和 RAM。
 - 1440×900 与 1280×900 的六张仓库内视觉回归图已经冻结，不依赖外部设计平台。
 - 页面资源登记在 `@ooa/assets`；Normal Mode 与 PE 实际共享的页面外壳和控件样式由 `@ooa/styles` 维护，模型专属样式仍贴近页面。
+- 三个页面只经过 `sdk-loader → instance-owned Typed Runtime → Typed Controller` 单轨调用；旧 `page-runtime`、全局 backend 注入和未参与 `tsc` 的生产 JS 已删除。
+- Runtime 的 SDK、Worker、native Input、实验缓存和 request ID 均为实例状态；`dispose()` 会取消任务并释放相关资源。
+- 六张桌面整页截图已由锁定的 Linux Chromium 执行严格 `maxDiffPixels: 0` 门禁，普通测试不会覆盖 baseline。
+- 正式发布新增 `wasm:release`：从三个 `origin/main` 创建 detached clean worktree，且不接触开发工作树。
 
 ## 当前发布阻塞项
 
-1. **清理 Field 来源工作树**
-   - 本次接口已分别形成窄提交：Bellhop `7c98675`、Kraken `5086101`、RAM `ac9daf4`。
-   - Bellhop 和 Normal Mode 仓库仍有本任务之外的 dirty 修改，发布门禁会按预期拒绝；不得回滚或夹带这些修改。
-   - 由仓库所有者处理无关修改后，重新运行 `npm run wasm:sync`，要求 provenance 三项均为 `sourceDirty: false`。
+1. **补齐 Ray `origin/main` 的 clean-build 漏件**
+   - `wasm:release` 已验证三个 clean worktree 分别固定在 Ray `95e8c45`、Normal Mode `103f530`、PE `dbf587e`。
+   - Ray `origin/main` 的 `bindings/wasm/bellhop_2d/CMakeLists.txt` 把 `package/native_loader.mjs` 声明为构建依赖，但该文件没有被提交到 `origin/main`，因此 clean 构建在 `bellhop_2d_wasm_typecheck` 前按预期失败。
+   - 开发工作树中存在被忽略的本地副本，解释了开发构建为何可以通过；发布流程不会复制该未追踪文件，也不会伪造 clean provenance。
+   - 需要在 Ray 仓库补一个只提交该 loader（并验证 clean clone 构建）的窄 PR；合并后重新执行 `npm run wasm:release` 和 `npm run check:release`。
 
 2. **最终内网主机验收**
    - 当前生产 `dist` 与本机 preview 已通过，仍需在实际内网静态服务器验证三个 URL、`.wasm`/`.mjs` MIME 和缓存头。
@@ -31,9 +36,9 @@
 
 ## 稳定版前的剩余工程项
 
-- 增加固定 Canvas fixture golden 与非 Canvas 像素比较；当前已有 DOM/控件/页面尺寸合同和仓库内静态参考，但还没有自动像素阈值门禁。
-- 按 Ray → Normal Mode → PE 把三个页面控制器继续拆到可见功能区块；每次只移动事件与绘图实现，不改 DOM 或交互时序。
-- 增加数值健全性断言：有限值比例、参数变化响应、Padé/模态差值和缓存复用，不把新 Field 版本造成的合理数值变化当 UI 回归。
+- 合并上述 Ray loader 漏件并完成一次全链路 clean provenance 发布验证。
+- 在实际内网静态主机完成 MIME、缓存、SPA fallback 和三个真实 WASM 路由 smoke。
+- 后续数值测试可继续增加有限值比例、参数变化响应与缓存复用断言；这不阻塞当前架构单轨收口，也不得把新 Field 版本造成的合理数值变化当 UI 回归。
 
 ## 首个稳定版本完成定义
 

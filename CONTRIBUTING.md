@@ -4,7 +4,7 @@ OOA Website 是静态托管、浏览器本地计算的水声建模教学网站�
 
 ## 仓库职责
 
-- `OOA-Website`：页面、Runtime 接口、环境导入、可视化、WASM 构建编排和静态部署。
+- `OOA-Website`：原页面 TSX/CSS/Canvas、Typed Controller、Runtime 接口、环境导入、WASM 构建编排和静态部署。
 - `OpenOcean-Field-RayMode-Bellhop`：Bellhop2D 原生实现和 npm 包。
 - `OpenOcean-Field-NormalMode`：Kraken 原生实现和 npm 包。
 - `OpenOcean-Field-PE`：RAM 原生实现和 npm 包。
@@ -37,7 +37,7 @@ npm run check
 ### 修改 Field 模型或 npm 接口
 
 1. 在对应 Field 仓库完成并测试修改。
-2. 提交 Field 仓库；本地探索可以 dirty，准备发布时必须 clean。
+2. 提交 Field 仓库；本地探索可以 dirty，正式发布只读取已合并到 `origin/main` 的代码。
 3. 在网站仓库运行：
 
 ```bash
@@ -53,6 +53,7 @@ npm run check
 - 先增加或更新桌面端 DOM/视觉回归，再改 TSX、CSS 或 Canvas。
 - 保留原文字、控件属性、触发时机和 Canvas 语义；架构迁移不得顺带换肤。
 - Feature 不得导入 `@openocean/field-*` 或通过 `legacy-sdk` 获取具体 SDK。
+- Controller 只调用注入的 Typed Runtime；具体 Field 包只能由对应 Runtime 的 `sdk-loader.ts` 导入。
 - 页面按可见区块维护在对应 `page/`，禁止重新引入 `index.html?raw`、运行时 DOMParser 或整页 `dangerouslySetInnerHTML`。
 - 至少被两个页面区块使用的控件样式才进入 `@ooa/styles`；模型专属布局留在 Feature。
 - 图标、品牌图形和插图登记到 `@ooa/assets/src/catalog.json`，页面不得跨 Feature 借用私有资源。
@@ -76,12 +77,13 @@ test(pe): cover Padé convergence selection
 
 ## 发布检查
 
-1. 确认三个 Field 仓库工作树 clean，且提交号是本次准备发布的版本。
-2. 运行 `npm run wasm:sync`。
-3. 运行 `npm run check:release`。
-4. 保存 `.wasm-packages/provenance.json` 作为发布构建记录。
-5. 部署 `dist/`，不要部署源码仓库或 `.wasm-build`。
-6. 在最终内网地址验证三个公开 URL 和真实 WASM 计算；HTTP 固定验收单线程，未来 HTTPS + COOP/COEP 再验收 pthread。
+1. 确认三个 Field PR 已合并到各自 `origin/main`；当前开发工作树可以保留无关 dirty 修改。
+2. 运行 `npm run wasm:release`。该命令只 fetch 远端并维护网站忽略目录中的 detached clean worktree，不切换或清理开发工作树。
+3. 检查输出的三项 provenance 均为 `sourceDirty: false`，提交号均等于对应 `origin/main`。
+4. 运行 `npm run check:release`；不得以开发构建的 provenance 替代这一步。
+5. 保存 `.wasm-packages/provenance.json` 作为发布构建记录。
+6. 部署 `dist/`，不要部署源码仓库、`.field-release-sources` 或 `.wasm-build`。
+7. 在最终内网地址验证三个公开 URL 和真实 WASM 计算；HTTP 固定验收单线程，未来 HTTPS + COOP/COEP 再验收 pthread。
 
 ## Review checklist
 

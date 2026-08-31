@@ -7,6 +7,7 @@
   "scripts": {
     "wasm:build": "bash scripts/wasm/build-all.sh",
     "wasm:sync": "bash scripts/wasm/build-all.sh && npm install && npm run verify:wasm && node scripts/wasm/refresh-dev-cache.mjs",
+    "wasm:release": "bash scripts/wasm/build-release.sh",
     "verify:wasm": "node scripts/wasm/verify-packages.mjs && node scripts/wasm/print-provenance.mjs",
     "verify:imports": "node scripts/verify/import-boundaries.mjs",
     "verify:structure": "node scripts/verify/page-structure.mjs",
@@ -19,7 +20,7 @@
     "test:build": "npm run build && node --test tests/build/spa-artifacts.test.mjs && npm run verify:release",
     "test:e2e": "npm run build && playwright test",
     "check": "npm run verify:wasm && npm run verify:imports && npm run verify:structure && npm run typecheck && npm test",
-    "check:release": "npm run check && node scripts/release/verify-clean-sources.mjs && npm run test:build && playwright test",
+    "check:release": "npm run check && node scripts/release/verify-clean-sources.mjs && npm run test:build && playwright test && npm run visual:test",
     "test:watch": "vitest",
     "visual:test": "playwright test --config=playwright.visual.config.ts",
     "visual:update": "playwright test --config=playwright.visual.config.ts --update-snapshots"

@@ -7,6 +7,7 @@ dist/
 .wasm-build/
 .wasm-cache/
 .wasm-packages/
+.field-release-sources/
 .vite/
 playwright-report/
 test-results/

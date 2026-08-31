@@ -6,8 +6,11 @@ Worker/WebAssembly 中执行，静态主机不接收实验环境，也不执行�
 
 ## Local model sources
 
-The website builds npm packages from the current working trees of sibling model
-repositories. Dirty worktrees are allowed and recorded in provenance.
+日常开发从同级 Field 仓库的当前工作树构建 npm 包。未提交修改允许参与开发构建，
+并会以 `sourceDirty: true` 写入 provenance；这表示“确实使用了当前本地代码”，
+而不是退回了旧包。正式发布不使用这些开发工作树，而是由
+`npm run wasm:release` 在 `.field-release-sources/` 创建三个 `origin/main`
+的 detached clean worktree 后重新构建。
 
 | Model family | Default source | Website dependency |
 |---|---|---|
@@ -54,13 +57,24 @@ changing model pages unloads the active page and its Worker.
 npm test
 npm run test:build
 npm run test:e2e
+npm run visual:test
 ```
 
 `verify:wasm` checks package names, versions, exports, declarations, Workers,
 native modules and WASM binaries, then prints source commits, dirty flags and tgz
 SHA-256 values from `.wasm-packages/provenance.json`.
 
-## Deployment
+## Release and deployment
+
+正式发布固定执行：
+
+```bash
+npm run wasm:release
+npm run check:release
+```
+
+该流程不会切换、清理或提交同级 Field 开发工作树。它要求发布 provenance
+全部为 clean，且提交号与各仓库 `origin/main` 完全一致。
 
 Serve `dist/` as an SPA with fallback to `index.html`, `.wasm` MIME type
 `application/wasm` and `.mjs` as JavaScript. The current intranet HTTP deployment
@@ -92,5 +106,6 @@ to the model page so changing one experiment cannot unexpectedly restyle the
 others.
 
 No paid design platform is part of the development or release workflow. The
-desktop visual baselines under `tests/visual/baseline` can be refreshed with
-`npm run visual:capture` after an approved visual change.
+desktop visual baselines under `tests/visual/baseline` can be refreshed only
+with `npm run visual:update` after an approved visual change. Normal test runs
+never overwrite the accepted screenshots.
