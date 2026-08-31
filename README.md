@@ -1,8 +1,8 @@
 # OOA Website
 
-React workspace for the OpenOcean Acoustic Bellhop2D, Kraken and RAM browser
-runtimes. Calculations execute locally in Web Workers/WebAssembly; the static web
-host does not receive model input or perform field calculations.
+OOA Website 是水声建模交互教学网站。React workspace 加载 OpenOcean Acoustic
+的 Bellhop2D、Kraken 和 RAM 浏览器 Runtime；计算在学习者设备的 Web
+Worker/WebAssembly 中执行，静态主机不接收实验环境，也不执行声场计算。
 
 ## Local model sources
 
@@ -75,4 +75,7 @@ The build includes `_headers` and `_redirects` for compatible static hosts. Othe
 hosts must express the same behavior in their own configuration.
 
 Architecture details live in [`docs/architecture/workspace.md`](docs/architecture/workspace.md),
-and the Figma/token handoff is in [`docs/figma/README.md`](docs/figma/README.md).
+the release-oriented completion audit is in
+[`docs/architecture/completion-audit.md`](docs/architecture/completion-audit.md),
+and the development workflow is in [`CONTRIBUTING.md`](CONTRIBUTING.md). The
+Figma/token handoff remains deferred in [`docs/figma/README.md`](docs/figma/README.md).

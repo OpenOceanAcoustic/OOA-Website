@@ -17,6 +17,8 @@
     "test": "vitest run && node --test tests/build/provenance.test.mjs tests/build/verify-sources.test.mjs tests/build/verify-wasm-packages.test.mjs",
     "test:build": "npm run build && node --test tests/build/spa-artifacts.test.mjs && npm run verify:release",
     "test:e2e": "npm run build && playwright test",
+    "check": "npm run verify:wasm && npm run verify:imports && npm run typecheck && npm test",
+    "check:release": "npm run check && node scripts/release/verify-clean-sources.mjs && npm run test:build && playwright test",
     "test:watch": "vitest",
     "storybook": "npm run storybook --workspace @ooa/ui-docs",
     "build-storybook": "npm run build-storybook --workspace @ooa/ui-docs"

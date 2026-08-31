@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-test("Ray Mode completes its initial Bellhop2D calculation in the single-thread dev runtime", async ({ page }) => {
+test("Ray Mode completes its initial Bellhop2D calculation in the production preview runtime", async ({ page }) => {
   const pageErrors: string[] = [];
   page.on("pageerror", (error) => pageErrors.push(error.message));
 
