@@ -1,3 +1,0 @@
-import { EmptyState, MetricStrip, Panel } from "@ooa/ui";
-import { useNormalModeStore } from "../state/store";
-export function MetricsPanel() { const state = useNormalModeStore(); if (state.fullResult === null || state.truncatedResult === null) return <Panel title="计算指标"><EmptyState>运行后显示耗时与截断配置。</EmptyState></Panel>; return <Panel title="计算指标"><MetricStrip metrics={[{ label: "完整场耗时", value: `${state.fullResult.totalTimeMs.toFixed(1)} ms` }, { label: "截断场耗时", value: `${state.truncatedResult.totalTimeMs.toFixed(1)} ms` }, { label: "完整上限", value: state.parameters.modeLimit }, { label: "截断上限", value: state.parameters.truncatedModeLimit }]} /></Panel>; }

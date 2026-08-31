@@ -50,10 +50,13 @@ npm run check
 
 ### 修改原页面
 
-- 先增加或更新桌面端 DOM/视觉回归，再改 HTML、CSS 或 Canvas。
+- 先增加或更新桌面端 DOM/视觉回归，再改 TSX、CSS 或 Canvas。
 - 保留原文字、控件属性、触发时机和 Canvas 语义；架构迁移不得顺带换肤。
 - Feature 不得导入 `@openocean/field-*` 或通过 `legacy-sdk` 获取具体 SDK。
-- Figma 资源工作必须单独提交，并在 Storybook 验收后才能进入页面。
+- 页面按可见区块维护在对应 `page/`，禁止重新引入 `index.html?raw`、运行时 DOMParser 或整页 `dangerouslySetInnerHTML`。
+- 至少被两个页面区块使用的控件样式才进入 `@ooa/styles`；模型专属布局留在 Feature。
+- 图标、品牌图形和插图登记到 `@ooa/assets/src/catalog.json`，页面不得跨 Feature 借用私有资源。
+- 视觉改动必须单独提交；开发和发布不依赖外部付费设计平台。
 
 ## 提交前检查
 

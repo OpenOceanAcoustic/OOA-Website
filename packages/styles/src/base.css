@@ -1,0 +1,27 @@
+:root {
+  color-scheme: dark;
+  --ooa-app-background: #07111f;
+  --ooa-app-text: #eef7ff;
+  --ooa-app-muted: #9fb5c9;
+  --ooa-app-danger: #ff718b;
+  --ooa-app-border: #294059;
+  --ooa-app-font: Inter, ui-sans-serif, system-ui, sans-serif;
+}
+
+html { min-width: 320px; min-height: 100%; }
+body { margin: 0; min-width: 320px; min-height: 100vh; }
+
+.ooa-app-error {
+  box-sizing: border-box;
+  width: min(680px, calc(100% - 48px));
+  margin: 72px auto;
+  padding: 24px;
+  border: 1px solid var(--ooa-app-border);
+  border-left: 3px solid var(--ooa-app-danger);
+  background: var(--ooa-app-background);
+  color: var(--ooa-app-text);
+  font-family: var(--ooa-app-font);
+}
+
+.ooa-app-error h1 { margin: 0 0 8px; font-size: 18px; }
+.ooa-app-error p { margin: 0; color: var(--ooa-app-muted); }

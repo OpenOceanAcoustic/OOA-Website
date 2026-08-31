@@ -8,6 +8,5 @@ dist/
 .wasm-cache/
 .wasm-packages/
 .vite/
-storybook-static/
 playwright-report/
 test-results/

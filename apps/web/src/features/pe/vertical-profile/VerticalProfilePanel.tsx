@@ -1,4 +1,0 @@
-import { EmptyState, Panel } from "@ooa/ui";
-import { LineCanvas } from "@ooa/visualization";
-import { usePeStore } from "../state/store";
-export function VerticalProfilePanel() { const state = usePeStore(); const result = state.currentResult; if (result === null) return <Panel title="垂向剖面"><EmptyState>运行后按检查距离提取垂向 TL。</EmptyState></Panel>; const rangeIndex = result.receiverRangesM.reduce((best, range, index) => Math.abs(range - state.parameters.inspectionRangeM) < Math.abs((result.receiverRangesM[best] ?? 0) - state.parameters.inspectionRangeM) ? index : best, 0); const profile = Float64Array.from({ length: result.receiverDepthsM.length }, (_, depthIndex) => result.transmissionLossDb[depthIndex * result.receiverRangesM.length + rangeIndex] ?? 0); return <Panel title={`垂向剖面 · ${(result.receiverRangesM[rangeIndex] ?? 0).toFixed(0)} m`}><LineCanvas x={profile} y={result.receiverDepthsM} ariaLabel="传播损失垂向剖面" /></Panel>; }

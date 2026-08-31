@@ -10,17 +10,16 @@
     "preview:test": "vite preview --host 127.0.0.1 --port 4174 --strictPort"
   },
   "dependencies": {
-    "@ooa/design-tokens": "0.1.0",
+    "@ooa/assets": "0.1.0",
     "@ooa/environment": "0.1.0",
     "@ooa/runtime-core": "0.1.0",
     "@ooa/runtime-normal-mode": "0.1.0",
     "@ooa/runtime-pe": "0.1.0",
     "@ooa/runtime-ray": "0.1.0",
-    "@ooa/ui": "0.1.0",
+    "@ooa/styles": "0.1.0",
     "@ooa/visualization": "0.1.0",
     "react": "19.2.6",
     "react-dom": "19.2.6",
-    "react-router-dom": "7.18.3",
-    "zustand": "5.0.15"
+    "react-router-dom": "7.18.3"
   }
 }

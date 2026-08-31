@@ -1,7 +1,10 @@
 # Visual acceptance
 
-Reusable visual acceptance happens in Storybook after the Figma phase begins.
-The current migration baseline is desktop-only and focuses on the original
-DOM/control contracts and real browser compute behavior. Image baselines are
-added only for accepted Figma milestones so numerical output changes do not
-create noisy screenshot churn.
+The accepted desktop pages are captured at 1440 × 900 and 1280 × 900 under
+`baseline/`. These images are repository-owned regression references; no
+external design tool is required.
+
+Start the production preview on port 4174, then run `npm run visual:capture` to
+refresh them after an explicitly approved visual change. Numerical Canvas
+fixtures are reviewed separately so a Field version change does not silently
+approve a layout change.

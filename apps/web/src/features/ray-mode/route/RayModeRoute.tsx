@@ -1,18 +1,28 @@
 import { useEffect } from "react";
-import { OriginalPage } from "../../../app/original-page";
-import documentSource from "../legacy/index.html?raw";
-import "../legacy/page.css";
+import { PageDocument } from "../../shared-page/PageDocument";
+import { RayEigenrayLab } from "../page/RayEigenrayLab";
+import { RayFieldLab } from "../page/RayFieldLab";
+import { RayFooter } from "../page/RayFooter";
+import { RayHeader } from "../page/RayHeader";
+import { RayLabIntroduction } from "../page/RayLabIntroduction";
+import { RayTheorySection } from "../page/RayTheorySection";
+import "../styles/page.css";
 
 export function RayModeRoute() {
   useEffect(() => {
-    void import("../legacy/controller.js");
+    void import("../controller/page-controller.js");
   }, []);
 
   return (
-    <OriginalPage
-      documentSource={documentSource}
-      page="ray"
-      title="OOA-RayMode · 声传播交互实验室"
-    />
+    <PageDocument page="ray" title="OOA-RayMode · 声传播交互实验室">
+      <RayHeader />
+      <main id="top">
+        <RayTheorySection />
+        <RayLabIntroduction />
+        <RayFieldLab />
+        <RayEigenrayLab />
+      </main>
+      <RayFooter />
+    </PageDocument>
   );
 }

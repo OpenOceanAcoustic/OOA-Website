@@ -4,7 +4,7 @@ import { extname, join, relative, resolve } from "node:path";
 const root = resolve(new URL("../..", import.meta.url).pathname);
 const sourceRoots = [join(root, "apps"), join(root, "packages")];
 const violations = [];
-const generatedDirectories = new Set(["dist", "node_modules", "storybook-static"]);
+const generatedDirectories = new Set(["dist", "node_modules"]);
 
 async function walk(directory) {
   const result = [];
@@ -30,6 +30,10 @@ for (const sourceRoot of sourceRoots) {
       violations.push(`${path}: feature must consume @ooa/runtime-* instead of a model SDK`);
     }
     if (path.startsWith("apps/web/src/features/")
+      && (/\.html\?raw/.test(text) || /new DOMParser\s*\(/.test(text) || /dangerouslySetInnerHTML/.test(text))) {
+      violations.push(`${path}: model pages must be explicit TSX sections, not runtime HTML rendering`);
+    }
+    if (path.startsWith("apps/web/src/features/")
       && /\b(?:Bellhop2DInput|KrakenInput|RAMInput|nativeInput|ramInput)\b/.test(text)) {
       violations.push(`${path}: feature cannot receive or construct a concrete model SDK input`);
     }
@@ -44,7 +48,7 @@ for (const sourceRoot of sourceRoots) {
       }
     }
     if (path.startsWith("packages/environment/") && text.includes("@openocean/field-")) violations.push(`${path}: environment cannot depend on a concrete SDK`);
-    if (path.startsWith("packages/ui/") && /Bellhop|Kraken|\bRAM\b/.test(text)) violations.push(`${path}: UI package contains model-specific terminology`);
+    if (path.startsWith("packages/styles/") && /Bellhop|Kraken|\bRAM\b/.test(text)) violations.push(`${path}: shared styles contain model-specific terminology`);
     if (/\.\.\/OpenOcean-Field-|bindings\/wasm|OpenOcean-Field-[^"']+\/src/.test(text)) violations.push(`${path}: source-relative model access is forbidden`);
   }
 }

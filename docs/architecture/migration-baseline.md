@@ -11,9 +11,9 @@ state and runtime lifecycle.
 
 Automated baselines cover shared environment fixtures, runtime contracts, route
 startup, original DOM/control contracts, package contents and production assets.
-The production React routes mechanically convert the original `f45c697` body
-nodes and attributes into React elements, then attach the accepted page
-controllers. The redesigned Workbench is not used.
+The production React routes compose explicit section-level TSX modules copied
+from the accepted `f45c697` structure, then attach the accepted page controllers.
+Raw HTML imports, runtime DOM parsing and the redesigned Workbench are not used.
 
 Known first-phase scope is Bellhop2D, Kraken and RAM only. The Bellhop2D npm
 result includes horizontal and vertical complex velocity typed arrays used by

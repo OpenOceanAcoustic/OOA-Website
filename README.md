@@ -36,16 +36,15 @@ After a model working tree changes:
 npm run wasm:sync
 ```
 
-The development commands are:
+Start the website with:
 
 ```bash
 npm run dev
-npm run storybook
 ```
 
 The public routes remain `/`, `/normal-mode/` and `/pe/`. Each route preserves
-the original `f45c697` document, styling and browser interactions through a
-mechanical React renderer. Its model SDK is loaded only inside the corresponding
+the original `f45c697` document, styling and browser interactions through
+explicit section-level React markup. Its model SDK is loaded only inside the corresponding
 Runtime when that page starts; the original navigation uses normal links, so
 changing model pages unloads the active page and its Worker.
 
@@ -55,7 +54,6 @@ changing model pages unloads the active page and its Worker.
 npm test
 npm run test:build
 npm run test:e2e
-npm run build-storybook
 ```
 
 `verify:wasm` checks package names, versions, exports, declarations, Workers,
@@ -82,5 +80,17 @@ the same MIME, fallback and cache behavior in their own configuration.
 Architecture details live in [`docs/architecture/workspace.md`](docs/architecture/workspace.md),
 the release-oriented completion audit is in
 [`docs/architecture/completion-audit.md`](docs/architecture/completion-audit.md),
-and the development workflow is in [`CONTRIBUTING.md`](CONTRIBUTING.md). The
-Figma/token handoff remains deferred in [`docs/figma/README.md`](docs/figma/README.md).
+and the development workflow is in [`CONTRIBUTING.md`](CONTRIBUTING.md).
+
+## Page and style maintenance
+
+The accepted interface is explicit React markup rather than a raw HTML document
+loaded at runtime. Each model feature owns `page/`, `controller/`, `styles/` and
+`route/` directories. Shared shipped resources live in `@ooa/assets`; CSS used
+by more than one page lives in `@ooa/styles`. Model-specific layout remains next
+to the model page so changing one experiment cannot unexpectedly restyle the
+others.
+
+No paid design platform is part of the development or release workflow. The
+desktop visual baselines under `tests/visual/baseline` can be refreshed with
+`npm run visual:capture` after an approved visual change.
