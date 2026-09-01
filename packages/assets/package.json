@@ -1,0 +1,11 @@
+{
+  "name": "@ooa/assets",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./catalog.json": "./src/catalog.json",
+    "./brand/ooa-mark.svg": "./src/brand/ooa-mark.svg",
+    "./icons/import.svg": "./src/icons/import.svg"
+  }
+}

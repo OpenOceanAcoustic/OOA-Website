@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "assets": [
+    {
+      "id": "brand.ooa-mark",
+      "path": "brand/ooa-mark.svg",
+      "format": "svg",
+      "purpose": "Reusable OpenOcean Acoustic three-ray brand mark"
+    },
+    {
+      "id": "icon.import",
+      "path": "icons/import.svg",
+      "format": "svg",
+      "purpose": "File import action icon"
+    }
+  ]
+}

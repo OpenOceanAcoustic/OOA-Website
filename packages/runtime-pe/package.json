@@ -1,0 +1,14 @@
+{
+  "name": "@ooa/runtime-pe",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@ooa/environment": "0.1.0",
+    "@ooa/runtime-core": "0.1.0",
+    "@openocean/field-pe-ram": "2.0.0"
+  }
+}

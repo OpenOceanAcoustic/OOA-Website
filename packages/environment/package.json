@@ -1,0 +1,12 @@
+{
+  "name": "@ooa/environment",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./ssp-profiles": "./src/ssp-profiles.ts",
+    "./browser-import": "./src/browser-page-import.ts",
+    "./model-file-import": "./src/model-file-import.ts"
+  }
+}

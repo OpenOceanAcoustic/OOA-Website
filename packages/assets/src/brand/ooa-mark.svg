@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 34 28" role="img" aria-labelledby="title">
+  <title id="title">OpenOcean Acoustic</title>
+  <g fill="none" stroke="#62d8e7" stroke-linecap="round">
+    <path d="M1 6l23 4"/>
+    <path d="M1 14l31-4"/>
+    <path d="M1 22l19 2"/>
+  </g>
+</svg>
