@@ -1,4 +1,6 @@
-export function NormalHero() {
+import type { UseNormalModePageResult } from "../hooks/useNormalModePage";
+
+export function NormalHero({ page }: { readonly page: UseNormalModePageResult }) {
   return (
     <section className="hero">
       <div>
@@ -21,17 +23,13 @@ export function NormalHero() {
           <span>
             {"ENGINE"}
           </span>
-          <strong id="heroEngine">
-            {"DEMO FALLBACK"}
-          </strong>
+          <strong id="heroEngine">{page.runtimeView.engine}</strong>
         </div>
         <div>
           <span>
             {"MODEL"}
           </span>
-          <strong id="heroModel">
-            {"KRAKEN"}
-          </strong>
+          <strong id="heroModel">{page.parameters.model.toUpperCase()}</strong>
         </div>
         <div>
           <span>

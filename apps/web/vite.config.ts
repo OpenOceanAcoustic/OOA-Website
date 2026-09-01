@@ -1,4 +1,5 @@
 import react from "@vitejs/plugin-react";
+import tailwindcss from "@tailwindcss/vite";
 import { copyFile, mkdir, readdir } from "node:fs/promises";
 import { resolve } from "node:path";
 import { defineConfig, type Plugin } from "vite";
@@ -31,7 +32,7 @@ function localWasmAssets(): Plugin {
 
 export default defineConfig({
   root: import.meta.dirname,
-  plugins: [react(), localWasmAssets()],
+  plugins: [tailwindcss(), react(), localWasmAssets()],
   build: { outDir: outputDirectory, emptyOutDir: true, sourcemap: true },
   server: {
     headers: {

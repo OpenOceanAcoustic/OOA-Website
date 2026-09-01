@@ -35,6 +35,9 @@ for (const sourceRoot of sourceRoots) {
     if (path.startsWith("apps/web/src/features/") && /@ooa\/runtime-(?:ray|normal-mode|pe)\/page-runtime/.test(text)) {
       violations.push(`${path}: feature cannot use the retired page-runtime deep export`);
     }
+    if (path.startsWith("apps/web/src/features/") && path.endsWith("page-controller.ts")) {
+      violations.push(`${path}: retired imperative page controller is forbidden`);
+    }
     if (path.includes("/controller/") && text.includes("@ooa/environment/model-file-import")) {
       violations.push(`${path}: controllers pass File objects to Runtime and cannot unpack native model documents`);
     }
@@ -58,6 +61,10 @@ for (const sourceRoot of sourceRoots) {
       }
     }
     if (path.startsWith("packages/environment/") && text.includes("@openocean/field-")) violations.push(`${path}: environment cannot depend on a concrete SDK`);
+    if (path.startsWith("packages/ui/")
+      && /@(?:openocean\/field-|ooa\/(?:runtime-|environment))|from ["'][^"']*canvas/.test(text)) {
+      violations.push(`${path}: shared UI cannot depend on a model SDK, Runtime, environment parser or Canvas`);
+    }
     if (path.startsWith("packages/styles/") && /Bellhop|Kraken|\bRAM\b/.test(text)) violations.push(`${path}: shared styles contain model-specific terminology`);
     if (/\.\.\/OpenOcean-Field-|bindings\/wasm|OpenOcean-Field-[^"']+\/src/.test(text)) violations.push(`${path}: source-relative model access is forbidden`);
   }

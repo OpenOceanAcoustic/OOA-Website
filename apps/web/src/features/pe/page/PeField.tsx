@@ -1,4 +1,7 @@
-export function PeField() {
+import { formatPeValue, type UsePePageResult } from "../hooks/usePePage";
+
+export function PeField({ page }: { readonly page: UsePePageResult }) {
+  const result = page.result;
   return (
     <section className="panel pe-field-panel">
       <div className="panel-head">
@@ -6,9 +9,7 @@ export function PeField() {
           <p className="micro">
             {"CURRENT APPROXIMATION"}
           </p>
-          <h3 id="fieldTitle">
-            {"nPade = 4 传播损失"}
-          </h3>
+          <h3 id="fieldTitle">nPade = {result?.parameters.nPade ?? 4} 传播损失</h3>
         </div>
         <div className="field-scale">
           <span>
@@ -21,7 +22,7 @@ export function PeField() {
         </div>
       </div>
       <div className="plot-wrap field-wrap">
-        <canvas id="fieldCanvas" aria-label="当前 Padé 阶数的传播损失场"></canvas>
+        <canvas ref={page.canvases.field} id="fieldCanvas" aria-label="当前 Padé 阶数的传播损失场"></canvas>
         <span className="plot-note">
           {"TL / dB · SELECTED RANGE ┆"}
         </span>
@@ -31,33 +32,25 @@ export function PeField() {
           <span>
             {"Padé 项数"}
           </span>
-          <strong id="padeMetric">
-            {"—"}
-          </strong>
+          <strong id="padeMetric">{result === null ? "—" : `${result.parameters.nPade} / ref 10`}</strong>
         </div>
         <div className="metric">
           <span>
             {"计算网格步长"}
           </span>
-          <strong id="stepMetric">
-            {"—"}
-          </strong>
+          <strong id="stepMetric">{result === null ? "—" : `${formatPeValue(result.parameters.rangeStepM, 2)} m × ${formatPeValue(result.parameters.depthStepM, 2)} m`}</strong>
         </div>
         <div className="metric">
           <span>
             {"显示网格"}
           </span>
-          <strong id="fieldShape">
-            {"—"}
-          </strong>
+          <strong id="fieldShape">{result === null ? "—" : `${result.field.columns} × ${result.field.rows}`}</strong>
         </div>
         <div className="metric">
           <span>
             {"计算时间"}
           </span>
-          <strong id="computeTime">
-            {"—"}
-          </strong>
+          <strong id="computeTime">{result === null ? "—" : `${formatPeValue(result.runtime.computeMs, 1)} ms`}</strong>
         </div>
       </div>
     </section>

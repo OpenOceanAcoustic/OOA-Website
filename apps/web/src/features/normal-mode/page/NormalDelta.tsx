@@ -1,6 +1,13 @@
 import type { CSSProperties } from "react";
+import type { UseNormalModePageResult } from "../hooks/useNormalModePage";
 
-export function NormalDelta() {
+function format(value: number, digits = 3): string {
+  return Number(value).toLocaleString("zh-CN", { maximumFractionDigits: digits });
+}
+
+export function NormalDelta({ page }: { readonly page: UseNormalModePageResult }) {
+  const result = page.result;
+  const active = result?.field.activeModeCount;
   return (
     <section className="panel delta-panel">
       <div className="panel-head">
@@ -24,7 +31,7 @@ export function NormalDelta() {
         </div>
       </div>
       <div className="plot-wrap field-wrap">
-        <canvas id="deltaCanvas" aria-label="模态截断传播损失差值"></canvas>
+        <canvas ref={page.canvases.delta} id="deltaCanvas" aria-label="模态截断传播损失差值"></canvas>
         <span className="plot-note">
           {"ΔTL = TLₙ − TLfull"}
         </span>
@@ -34,33 +41,25 @@ export function NormalDelta() {
           <span>
             {"ΔTL RMSE"}
           </span>
-          <strong id="deltaRms">
-            {"— dB"}
-          </strong>
+          <strong id="deltaRms">{result === null ? "— dB" : `${format(result.metrics.deltaRmsDb, 3)} dB`}</strong>
         </div>
         <div className="metric">
           <span>
             {"最大 |ΔTL|"}
           </span>
-          <strong id="deltaMax">
-            {"— dB"}
-          </strong>
+          <strong id="deltaMax">{result === null ? "— dB" : `${format(result.metrics.deltaMaxDb, 3)} dB`}</strong>
         </div>
         <div className="metric">
           <span>
             {"截断比例"}
           </span>
-          <strong id="truncationRatio">
-            {"—"}
-          </strong>
+          <strong id="truncationRatio">{result === null || active === undefined ? "—" : `${format(active / result.modes.count * 100, 1)} %`}</strong>
         </div>
         <div className="metric">
           <span>
             {"结果来源"}
           </span>
-          <strong id="resultSource">
-            {"—"}
-          </strong>
+          <strong id="resultSource">{page.runtimeView.resultSource}</strong>
         </div>
       </div>
     </section>

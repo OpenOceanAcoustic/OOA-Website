@@ -1,20 +1,27 @@
-# Migration baseline
+# Component migration baseline
 
-The React SPA preserves the three public entry URLs and separates their session
-state and runtime lifecycle.
+The accepted visual and interaction authority is commit `f45c697`. The React
+routes preserve its three public URLs, original section order, text, formulas,
+control attributes and scientific Canvas behavior.
 
-| URL | Runtime | Main workflows | Imported environment |
+| URL | Feature Hook | Runtime | Native import |
 |---|---|---|---|
-| `/` | Bellhop2D | field and eigenrays | Bellhop ENV companion set or shared JSON |
-| `/normal-mode/` | Kraken | full/truncated modes and single-mode inspection | ENV + FLP or shared JSON |
-| `/pe/` | RAM | one field or `nPade=1..10` sweep | RAM `.in` or shared JSON |
+| `/` | `useRayPage` | Bellhop2D | ENV plus SSP/BTY companions, or shared JSON |
+| `/normal-mode/` | `useNormalModePage` | Kraken | same-stem ENV+FLP, or shared JSON |
+| `/pe/` | `usePePage` | RAM | RAM `.in`, or shared JSON |
 
-Automated baselines cover shared environment fixtures, runtime contracts, route
-startup, original DOM/control contracts, package contents and production assets.
-The production React routes compose explicit section-level TSX modules copied
-from the accepted `f45c697` structure, then attach the accepted page controllers.
-Raw HTML imports, runtime DOM parsing and the redesigned Workbench are not used.
+Normal Mode and PE have no page controller: React owns their parameter and
+result state, while feature-local Canvas renderers receive typed data. Ray's
+accepted theory, field, velocity and eigenray drawing system is isolated behind
+its Feature Hook as a Canvas experience so the Route has the same lifecycle
+seam without replacing the mature scientific drawing algorithms.
 
-Known first-phase scope is Bellhop2D, Kraken and RAM only. The Bellhop2D npm
-result includes horizontal and vertical complex velocity typed arrays used by
-the original Ray velocity panels.
+The second baseline is the tracked `wasm-package-lock.json`. It freezes the
+three clean Field commits, npm metadata and every published Worker, declaration,
+module and WASM hash. UI component work may change Website code but may not
+change that lock or the active package bytes.
+
+Automated acceptance includes six full-page desktop screenshots, DOM/control
+contracts, real browser WASM execution, native file import and same-origin-only
+network assertions. The supported first phase remains Bellhop2D, Kraken and RAM
+only; there is no mobile layout target, backend compute, PWA, SSR or Figma flow.

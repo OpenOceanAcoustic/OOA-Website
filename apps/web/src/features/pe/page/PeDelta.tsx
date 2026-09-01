@@ -1,6 +1,8 @@
 import type { CSSProperties } from "react";
+import { formatPeValue, type UsePePageResult } from "../hooks/usePePage";
 
-export function PeDelta() {
+export function PeDelta({ page }: { readonly page: UsePePageResult }) {
+  const result = page.result;
   return (
     <section className="panel pe-delta-panel">
       <div className="panel-head">
@@ -24,7 +26,7 @@ export function PeDelta() {
         </div>
       </div>
       <div className="plot-wrap field-wrap">
-        <canvas id="deltaCanvas" aria-label="相对高阶参考场的传播损失差值"></canvas>
+        <canvas ref={page.canvases.delta} id="deltaCanvas" aria-label="相对高阶参考场的传播损失差值"></canvas>
         <span className="plot-note">
           {"CURRENT − REFERENCE"}
         </span>
@@ -34,33 +36,25 @@ export function PeDelta() {
           <span>
             {"ΔTL RMSE"}
           </span>
-          <strong id="deltaRms">
-            {"— dB"}
-          </strong>
+          <strong id="deltaRms">{result === null ? "— dB" : `${formatPeValue(result.metrics.deltaRmsDb, 3)} dB`}</strong>
         </div>
         <div className="metric">
           <span>
             {"最大 |ΔTL|"}
           </span>
-          <strong id="deltaMax">
-            {"— dB"}
-          </strong>
+          <strong id="deltaMax">{result === null ? "— dB" : `${formatPeValue(result.metrics.deltaMaxDb, 3)} dB`}</strong>
         </div>
         <div className="metric">
           <span>
             {"复压力相对 L2"}
           </span>
-          <strong id="pressureL2">
-            {"—"}
-          </strong>
+          <strong id="pressureL2">{result !== null && Number.isFinite(result.metrics.relativePressureL2) ? result.metrics.relativePressureL2?.toExponential(2) : "—"}</strong>
         </div>
         <div className="metric">
           <span>
             {"结果来源"}
           </span>
-          <strong id="resultSource">
-            {"—"}
-          </strong>
+          <strong id="resultSource">{page.runtimeView.resultSource}</strong>
         </div>
       </div>
     </section>

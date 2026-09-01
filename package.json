@@ -3,12 +3,17 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "workspaces": ["apps/*", "packages/*"],
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
     "wasm:build": "bash scripts/wasm/build-all.sh",
     "wasm:sync": "bash scripts/wasm/build-all.sh && npm install && npm run verify:wasm && node scripts/wasm/refresh-dev-cache.mjs",
-    "wasm:release": "bash scripts/wasm/build-release.sh",
-    "verify:wasm": "node scripts/wasm/verify-packages.mjs && node scripts/wasm/print-provenance.mjs",
+    "wasm:freeze": "bash scripts/wasm/build-release.sh --freeze",
+    "wasm:release": "bash scripts/wasm/build-release.sh --locked",
+    "check:wasm-lock": "node scripts/wasm/verify-package-lock.mjs",
+    "verify:wasm": "node scripts/wasm/verify-packages.mjs && npm run check:wasm-lock && node scripts/wasm/print-provenance.mjs",
     "verify:imports": "node scripts/verify/import-boundaries.mjs",
     "verify:structure": "node scripts/verify/page-structure.mjs",
     "dev": "npm run dev --workspace @ooa/web",
@@ -16,7 +21,7 @@
     "verify:release": "node scripts/release/verify-static.mjs",
     "preview": "npm run preview --workspace @ooa/web",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run && node --test tests/build/provenance.test.mjs tests/build/verify-sources.test.mjs tests/build/verify-wasm-packages.test.mjs",
+    "test": "vitest run && node --test tests/build/provenance.test.mjs tests/build/verify-sources.test.mjs tests/build/verify-wasm-packages.test.mjs tests/build/wasm-package-lock.test.mjs",
     "test:build": "npm run build && node --test tests/build/spa-artifacts.test.mjs && npm run verify:release",
     "test:e2e": "npm run build && playwright test",
     "check": "npm run verify:wasm && npm run verify:imports && npm run verify:structure && npm run typecheck && npm test",
@@ -35,6 +40,7 @@
   },
   "devDependencies": {
     "@playwright/test": "1.62.1",
+    "@tailwindcss/vite": "4.3.3",
     "@testing-library/jest-dom": "6.9.1",
     "@testing-library/react": "16.3.0",
     "@types/node": "22.19.19",
@@ -42,9 +48,12 @@
     "@types/react-dom": "19.2.3",
     "@vitejs/plugin-react": "5.0.4",
     "jsdom": "26.1.0",
+    "tailwindcss": "4.3.3",
     "typescript": "5.9.3",
-    "vite": "7.1.3",
+    "vite": "7.3.6",
     "vitest": "4.1.11"
   },
-  "engines": { "node": ">=22.13.0" }
+  "engines": {
+    "node": ">=22.13.0"
+  }
 }

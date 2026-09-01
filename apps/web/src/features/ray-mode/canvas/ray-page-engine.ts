@@ -1,8 +1,13 @@
 import type { RayRuntime } from '@ooa/runtime-ray';
-import type { MountedModelPage } from '../../shared-page/controller-types';
 import { parseEnvironmentFiles } from '@ooa/environment/browser-import';
 import { DEFAULT_WATER_DEPTH_M, generateSspProfile, profileDefaults, resampleSspPoints, sanitizeSspPoints, } from '@ooa/environment/ssp-profiles';
-export function mountRayPage(root: HTMLElement, runtime: RayRuntime): MountedModelPage {
+
+export interface MountedRayCanvasExperience {
+    readonly ready: Promise<void>;
+    dispose(): Promise<void>;
+}
+
+export function mountRayCanvasExperience(root: HTMLElement, runtime: RayRuntime): MountedRayCanvasExperience {
     const listenerScope: any = new AbortController();
     const listen: any = (target: any, type: any, listener: any): any => target.addEventListener(type, listener, { signal: listenerScope.signal });
     const $: any = (id: any): any => root.querySelector(`#${CSS.escape(id)}`);

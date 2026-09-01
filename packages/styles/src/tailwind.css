@@ -1,0 +1,20 @@
+@layer theme, base, components, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+
+@source "../../../apps/web/src";
+@source "../../ui/src";
+
+@theme {
+  --color-ooa-bg: #03131c;
+  --color-ooa-bg-deep: #020d14;
+  --color-ooa-text: #e7f7fa;
+  --color-ooa-muted: #7899a3;
+  --color-ooa-cyan: #62d8e7;
+  --color-ooa-lime: #c5f16b;
+  --color-ooa-amber: #f8b44c;
+  --color-ooa-danger: #ff7d73;
+  --radius-ooa: 10px;
+  --font-ooa-mono: "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
+  --font-ooa-sans: Inter, "SF Pro Display", "PingFang SC", "Microsoft YaHei", sans-serif;
+}
