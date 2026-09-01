@@ -1,4 +1,6 @@
-export function PeHero() {
+import type { UsePePageResult } from "../hooks/usePePage";
+
+export function PeHero({ page }: { readonly page: UsePePageResult }) {
   return (
     <section className="hero">
       <div>
@@ -20,17 +22,13 @@ export function PeHero() {
           <span>
             {"ENGINE"}
           </span>
-          <strong id="heroEngine">
-            {"DEMO FALLBACK"}
-          </strong>
+          <strong id="heroEngine">{page.runtimeView.engine}</strong>
         </div>
         <div>
           <span>
             {"MODEL"}
           </span>
-          <strong id="heroModel">
-            {"RAM"}
-          </strong>
+          <strong id="heroModel">{page.parameters.model.toUpperCase()}</strong>
         </div>
         <div>
           <span>

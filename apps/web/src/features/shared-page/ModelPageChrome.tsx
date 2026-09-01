@@ -1,4 +1,5 @@
 import type { ModelPageName } from "./PageDocument";
+import { ModelNavigation } from "@ooa/ui";
 
 const routes: ReadonlyArray<Readonly<{
   page: ModelPageName;
@@ -18,28 +19,32 @@ export function ModelPageHeader({ activePage }: { readonly activePage: ModelPage
           <span className="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
           <span><strong>OOA-Field</strong><small>CLIENT-SIDE ACOUSTICS</small></span>
         </a>
-        <nav className="mode-nav" aria-label="传播模型">
-          {routes.map((route) => (
-            <a
-              key={route.page}
-              className={route.page === activePage ? "active" : undefined}
-              href={route.href}
-              aria-current={route.page === activePage ? "page" : undefined}
-            >
-              {route.label}
-            </a>
-          ))}
-        </nav>
+        <ModelNavigation
+          ariaLabel="传播模型"
+          items={routes.map((route) => ({
+            href: route.href,
+            label: route.label,
+            active: route.page === activePage,
+          }))}
+        />
       </div>
     </header>
   );
 }
 
-export function RuntimeBanner({ message }: { readonly message: string }) {
+export function RuntimeBanner({
+  message,
+  mode = "loading",
+  badge = "WASM LOADING",
+}: {
+  readonly message: string;
+  readonly mode?: "loading" | "wasm" | "demo" | "error";
+  readonly badge?: string;
+}) {
   return (
-    <div className="runtime-banner" id="runtimeBanner" data-mode="loading" role="status" aria-live="polite">
+    <div className="runtime-banner" id="runtimeBanner" data-mode={mode} role="status" aria-live="polite">
       <span id="runtimeMessage">{message}</span>
-      <b id="runtimeBadge">WASM LOADING</b>
+      <b id="runtimeBadge">{badge}</b>
     </div>
   );
 }

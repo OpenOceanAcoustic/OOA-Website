@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "exports": {
+    "./tailwind.css": "./src/tailwind.css",
     "./base.css": "./src/base.css",
     "./controls.css": "./src/controls.css",
     "./model-lab.css": "./src/model-lab.css"

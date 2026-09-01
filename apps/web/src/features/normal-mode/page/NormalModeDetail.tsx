@@ -1,6 +1,8 @@
 import type { CSSProperties } from "react";
+import type { UseNormalModePageResult } from "../hooks/useNormalModePage";
 
-export function NormalModeDetail() {
+export function NormalModeDetail({ page }: { readonly page: UseNormalModePageResult }) {
+  const modeLabel = `Mode ${String(page.selectedMode + 1).padStart(2, "0")}`;
   return (
     <section className="panel mode-detail-panel">
       <div className="panel-head">
@@ -8,9 +10,7 @@ export function NormalModeDetail() {
           <p className="micro">
             {"MODE SHAPE"}
           </p>
-          <h3 id="modeShapeTitle">
-            {"Mode 01 本征函数"}
-          </h3>
+          <h3 id="modeShapeTitle">{modeLabel} 本征函数</h3>
         </div>
         <div className="plot-legend">
           <span>
@@ -25,7 +25,7 @@ export function NormalModeDetail() {
       </div>
       <div className="detail-plots">
         <div className="plot-wrap">
-          <canvas id="eigenfunctionCanvas" aria-label="选中模态的本征函数"></canvas>
+          <canvas ref={page.canvases.eigenfunction} id="eigenfunctionCanvas" aria-label="选中模态的本征函数"></canvas>
           <span className="plot-note">
             {"φₘ(z) · NORMALIZED"}
           </span>

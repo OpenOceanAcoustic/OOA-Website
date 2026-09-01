@@ -1,6 +1,7 @@
 import type { CSSProperties } from "react";
+import type { UsePePageResult } from "../hooks/usePePage";
 
-export function PeConvergence() {
+export function PeConvergence({ page }: { readonly page: UsePePageResult }) {
   return (
     <section className="panel convergence-panel">
       <div className="panel-head">
@@ -24,7 +25,7 @@ export function PeConvergence() {
         </div>
       </div>
       <div className="plot-wrap auxiliary-wrap">
-        <canvas id="convergenceCanvas" tabIndex={0} aria-label="可点击选择 nPade 的误差收敛曲线"></canvas>
+        <canvas ref={page.canvases.convergence} id="convergenceCanvas" tabIndex={0} aria-label="可点击选择 nPade 的误差收敛曲线" onPointerDown={page.selectPadeFromConvergence}></canvas>
         <span className="plot-note">
           {"CLICK A TERM COUNT"}
         </span>

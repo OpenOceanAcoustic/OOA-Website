@@ -14,7 +14,7 @@ async function exists(path, label) {
 
 for (const model of ["ray-mode", "normal-mode", "pe"]) {
   const feature = join(root, "apps/web/src/features", model);
-  for (const directory of ["page", "controller", "styles", "route"]) {
+  for (const directory of ["page", "hooks", "canvas", "styles", "route"]) {
     await exists(join(feature, directory), `${model} page structure`);
   }
   const entries = await readdir(feature, { recursive: true, withFileTypes: true });
@@ -22,8 +22,12 @@ for (const model of ["ray-mode", "normal-mode", "pe"]) {
     if (entry.isFile() && extname(entry.name) === ".html") {
       violations.push(`${model}: raw HTML page source is forbidden (${entry.name})`);
     }
-    if (entry.isFile() && extname(entry.name) === ".js" && entry.parentPath.includes(`${sep}controller`)) {
-      violations.push(`${model}: production controllers must be TypeScript (${entry.name})`);
+    if (entry.isFile() && entry.name === "page-controller.ts") {
+      violations.push(`${model}: retired page controller must not return`);
+    }
+    if (entry.isFile() && extname(entry.name) === ".js"
+      && (entry.parentPath.includes(`${sep}hooks`) || entry.parentPath.includes(`${sep}canvas`))) {
+      violations.push(`${model}: production hooks and Canvas modules must be TypeScript (${entry.name})`);
     }
   }
 }

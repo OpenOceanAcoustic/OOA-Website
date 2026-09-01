@@ -1,3 +1,4 @@
+import "@ooa/styles/tailwind.css";
 import "@ooa/styles/base.css";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";

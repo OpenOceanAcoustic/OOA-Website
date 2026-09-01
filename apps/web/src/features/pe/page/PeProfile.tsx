@@ -1,6 +1,7 @@
 import type { CSSProperties } from "react";
+import type { UsePePageResult } from "../hooks/usePePage";
 
-export function PeProfile() {
+export function PeProfile({ page }: { readonly page: UsePePageResult }) {
   return (
     <section className="panel profile-panel">
       <div className="panel-head">
@@ -8,9 +9,7 @@ export function PeProfile() {
           <p className="micro">
             {"VERTICAL TL PROFILE"}
           </p>
-          <h3 id="profileTitle">
-            {"18.0 km 垂向剖面"}
-          </h3>
+          <h3 id="profileTitle">{(page.profileResult?.rangeKm ?? Number(page.parameters.inspectRangeKm)).toFixed(1)} km 垂向剖面</h3>
         </div>
         <div className="plot-legend">
           <span>
@@ -24,7 +23,7 @@ export function PeProfile() {
         </div>
       </div>
       <div className="plot-wrap auxiliary-wrap">
-        <canvas id="profileCanvas" aria-label="当前场和高阶参考场的垂向传播损失剖面"></canvas>
+        <canvas ref={page.canvases.profile} id="profileCanvas" aria-label="当前场和高阶参考场的垂向传播损失剖面"></canvas>
         <span className="plot-note">
           {"DEPTH PROFILE"}
         </span>

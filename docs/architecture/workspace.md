@@ -1,117 +1,102 @@
 # OOA Website workspace architecture
 
-## Dependency direction
+## Production data flow
 
 ```text
-styles ──────────────────────────────────────────┤
-environment ─────────────────────────────────────┤
-runtime-core ──> runtime-ray ────────────────────┤
-             └─> runtime-normal-mode ────────────┤──> apps/web model features
-             └─> runtime-pe ─────────────────────┤
-                                                  └──> typed page controllers
-
-assets (catalog only; no production dependency until a page consumes an asset)
+frozen Field commit
+  -> CMake / Emscripten npm package
+  -> one runtime sdk-loader
+  -> instance-owned typed Runtime
+  -> page Feature Hook
+  -> original React teaching sections
+  -> model Canvas renderer
 ```
 
-The application has three route-level feature modules. Each route explicitly
-composes the original visible sections from TSX and mounts its page-specific
-strict TypeScript controller; there is no raw HTML renderer, shared Workbench or
-result-tab layout. A route creates exactly one typed Runtime and injects it into
-the controller. Controllers never receive a model SDK Input. Each concrete
-OpenOcean SDK is imported in exactly one `sdk-loader.ts`; source and binding
-directories in sibling model repositories are never imported by the website.
+The server only delivers static HTML, JavaScript, Worker and WebAssembly files.
+Environment parsing and all Bellhop2D, Kraken and RAM calculations remain in the
+learner's browser. Normal URLs surface a real Runtime failure; deterministic
+demonstration adapters are available only through the explicit `?demo` query.
+
+## Workspace dependency direction
+
+```text
+@ooa/styles ──────────────────────────────────────────────┐
+@ooa/ui ──────────────────────────────────────────────────┤
+@ooa/environment ─────────────────────────────────────────┤
+@ooa/runtime-core -> @ooa/runtime-ray ────────────────────┤
+                  -> @ooa/runtime-normal-mode ────────────┼-> @ooa/web
+                  -> @ooa/runtime-pe ─────────────────────┘
+
+@ooa/assets (catalogued, but not a web dependency until an asset is used)
+```
+
+Only the matching `sdk-loader.ts` may import an `@openocean/field-*` package.
+Runtime packages do not import React or Canvas and never import one another.
+Features submit typed teaching requests and receive model results with large
+grids preserved as TypedArray instances.
 
 ## Package responsibilities
 
-| Package | Owns | Must not own |
-|---|---|---|
-| `assets` | catalogued brand graphics, icons and later page illustrations; currently not a web dependency | screenshots, WASM output or model data |
-| `styles` | shared CSS control interfaces and page chrome used by two or more sections | model workflows or one-off model layouts |
-| `environment` | shared environment types, JSON parsing, browser file reading and generic limits | a concrete WASM SDK or native model parsing |
-| `runtime-core` | lifecycle, cancellation, stale-request protection, errors and memory budgets | React, Zustand or canvas |
-| `runtime-*` | one model family's SDK, Worker, native Input, cache, request ID and typed result contract | another runtime family, React or Canvas |
-| `apps/web/features/*/page` | explicit original page sections and their DOM contracts | SDK access or cross-model state |
-| `apps/web/features/*/controller` | transient page state, browser events, exact Canvas algorithms and Runtime calls | page layout or concrete SDK imports |
-| `apps/web/features/*/styles` | model-specific layout and scientific presentation | styles for unrelated models |
+| Package or directory | Responsibility |
+|---|---|
+| `@ooa/assets` | Validated brand/icon/illustration/texture catalog; never environments, fixtures, WASM or results |
+| `@ooa/styles` | Exact shared reset, controls and Normal/PE model-lab CSS |
+| `@ooa/ui` | Controlled, model-neutral React primitives actually reused by pages |
+| `@ooa/environment` | Shared environment DTO, JSON import, file limits and SSP utilities |
+| `@ooa/runtime-core` | Lifecycle, cancellation, stale-request protection, errors and memory budgets |
+| `@ooa/runtime-*` | One model SDK/Worker, native Input cache, experiment cache and typed result contract |
+| `features/*/hooks` | Page parameters, task sequencing, import status and Runtime lifetime |
+| `features/*/canvas` | Accepted scientific drawing and local pointer/RAF interaction |
+| `features/*/page` | Original visible teaching sections, text, IDs, controls and node order |
+| `features/*/styles` | Model-only layout and scientific presentation |
+| `features/*/route` | Document title and original section composition |
 
-## Runtime lifecycle and data flow
+Normal Mode and PE are controlled React pages: their Hooks own state and their
+Canvas modules consume small typed rendering inputs. Ray keeps its much larger
+accepted theory/field/eigenray drawing system isolated as one feature-local
+Canvas experience behind `useRayPage`; the Route no longer owns a Runtime or
+mounts a page controller.
 
-```text
-Field source
-  -> development: sibling current worktree (`wasm:sync`)
-  -> release: detached clean origin/main worktree (`wasm:release`)
-  -> CMake/Emscripten npm tgz
-  -> .wasm-packages/active
-  -> npm directory link
-  -> one @ooa/runtime-* sdk-loader
-  -> one instance-owned typed Runtime
-  -> Worker/WASM
-  -> typed page Controller
-  -> original canvas renderer
-```
-
-The original top navigation uses document links. Changing model pages therefore
-unloads the active document and releases its Worker without adding another SPA
-lifecycle layer. Within a page, request tokens prevent an older calculation from
-overwriting a newer result. Native ENV/FLP/RAM inputs remain in a Runtime-owned
-`sourceId` cache, and large fields stay in typed arrays.
-
-WASM load or execution errors are surfaced as `RuntimeError`; there is no silent
-simulation fallback. Demonstration adapters are constructed explicitly only for
-`?demo` and are never selected by a normal URL.
-
-Every controller exposes the same mount seam:
-
-```ts
-interface MountedModelPage {
-  readonly ready: Promise<void>;
-  dispose(): Promise<void>;
-}
-```
-
-Its `dispose()` removes listeners, stops timers/RAF/observers and releases the
-Runtime. DOM queries are scoped to the matching `data-ooa-page` root. Controllers
-preserve the accepted event timing and DOM identifiers and must not introduce a
-second visual layout.
-
-## Page source layout
-
-```text
-features/<model>/
-├── page/        # explicit TSX sections; text, ids and node order
-├── controller/  # event binding, transient interaction state and Canvas calls
-├── styles/      # only this model's layout and visualization selectors
-└── route/       # document title, imports and section composition
-```
-
-The deletion test governs sharing: if moving a selector or resource to a shared
-package does not remove knowledge from at least two callers, it stays local.
-This keeps `@ooa/styles` and `@ooa/assets` small and stable.
-
-## Enforced boundaries
-
-`npm run verify:imports` enforces the package direction above, including the
-single `sdk-loader.ts` import seam, no cross-runtime dependencies and the ban on
-raw-page HTML loading or remote compute uploads. `npm run verify:structure`
-rejects production JS in Runtime/Controller directories, retired `page-runtime`
-facades, unused internal dependencies and missing CSS/resource contracts.
-`npm run typecheck` uses strict TypeScript.
-`tests/build/spa-artifacts.test.mjs` asserts that production output includes the
-three first-phase families and excludes NX2D, Bellhop3D, Krakenc, RAMGeo and RAMS.
+The three top-level links remain normal `<a href>` links. A model change loads a
+new document, so cleanup cancels pending work and disposes the active Worker.
+No cross-refresh or cross-model state persistence is promised.
 
 ## Styles and resources
 
-`@ooa/styles` contains only CSS used by at least two pages: `base.css`,
-`controls.css` and `model-lab.css`. Ray and all model-specific scientific Canvas
-styles remain in their Feature. CSS extraction is mechanical and may not change
-selector weight, declaration order or computed values. `@ooa/assets` is a
-maintained catalog, but the web workspace does not depend on it until a real page
-resource is consumed.
+Tailwind CSS 4.3.3 is present with Preflight disabled. It scans only web and UI
+sources. Existing CSS values remain authoritative; Tailwind utilities or
+`@apply` may be introduced only when zero-pixel visual tests prove identical
+computed output. Canvas, MathML, pseudo-elements, scientific color maps and
+complex animations may remain in ordinary CSS.
 
-## Release provenance
+The deletion test governs sharing: a shared module must remove duplicate
+knowledge from at least two production callers. Model terms and one-off model
+layouts stay in the Feature. `@ooa/assets` is intentionally not declared by the
+web app until a catalogued resource replaces an existing CSS graphic without a
+DOM or pixel change.
 
-`wasm:release` fetches each Field repository's `origin/main`, prepares detached
-worktrees under ignored `.field-release-sources/`, rebuilds all packages and
-checks that source commit, dirty flag, tgz hash and active package hash agree.
-It never switches or cleans the sibling development worktrees. A clean release
-must be followed by `npm run check:release`.
+## Frozen WASM packages
+
+`wasm:freeze` is the only operation that adopts the latest Field `origin/main`.
+It builds detached clean worktrees, verifies the packages and writes the tracked
+`wasm-package-lock.json` with source commits and per-file hashes. After freezing:
+
+- `wasm:release` checks out the locked commits, not a moving branch;
+- `check:wasm-lock` compares every published package file with the lock;
+- component work must not run `wasm:sync`;
+- a Field upgrade requires a separate freeze and full numerical/UI acceptance.
+
+Current frozen commits are Ray `470ab6d1`, Normal Mode `8f7093bd` and PE
+`ceb09d68`. Release provenance must be clean and agree with those commits.
+
+## Enforced checks
+
+- `verify:imports`: Field SDK seam, runtime direction, no raw HTML, no adjacent
+  source imports, no remote calculation upload and model-neutral UI.
+- `verify:structure`: Hook/Canvas/page layout, no retired page controller,
+  TypeScript production sources, real internal dependencies and valid assets.
+- `check:wasm-lock`: exact package version, contract files and byte hashes.
+- `visual:test`: six full-page Linux Chromium screenshots with zero changed
+  pixels; baselines are not updated during component work.
+- Playwright: real WASM startup, calculations, imports, interactions, navigation
+  disposal and same-origin-only network traffic.
