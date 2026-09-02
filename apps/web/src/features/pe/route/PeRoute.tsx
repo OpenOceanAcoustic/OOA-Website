@@ -1,4 +1,4 @@
-import { ModelPageFooter, ModelPageHeader, RuntimeBanner } from "../../shared-page/ModelPageChrome";
+import { ModelPageFooter, ModelPageHeader } from "../../shared-page/ModelPageChrome";
 import { PageDocument } from "../../shared-page/PageDocument";
 import { PeControls } from "../page/PeControls";
 import { PeConvergence } from "../page/PeConvergence";
@@ -20,7 +20,6 @@ export function PeRoute() {
       <ModelPageHeader activePage="pe" />
       <main className="site-shell">
         <PeHero page={page} />
-        <RuntimeBanner message={page.runtimeView.message} mode={page.runtimeView.mode} badge={page.runtimeView.badge} />
         <section className="workspace" aria-labelledby="workspaceTitle">
           <div className="workspace-heading">
             <div><p className="micro">02 · WIDE-ANGLE APPROXIMATION</p><h2 id="workspaceTitle">Padé 阶数影响实验台</h2></div>

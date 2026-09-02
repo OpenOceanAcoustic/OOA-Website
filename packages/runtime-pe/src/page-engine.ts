@@ -1,6 +1,7 @@
 import { loadPeSdkModule } from "./sdk-loader";
 import { importPePageEnvironment } from "./environment-parser";
 import { RuntimeError, normalizeRuntimeError } from "@ooa/runtime-core";
+import { peImportErrorDetail } from "./pe-file-import";
 export function createPePageEngine(): any {
     const PE_ADAPTER_CONTRACT: any = Object.freeze({
         method: "runPE(params)",
@@ -514,7 +515,7 @@ export function createPePageEngine(): any {
             nativeInput = nativePackage.RAMInput.fromRamIn({ name, text: input.text });
         }
         catch (error: any) {
-            throw new RuntimeError("INPUT_INVALID", "RAM .in 无法解析", { cause: error });
+            throw new RuntimeError("INPUT_INVALID", `RAM 输入无法解析：${peImportErrorDetail(error)}`, { cause: error });
         }
         const pageEnvironment: any = await importPePageEnvironment([{
                 name,

@@ -22,6 +22,7 @@ function NumericInput({
   max,
   step,
   ariaLabel,
+  allowZero,
   page,
 }: {
   readonly id: string;
@@ -31,17 +32,19 @@ function NumericInput({
   readonly max: number;
   readonly step: number;
   readonly ariaLabel?: string;
+  readonly allowZero?: boolean;
   readonly page: UseNormalModePageResult;
 }) {
   return (
     <input
       id={id}
       type="number"
-      min={min}
+      min={allowZero && Number(value) === 0 ? 0 : min}
       max={max}
       step={step}
       value={value}
       aria-label={ariaLabel}
+      title={allowZero ? "0 表示自动选择" : undefined}
       onInput={(event) => page.setNumericInput(parameter, inputValue(event))}
       onChange={(event) => {
         if (isCommitChange(event)) page.commitNumericInput(parameter, event.currentTarget.value);
@@ -179,8 +182,8 @@ export function NormalControls({ page }: NormalControlsProps) {
         <label className="control-label" htmlFor="normalModel">Normal Mode 内核</label>
         <div className="select-wrap"><select id="normalModel" value={page.parameters.model} onChange={() => { void page.run(); }}><option value="kraken">Kraken · 浏览器 WASM</option></select></div>
         <div className="control-grid phase-speed-grid">
-          <label>最小相速度 / m/s<NumericInput id="phaseSpeedLow" parameter="phaseSpeedLowMps" value={page.parameters.phaseSpeedLowMps} min={1300} max={1900} step={10} page={page} /></label>
-          <label>最大相速度 / m/s<NumericInput id="phaseSpeedHigh" parameter="phaseSpeedHighMps" value={page.parameters.phaseSpeedHighMps} min={1400} max={2400} step={10} page={page} /></label>
+          <label>最小相速度 / m/s<NumericInput id="phaseSpeedLow" parameter="phaseSpeedLowMps" value={page.parameters.phaseSpeedLowMps} min={1300} max={1900} step={10} allowZero page={page} /></label>
+          <label>最大相速度 / m/s<NumericInput id="phaseSpeedHigh" parameter="phaseSpeedHighMps" value={page.parameters.phaseSpeedHighMps} min={1400} max={2400} step={10} allowZero page={page} /></label>
         </div>
         <div className="range-control">
           <div className="range-title"><label htmlFor="modeLimit">参与叠加的前 N 阶模态</label><output id="modeLimitOut">{page.parameters.modeLimit} modes</output></div>

@@ -1,4 +1,4 @@
-import { ModelPageFooter, ModelPageHeader, RuntimeBanner } from "../../shared-page/ModelPageChrome";
+import { ModelPageFooter, ModelPageHeader } from "../../shared-page/ModelPageChrome";
 import { PageDocument } from "../../shared-page/PageDocument";
 import { useNormalModePage } from "../hooks/useNormalModePage";
 import { NormalControls } from "../page/NormalControls";
@@ -22,7 +22,6 @@ export function NormalModeRoute() {
       <ModelPageHeader activePage="normal" />
       <main className="site-shell">
         <NormalHero page={page} />
-        <RuntimeBanner message={page.runtimeView.message} mode={page.runtimeView.mode} badge={page.runtimeView.badge} />
         <section className="workspace" aria-labelledby="workspaceTitle">
           <div className="workspace-heading">
             <div><p className="micro">01 · MODAL DECOMPOSITION</p><h2 id="workspaceTitle">模态分解实验台</h2></div>

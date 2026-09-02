@@ -1,6 +1,6 @@
 import { RuntimeError, normalizeRuntimeError, type RuntimeInfo } from "@ooa/runtime-core";
-import { parsePEEnvironmentFiles } from "@ooa/environment/model-file-import";
 import { createPePageEngine } from "./page-engine";
+import { parsePeEnvironmentFiles } from "./pe-file-import";
 import type {
   PeImportedEnvironment,
   PePageRequest,
@@ -68,7 +68,7 @@ function createEngineAdapter(demonstration: boolean): PeRuntimeAdapter {
       memoryLimitBytes: 0,
     }) : engine.prepare,
     importEnvironment: async (files) => {
-      const parsed = await parsePEEnvironmentFiles(files, engine.importEnvironment) as
+      const parsed = await parsePeEnvironmentFiles(files, engine.importEnvironment) as
         PeImportedEnvironment | CanonicalPageEnvironment;
       return "sourceId" in parsed
         ? parsed as PeImportedEnvironment

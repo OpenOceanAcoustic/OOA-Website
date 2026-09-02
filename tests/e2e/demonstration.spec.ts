@@ -11,11 +11,11 @@ test("demonstration results require the explicit demo query", async ({ page }) =
 
   await page.goto("/normal-mode/?demo");
   await expect(page.locator("#solveStatus")).toHaveText("COMPLETE", { timeout: 30_000 });
-  await expect(page.locator("#runtimeBadge")).toContainText("DEMO");
+  await expect(page.locator("#resultSource")).toHaveText("DEMO");
 
   await page.goto("/pe/?demo");
   await expect(page.locator("#solveStatus")).toHaveText("COMPLETE", { timeout: 30_000 });
-  await expect(page.locator("#runtimeBadge")).toContainText("DEMO");
+  await expect(page.locator("#resultSource")).toHaveText("DEMO");
 
   expect(workers).toEqual([]);
 });

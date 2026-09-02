@@ -1,5 +1,6 @@
 const MAX_FILE_COUNT: any = 16;
-const MAX_TOTAL_BYTES: any = 16 * 1024 * 1024;
+const MAX_TOTAL_BYTES: any = 32 * 1024 * 1024;
+const MAX_RECEIVER_POINT_COUNT: any = 2_000_000;
 const DEFAULT_ENVIRONMENT: any = Object.freeze({
     frequencyHz: 100,
     maximumRangeKm: 20,
@@ -280,6 +281,482 @@ function jsonBathymetry(source: any): any {
         finiteNumber(depths[index], `bathymetry.depths[${index}]`),
     ]);
 }
+function numericArray(value: any, label: any): any {
+    const values: any = arrayValue(value);
+    if (values === null)
+        return [];
+    return values.map((entry: any, index: any): any => finiteNumber(entry, String(label) + "[" + index + "]"));
+}
+function numericExtrema(values: any): any {
+    let minimum: any = Infinity;
+    let maximum: any = -Infinity;
+    for (const value of values) {
+        const numeric: any = Number(value);
+        if (!Number.isFinite(numeric))
+            continue;
+        if (numeric < minimum)
+            minimum = numeric;
+        if (numeric > maximum)
+            maximum = numeric;
+    }
+    return {
+        minimum: minimum === Infinity ? undefined : minimum,
+        maximum: maximum === -Infinity ? undefined : maximum,
+    };
+}
+function positiveMaximum(...values: any): any {
+    let maximum: any = undefined;
+    const visit: any = (value: any): any => {
+        const entries: any = arrayValue(value);
+        if (entries !== null) {
+            for (let index: any = 0; index < entries.length; index += 1)
+                visit(entries[index]);
+            return;
+        }
+        const numeric: any = Number(value);
+        if (Number.isFinite(numeric) && numeric > 0 && (maximum === undefined || numeric > maximum))
+            maximum = numeric;
+    };
+    for (const value of values)
+        visit(value);
+    return maximum;
+}
+function fieldDocumentRun(source: any, backends: any): any {
+    const runs: any = arrayValue(source.runs) ?? [];
+    return runs.find((run: any): any => isObject(run) && backends.includes(String(run.backend ?? "")));
+}
+function fieldDocumentProfile(parameters: any, source: any): any {
+    const sections: any = arrayValue(parameters.waterColumn?.sections) ?? [];
+    const sourcePoint: any = arrayValue(parameters.source?.pointsNedMeters)?.[0] ?? [0, 0, 0];
+    const plane: any = parameters.waterColumn?.propagationPlane ?? parameters.waterColumn?.soundSpeed?.propagationPlane;
+    const sourceRangeM: any = fieldDocumentPlaneCoordinate(sourcePoint, plane);
+    const orderedSections: any = sections.slice().sort((left: any, right: any): any => {
+        const contains: any = (section: any): any => Number(section?.beginMeters) <= sourceRangeM
+            && sourceRangeM <= Number(section?.endMeters);
+        return Number(contains(right)) - Number(contains(left));
+    });
+    const candidates: any = [
+        { container: parameters.waterColumn?.profile?.soundSpeed },
+        {
+            container: parameters.waterColumn?.soundSpeed,
+            warning: parameters.waterColumn?.soundSpeed?.representation === "EXTRUDED_RANGE_DEPTH"
+                ? "距离相关声速场已投影为源位置的参考垂向剖面；网页参数编辑不会保留完整二维声速场。"
+                : undefined,
+        },
+        ...orderedSections.map((section: any): any => ({
+            container: section?.profile?.soundSpeed,
+            warning: sections.length > 1
+                ? "分段水体已投影为声源所在分段的垂向剖面；网页参数编辑不会保留其他距离分段。"
+                : undefined,
+        })),
+    ];
+    for (const descriptor of candidates) {
+        const candidate: any = descriptor.container;
+        if (!isObject(candidate))
+            continue;
+        const depths: any = numericArray(candidate.depthsMeters, "parameters.waterColumn.soundSpeed.depthsMeters");
+        let speeds: any = numericArray(candidate.values, "parameters.waterColumn.soundSpeed.values");
+        let profileProjection: any = undefined;
+        if (depths.length > 0 && speeds.length === 0 && candidate.representation === "EXTRUDED_RANGE_DEPTH") {
+            const ranges: any = numericArray(candidate.rangesMeters, "parameters.waterColumn.soundSpeed.rangesMeters");
+            const grid: any = numericArray(candidate.valuesRangeDepth, "parameters.waterColumn.soundSpeed.valuesRangeDepth");
+            if (ranges.length === 0 || grid.length !== ranges.length * depths.length) {
+                throw new TypeError("FieldDocument range-depth sound speed must contain ranges × depths values");
+            }
+            const rayRun: any = fieldDocumentRun(source, ["ray_mode.bellhop.2d"]);
+            const reference: any = numericArray(rayRun?.options?.qReferenceSoundSpeedsMetersPerSecond, "runs.bellhop.qReferenceSoundSpeedsMetersPerSecond");
+            if (reference.length === depths.length) {
+                speeds = reference;
+                profileProjection = "RAY_REFERENCE_PROFILE";
+            }
+            else {
+                let selected: any = 0;
+                for (let index: any = 1; index < ranges.length; index += 1) {
+                    if (Math.abs(ranges[index] - sourceRangeM) < Math.abs(ranges[selected] - sourceRangeM))
+                        selected = index;
+                }
+                speeds = grid.slice(selected * depths.length, (selected + 1) * depths.length);
+                profileProjection = "NEAREST_RANGE_SLICE";
+            }
+        }
+        if (depths.length === 0 && speeds.length === 0)
+            continue;
+        if (depths.length !== speeds.length) {
+            throw new TypeError("FieldDocument sound-speed depthsMeters and values must have the same length");
+        }
+        return {
+            container: candidate,
+            points: depths.map((depth: any, index: any): any => [depth, speeds[index]]),
+            profileProjection,
+            projectionWarnings: descriptor.warning ? [descriptor.warning] : [],
+        };
+    }
+    throw new TypeError("FieldDocument does not contain a usable water-column sound-speed profile");
+}
+function fieldDocumentPlaneCoordinate(point: any, plane: any): any {
+    const origin: any = arrayValue(plane?.originNorthEastMeters) ?? [0, 0];
+    const direction: any = arrayValue(plane?.directionNorthEast) ?? [0, 1];
+    const north: any = finiteNumber(point?.[0] ?? 0, "NED north coordinate");
+    const east: any = finiteNumber(point?.[1] ?? 0, "NED east coordinate");
+    const directionNorth: any = finiteNumber(direction[0] ?? 0, "propagationPlane.directionNorthEast[0]");
+    const directionEast: any = finiteNumber(direction[1] ?? 1, "propagationPlane.directionNorthEast[1]");
+    const norm: any = Math.hypot(directionNorth, directionEast);
+    if (!(norm > 0))
+        throw new RangeError("FieldDocument propagation-plane direction must be non-zero");
+    return ((north - Number(origin[0] ?? 0)) * directionNorth
+        + (east - Number(origin[1] ?? 0)) * directionEast) / norm;
+}
+function fieldDocumentBoundarySelection(boundary: any, sourceRangeM: any): any {
+    if (!isObject(boundary))
+        return { geometry: null, piecewise: false };
+    if (isObject(boundary.geometry))
+        return { geometry: boundary.geometry, assembly: boundary, piecewise: false };
+    const sections: any = arrayValue(boundary.sections) ?? [];
+    const selected: any = sections.find((section: any, index: any): any => {
+        const begin: any = Number(section?.beginMeters);
+        const end: any = Number(section?.endMeters);
+        return Number.isFinite(begin) && Number.isFinite(end)
+            && sourceRangeM >= begin
+            && (sourceRangeM < end || (index === sections.length - 1 && sourceRangeM <= end));
+    }) ?? sections[0];
+    return {
+        geometry: selected?.assembly?.geometry ?? null,
+        assembly: selected?.assembly ?? null,
+        piecewise: sections.length > 1,
+    };
+}
+function fieldDocumentGeometryPoints(geometry: any, label: any): any {
+    if (!isObject(geometry))
+        return [];
+    const ranges: any = numericArray(geometry.rangesMeters, String(label) + ".rangesMeters");
+    const depths: any = numericArray(geometry.depthsMeters, String(label) + ".depthsMeters");
+    if (ranges.length === 0 && depths.length === 0)
+        return [];
+    if (ranges.length !== depths.length)
+        throw new TypeError(String(label) + " rangesMeters and depthsMeters must have the same length");
+    const points: any = ranges.map((range: any, index: any): any => [range, depths[index]]);
+    for (let index: any = 1; index < points.length; index += 1) {
+        if (!(points[index][0] > points[index - 1][0]))
+            throw new RangeError(String(label) + " rangesMeters must be strictly increasing");
+    }
+    return points;
+}
+function interpolatedLineValue(points: any, coordinate: any): any {
+    if (points.length === 0)
+        return undefined;
+    if (coordinate <= points[0][0])
+        return points[0][1];
+    if (coordinate >= points.at(-1)[0])
+        return points.at(-1)[1];
+    for (let index: any = 1; index < points.length; index += 1) {
+        const right: any = points[index];
+        if (coordinate > right[0])
+            continue;
+        const left: any = points[index - 1];
+        const fraction: any = (coordinate - left[0]) / (right[0] - left[0]);
+        return left[1] + fraction * (right[1] - left[1]);
+    }
+    return points.at(-1)[1];
+}
+function fieldDocumentBoundaryDepth(geometry: any, points: any, rangeM: any, label: any): any {
+    if (!isObject(geometry))
+        return undefined;
+    if (geometry.representation === "HORIZONTAL" || geometry.depthMeters !== undefined) {
+        return finiteNumber(geometry.depthMeters, String(label) + ".depthMeters");
+    }
+    const result: any = interpolatedLineValue(points, rangeM);
+    if (result === undefined)
+        throw new TypeError(String(label) + " does not contain usable geometry");
+    return result;
+}
+function fieldDocumentProfileValue(points: any, depthM: any): any {
+    if (depthM <= points[0][0])
+        return points[0][1];
+    if (depthM >= points.at(-1)[0])
+        return points.at(-1)[1];
+    for (let index: any = 1; index < points.length; index += 1) {
+        if (depthM > points[index][0])
+            continue;
+        const left: any = points[index - 1];
+        const right: any = points[index];
+        const fraction: any = (depthM - left[0]) / (right[0] - left[0]);
+        return left[1] + fraction * (right[1] - left[1]);
+    }
+    return points.at(-1)[1];
+}
+function fieldDocumentDepthProjection(parameters: any, profile: any): any {
+    const sourcePoint: any = arrayValue(parameters.source?.pointsNedMeters)?.[0] ?? [0, 0, 0];
+    const plane: any = parameters.waterColumn?.propagationPlane
+        ?? parameters.waterColumn?.soundSpeed?.propagationPlane
+        ?? parameters.seaSurface?.geometry?.propagationPlane
+        ?? parameters.seabed?.geometry?.propagationPlane;
+    const sourceRangeM: any = fieldDocumentPlaneCoordinate(sourcePoint, plane);
+    const surface: any = fieldDocumentBoundarySelection(parameters.seaSurface, sourceRangeM);
+    const bottom: any = fieldDocumentBoundarySelection(parameters.seabed, sourceRangeM);
+    const surfacePoints: any = fieldDocumentGeometryPoints(surface.geometry, "parameters.seaSurface.geometry");
+    const bottomPoints: any = fieldDocumentGeometryPoints(bottom.geometry, "parameters.seabed.geometry");
+    const surfaceDepthAt: any = (rangeM: any): any => fieldDocumentBoundaryDepth(
+        surface.geometry,
+        surfacePoints,
+        rangeM,
+        "parameters.seaSurface.geometry",
+    ) ?? 0;
+    const bottomDepthAt: any = (rangeM: any): any => fieldDocumentBoundaryDepth(
+        bottom.geometry,
+        bottomPoints,
+        rangeM,
+        "parameters.seabed.geometry",
+    );
+    const surfaceDepthM: any = surfaceDepthAt(sourceRangeM);
+    const datumDepthM: any = parameters.waterColumn?.representation === "INVARIANT_VERTICAL_PROFILE"
+        ? finiteNumber(parameters.waterColumn?.datumDepthMeters ?? 0, "parameters.waterColumn.datumDepthMeters")
+        : 0;
+    const shifted: any = profile.points.map((point: any): any => [
+        point[0] + datumDepthM - surfaceDepthM,
+        point[1],
+    ]);
+    const bottomDepthM: any = bottomDepthAt(sourceRangeM);
+    const waterDepthM: any = bottomDepthM === undefined
+        ? shifted.at(-1)?.[0]
+        : bottomDepthM - surfaceDepthM;
+    if (!(waterDepthM > 0))
+        throw new RangeError("FieldDocument water-column thickness at the source must be positive");
+    const needsBoundaryInterpolation: any = !sameWithinTolerance(shifted[0][0], 0)
+        || !sameWithinTolerance(shifted.at(-1)[0], waterDepthM);
+    const speedsConstant: any = shifted.every((point: any): any => sameWithinTolerance(point[1], shifted[0][1]));
+    if (needsBoundaryInterpolation && profile.container.interpolation !== "LINEAR" && !speedsConstant) {
+        throw new RangeError(
+            "FIELD_DOCUMENT_MODEL_SPECIFIC_INTERPOLATOR_REQUIRED: source-local profile clipping requires "
+            + String(profile.container.interpolation ?? "an unknown") + " interpolation",
+        );
+    }
+    const profilePoints: any = [[0, fieldDocumentProfileValue(shifted, 0)]];
+    for (const point of shifted) {
+        if (point[0] > 0 && point[0] < waterDepthM)
+            profilePoints.push([point[0], point[1]]);
+    }
+    profilePoints.push([waterDepthM, fieldDocumentProfileValue(shifted, waterDepthM)]);
+    const warnings: any = [...profile.projectionWarnings];
+    let lossy: any = warnings.length > 0;
+    if (!sameWithinTolerance(surfaceDepthM, 0) || !sameWithinTolerance(datumDepthM, 0)) {
+        warnings.push("LOCAL_NED 垂向坐标已相对声源处海面重基准。");
+    }
+    if (surfacePoints.length > 0) {
+        warnings.push("距离相关海面已转换为局部水深/水厚预览；当前网页不会保留海面坡度。");
+        lossy = true;
+    }
+    if (surface.piecewise || bottom.piecewise) {
+        warnings.push("分段边界已选择声源所在分段用于网页预览。");
+        lossy = true;
+    }
+    const surfaceCondition: any = String(surface.assembly?.condition?.kind ?? "VACUUM");
+    if (surfaceCondition !== "VACUUM") {
+        warnings.push("海面条件 " + surfaceCondition + " 超出当前网页自定义环境能力，计算将使用网页默认海面条件。");
+        lossy = true;
+    }
+    const bottomCondition: any = bottom.assembly?.condition;
+    const bottomMaterial: any = bottomCondition?.material;
+    const bottomLayers: any = arrayValue(bottom.assembly?.layers) ?? [];
+    const pointMaterials: any = arrayValue(bottom.assembly?.pointMaterials) ?? [];
+    if (bottomCondition?.kind !== "MATERIAL_HALF_SPACE"
+        || (isObject(bottomMaterial) && bottomMaterial.kind !== "FLUID")
+        || bottomLayers.length > 0
+        || pointMaterials.length > 0) {
+        warnings.push("复杂海底边界/分层已投影为网页可编辑的等效底质参数，不能视为完整 FieldDocument 等价计算。");
+        lossy = true;
+    }
+    const interpolation: any = String(profile.container.interpolation ?? "LINEAR");
+    if (!["LINEAR", "SQUARED_SLOWNESS_LINEAR"].includes(interpolation)) {
+        warnings.push("声速插值 " + interpolation + " 将按网页支持的插值方式预览。");
+        lossy = true;
+    }
+    return {
+        plane,
+        profilePoints,
+        waterDepthM,
+        sourceRangeM,
+        sourceDepthM: finiteNumber(sourcePoint[2] ?? surfaceDepthM, "parameters.source.pointsNedMeters[0][2]") - surfaceDepthM,
+        surfaceDepthAt,
+        bottomDepthAt,
+        surfacePoints,
+        bottomPoints,
+        bottomMaterial,
+        projectionMode: lossy ? "EDITABLE_PREVIEW" : "EXACT",
+        projectionWarnings: [...new Set(warnings)],
+        depthDatumOffsetMeters: datumDepthM - surfaceDepthM,
+    };
+}
+function fieldDocumentBathymetry(projection: any, maximumRangeM: any): any {
+    if (projection.bottomDepthAt(projection.sourceRangeM) === undefined)
+        return null;
+    if (!(maximumRangeM > 0))
+        return null;
+    const ranges: any = new Set([0, maximumRangeM]);
+    for (const point of [...projection.surfacePoints, ...projection.bottomPoints]) {
+        const relative: any = point[0] - projection.sourceRangeM;
+        if (relative > 0 && relative < maximumRangeM)
+            ranges.add(relative);
+    }
+    const result: any = [...ranges].sort((left: any, right: any): any => left - right)
+        .map((rangeM: any): any => {
+            const absoluteRangeM: any = projection.sourceRangeM + rangeM;
+            const thicknessM: any = projection.bottomDepthAt(absoluteRangeM)
+                - projection.surfaceDepthAt(absoluteRangeM);
+            if (!(thicknessM > 0)) {
+                throw new RangeError(
+                    "FieldDocument seabed reaches a non-positive water depth inside the active model range",
+                );
+            }
+            return [rangeM / 1000, thicknessM];
+        });
+    return result;
+}
+function fieldDocumentScalar(value: any, label: any): any {
+    if (value === undefined || value === null)
+        return undefined;
+    if (!isObject(value))
+        return finiteNumber(value, label);
+    const values: any = arrayValue(value.values);
+    const scalar: any = firstDefined(value.value, values?.[0]);
+    return scalar === undefined ? undefined : finiteNumber(scalar, label);
+}
+function fieldDocumentNedPoints(value: any, label: any): any {
+    const points: any = arrayValue(value) ?? [];
+    return points.map((point: any, index: any): any => {
+        const coordinates: any = arrayValue(point);
+        if (coordinates === null || coordinates.length < 3) {
+            throw new TypeError(String(label) + "[" + index + "] must contain north, east and depth coordinates");
+        }
+        return coordinates.slice(0, 3).map((coordinate: any, axis: any): any => finiteNumber(coordinate, String(label) + "[" + index + "][" + axis + "]"));
+    });
+}
+function fieldDocumentReceiverSummary(value: any, label: any, sourcePoint: any, depthProjection: any = 0): any {
+    const points: any = arrayValue(value) ?? [];
+    if (points.length > MAX_RECEIVER_POINT_COUNT) {
+        throw new RangeError(String(label) + " exceeds " + MAX_RECEIVER_POINT_COUNT.toLocaleString("en-US") + " points");
+    }
+    const ranges: any = new Set();
+    const depths: any = new Set();
+    let maximumRangeM: any = undefined;
+    for (let index: any = 0; index < points.length; index += 1) {
+        const coordinates: any = arrayValue(points[index]);
+        if (coordinates === null || coordinates.length < 3) {
+            throw new TypeError(String(label) + "[" + index + "] must contain north, east and depth coordinates");
+        }
+        const north: any = finiteNumber(coordinates[0], String(label) + "[" + index + "][0]");
+        const east: any = finiteNumber(coordinates[1], String(label) + "[" + index + "][1]");
+        const rawDepth: any = finiteNumber(coordinates[2], String(label) + "[" + index + "][2]");
+        const range: any = Math.hypot(north - sourcePoint[0], east - sourcePoint[1]);
+        const depth: any = typeof depthProjection === "function"
+            ? depthProjection(range, rawDepth, north, east) : rawDepth + depthProjection;
+        ranges.add(range);
+        depths.add(depth);
+        if (maximumRangeM === undefined || range > maximumRangeM)
+            maximumRangeM = range;
+    }
+    return {
+        receiverRangesM: [...ranges],
+        receiverDepthsM: [...depths],
+        receiverPointCount: points.length,
+        maximumRangeM,
+    };
+}
+function fieldDocumentOverlay(source: any): any {
+    const parameters: any = source.parameters;
+    if (!isObject(parameters) || !isObject(parameters.waterColumn) || !isObject(parameters.source))
+        return null;
+    const profile: any = fieldDocumentProfile(parameters, source);
+    const projection: any = fieldDocumentDepthProjection(parameters, profile);
+    const material: any = projection.bottomMaterial;
+    const sourcePoints: any = fieldDocumentNedPoints(parameters.source.pointsNedMeters, "parameters.source.pointsNedMeters");
+    const firstSource: any = sourcePoints[0] ?? [0, 0, Math.min(50, projection.waterDepthM / 2)];
+    const receiver: any = fieldDocumentReceiverSummary(
+        parameters.receiver?.geometry?.pointsNedMeters,
+        "parameters.receiver.geometry.pointsNedMeters",
+        firstSource,
+        (_rangeM: any, rawDepthM: any, north: any, east: any): any => rawDepthM
+            - projection.surfaceDepthAt(fieldDocumentPlaneCoordinate([north, east, rawDepthM], projection.plane)),
+    );
+    const receiverRangesM: any = receiver.receiverRangesM;
+    const receiverDepthsM: any = receiver.receiverDepthsM;
+    const rayRun: any = fieldDocumentRun(source, ["ray_mode.bellhop.2d"]);
+    const normalRun: any = fieldDocumentRun(source, ["normal_mode.kraken", "normal_mode.krakenc"]);
+    const peRun: any = fieldDocumentRun(source, ["pe.ram", "pe.ramgeo", "pe.rams"]);
+    const rayOptions: any = rayRun?.options ?? {};
+    const normalOptions: any = normalRun?.options ?? {};
+    const peOptions: any = peRun?.options ?? {};
+    const launchAngles: any = rayOptions.launchAngles ?? {};
+    const explicitAngles: any = numericArray(launchAngles.anglesDegrees, "runs.bellhop.launchAngles.anglesDegrees");
+    let angleProjection: any = undefined;
+    let angleRangeDegrees: any = undefined;
+    if (explicitAngles.length > 1) {
+        const extrema: any = numericExtrema(explicitAngles);
+        angleRangeDegrees = [extrema.minimum, extrema.maximum];
+    }
+    else if (Number.isFinite(Number(launchAngles.minimumDegrees)) && Number.isFinite(Number(launchAngles.maximumDegrees))) {
+        angleRangeDegrees = [launchAngles.minimumDegrees, launchAngles.maximumDegrees];
+    }
+    if (angleRangeDegrees
+        && (angleRangeDegrees[0] < -90 || angleRangeDegrees[1] > 90)) {
+        angleRangeDegrees = [
+            Math.max(-90, Number(angleRangeDegrees[0])),
+            Math.min(90, Number(angleRangeDegrees[1])),
+        ];
+        angleProjection = "FORWARD_HALF_PLANE";
+        projection.projectionMode = "EDITABLE_PREVIEW";
+        projection.projectionWarnings.push("全圆周发射角已裁为网页支持的前向 -90°..90° 预览。");
+    }
+    const geometryRangesM: any = [...projection.surfacePoints, ...projection.bottomPoints]
+        .map((point: any): any => point[0] - projection.sourceRangeM)
+        .filter((range: any): any => range > 0);
+    const normalRangesM: any = numericArray(normalOptions.rangeSamplesMeters, "runs.normalMode.rangeSamplesMeters");
+    const activeMaximumRangeM: any = positiveMaximum(
+        receiver.maximumRangeM,
+        normalRangesM,
+        rayOptions.integration?.rangeBoxMeters,
+        peOptions.maximumRangeMeters,
+    );
+    const maximumRangeM: any = activeMaximumRangeM
+        ?? positiveMaximum(geometryRangesM);
+    const bathymetry: any = fieldDocumentBathymetry(projection, maximumRangeM);
+    const revision: any = fieldDocumentScalar(source.documentInfo?.formatRevision, "documentInfo.formatRevision");
+    const minimumPhaseSpeed: any = fieldDocumentScalar(normalOptions.minimumPhaseSpeedMetersPerSecond, "minimumPhaseSpeedMetersPerSecond");
+    const maximumPhaseSpeed: any = fieldDocumentScalar(normalOptions.maximumPhaseSpeedMetersPerSecond, "maximumPhaseSpeedMetersPerSecond");
+    return {
+        title: String(parameters.title ?? "Imported FieldDocument"),
+        format: revision === undefined ? "field-document" : "field-document-v" + revision,
+        adaptiveParser: "field-document",
+        fieldDocumentRevision: revision,
+        profilePoints: projection.profilePoints,
+        profileProjection: profile.profileProjection,
+        angleProjection,
+        projectionMode: projection.projectionMode,
+        projectionWarnings: projection.projectionWarnings,
+        depthDatumOffsetMeters: projection.depthDatumOffsetMeters,
+        waterDepthM: projection.waterDepthM,
+        frequencyHz: numericArray(parameters.source.frequenciesHz, "parameters.source.frequenciesHz")[0],
+        sourceDepthM: projection.sourceDepthM,
+        maximumRangeKm: maximumRangeM === undefined ? undefined : maximumRangeM / 1000,
+        bottomSoundSpeedMps: fieldDocumentScalar(material?.compressionalSoundSpeed, "seabed compressional sound speed"),
+        bottomDensityKgM3: fieldDocumentScalar(material?.density, "seabed density"),
+        bottomAttenuationDbPerWavelength: fieldDocumentScalar(material?.compressionalAttenuation, "seabed attenuation"),
+        bathymetry,
+        angleRangeDegrees,
+        beamCount: firstDefined(launchAngles.angleCount, explicitAngles.length || undefined),
+        interpolation: profile.container.interpolation,
+        receiverRangesM,
+        receiverPointCount: receiver.receiverPointCount,
+        receiverDepthsM,
+        phaseSpeedLowMps: minimumPhaseSpeed,
+        phaseSpeedHighMps: maximumPhaseSpeed,
+        maximumDepthM: peOptions.maximumDepthMeters === undefined
+            ? undefined
+            : Number(peOptions.maximumDepthMeters) - projection.surfaceDepthAt(projection.sourceRangeM),
+        rangeStepM: peOptions.rangeStepMeters,
+        depthStepM: peOptions.depthStepMeters,
+        nPade: peOptions.padeTermCount,
+    };
+}
 function normalizedBathymetry(points: any, waterDepthM: any, maximumRangeKm: any): any {
     if (points === null || points.length === 0) {
         return [[0, waterDepthM], [maximumRangeKm, waterDepthM]];
@@ -408,6 +885,9 @@ export function parseEnvironmentJson(source: any, options: any = {}): any {
     }
     if (!isObject(value))
         throw new TypeError("environment JSON root must be an object");
+    const fieldDocument: any = fieldDocumentOverlay(value);
+    if (fieldDocument !== null)
+        value = { ...value, ...fieldDocument };
     const profilePoints: any = jsonProfilePoints(value);
     const inferredWaterDepth: any = profilePoints.at(-1)?.[0];
     const waterDepthM: any = optionalFiniteNumber(firstPath(value, [
@@ -455,9 +935,10 @@ export function parseEnvironmentJson(source: any, options: any = {}): any {
     ]), launchAxisCount, "beamCount");
     const bathymetry: any = normalizedBathymetry(jsonBathymetry(value), waterDepthM, maximumRangeKm);
     return validateCanonicalEnvironment({
+        ...(fieldDocument ?? {}),
         title: String(firstPath(value, ["title", "name", "environment.title"])
             ?? options.title ?? "Imported JSON environment"),
-        format: options.format ?? "json",
+        format: options.format ?? fieldDocument?.format ?? "json",
         profilePoints,
         waterDepthM,
         frequencyHz,
@@ -736,7 +1217,7 @@ export function parseEnvironmentDocuments(documents: any): any {
     }
     const totalBytes: any = normalized.reduce((sum: any, document: any): any => sum + document.bytes, 0);
     if (totalBytes > MAX_TOTAL_BYTES)
-        throw new RangeError("environment import exceeds the 16 MiB limit");
+        throw new RangeError("environment import exceeds the 32 MiB limit");
     const primary: any = normalized.filter((document: any): any => /\.(?:env|json)$/i.test(document.name));
     if (primary.length !== 1)
         throw new TypeError("select exactly one .env or .json environment file");
@@ -746,7 +1227,8 @@ export function parseEnvironmentDocuments(documents: any): any {
     }
     const sourceFiles: any = normalized.map((document: any): any => document.name);
     const main: any = primary[0];
-    if (main.lowerName.endsWith(".json")) {
+    const looksLikeJson: any = main.text.replace(/^\uFEFF/, "").trimStart().startsWith("{");
+    if (main.lowerName.endsWith(".json") || looksLikeJson) {
         if (normalized.length !== 1)
             throw new TypeError("JSON environment imports do not use Bellhop sidecar files");
         return parseEnvironmentJson(main.text, {

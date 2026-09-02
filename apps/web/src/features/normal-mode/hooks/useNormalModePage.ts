@@ -29,6 +29,12 @@ import {
   type NormalCanvasElements,
   type NormalSpectrumPlot,
 } from "../canvas/normal-renderers";
+import {
+  describeNormalImportError,
+  NormalEnvironmentSelectionBuffer,
+  type NormalEnvironmentSelection,
+} from "./normal-environment-selection";
+import { normalProjectionMessage, projectNormalImport } from "./normal-import-projection";
 
 export type NormalFieldView = "sum" | "single";
 export type SolveStatus = "READY" | "SOLVING" | "COMPLETE" | "FAILED";
@@ -57,9 +63,7 @@ export type NormalNumericParameter = Exclude<keyof NormalPageParameters,
 
 export interface NormalRuntimeView {
   readonly mode: "loading" | "wasm" | "demo" | "error";
-  readonly badge: string;
   readonly engine: string;
-  readonly message: string;
   readonly resultSource: string;
 }
 
@@ -113,7 +117,7 @@ export interface UseNormalModePageOptions {
   readonly createRuntime?: () => NormalModeRuntime;
 }
 
-const DEFAULT_IMPORT_MESSAGE = "支持 Kraken .env、同名 .flp 与统一环境 JSON；文件仅在本机浏览器中解析。";
+const DEFAULT_IMPORT_MESSAGE = "支持 Kraken 同名 .env/.flp（可分两次选择）与统一环境 JSON；文件仅在本机浏览器中解析。";
 
 function clamp(value: number, minimum: number, maximum: number): number {
   return Math.max(minimum, Math.min(maximum, Number(value)));
@@ -145,41 +149,21 @@ function initialParameters(): NormalPageParameters {
   };
 }
 
-function describeError(error: unknown): string {
-  if (error instanceof Error && error.message) return error.message;
-  if (typeof error === "string" && error.trim()) return error.trim();
-  try {
-    const serialized = JSON.stringify(error);
-    if (serialized && serialized !== "{}") return serialized;
-  } catch {
-    // Fall through to the user-facing parser error.
-  }
-  return "未能识别文件内容，请同时选择同名的 Kraken ENV/FLP，或选择一个环境 JSON。";
-}
-
 function unknownArray(record: Readonly<Record<string, unknown>>, key: string): readonly unknown[] {
   const value = record[key];
-  return Array.isArray(value) ? value : [];
+  if (Array.isArray(value)) return value;
+  if (ArrayBuffer.isView(value) && !(value instanceof DataView)) {
+    return Array.from(value as unknown as ArrayLike<unknown>);
+  }
+  return [];
 }
 
-function bathymetryVaries(points: readonly unknown[]): boolean {
-  if (points.length < 2) return false;
-  const first = points[0];
-  const firstDepth = Array.isArray(first) ? number(first[1], Number.NaN) : Number.NaN;
-  return Number.isFinite(firstDepth) && points.some((point) => (
-    Array.isArray(point) && Math.abs(number(point[1], firstDepth) - firstDepth) > 1e-6
-  ));
-}
 
 function runtimeView(result: NormalModePageResult): NormalRuntimeView {
   const isWasm = result.runtime.mode === "wasm";
   return {
     mode: isWasm ? "wasm" : "demo",
-    badge: isWasm ? "WASM ACTIVE" : "DEMO FALLBACK",
     engine: result.runtime.engine || (isWasm ? "NORMAL MODE WASM" : "DEMO FALLBACK"),
-    message: isWasm
-      ? "Normal Mode 正在浏览器 Web Worker / WebAssembly 中计算，输入和结果不会上传到服务器。"
-      : `WASM SDK 尚未生效：${result.runtime.warning || "backend unavailable"}。当前显示确定性的演示数据，不能用于工程计算。`,
     resultSource: isWasm ? "OOB WASM" : "DEMO",
   };
 }
@@ -231,12 +215,11 @@ export function useNormalModePage(options: UseNormalModePageOptions): UseNormalM
   const [importView, setImportView] = useState<NormalImportView>({ kind: "idle", message: DEFAULT_IMPORT_MESSAGE, busy: false });
   const [runtimeState, setRuntimeState] = useState<NormalRuntimeView>({
     mode: "loading",
-    badge: "WASM LOADING",
     engine: "WASM LOADING",
-    message: "正在加载本地 Kraken WebAssembly Runtime；输入和结果不会上传到服务器。",
     resultSource: "—",
   });
   const runtimeRef = useRef<NormalModeRuntime | null>(null);
+  const importSelectionRef = useRef(new NormalEnvironmentSelectionBuffer());
   const mountedRef = useRef(false);
   const requestRef = useRef(0);
   const spectrumPlotRef = useRef<NormalSpectrumPlot | null>(null);
@@ -476,9 +459,26 @@ export function useNormalModePage(options: UseNormalModePageOptions): UseNormalM
     const selectedFiles = Array.from(files);
     const runtime = runtimeRef.current;
     if (selectedFiles.length === 0 || runtime === null) return;
-    setImportView({ kind: "busy", message: `正在解析 ${selectedFiles.length} 个环境文件…`, busy: true });
+    setImportView({ kind: "busy", message: `正在识别 ${selectedFiles.length} 个环境文件…`, busy: true });
+    let selection: NormalEnvironmentSelection;
     try {
-      const imported = await runtime.importEnvironment(selectedFiles);
+      selection = await importSelectionRef.current.accept(selectedFiles);
+    } catch (error) {
+      setImportView({ kind: "error", message: `导入失败：${describeNormalImportError(error)}`, busy: false });
+      return;
+    }
+    if (selection.kind === "waiting") {
+      setImportView({ kind: "busy", message: selection.message, busy: false });
+      return;
+    }
+    if (selection.kind === "error") {
+      setImportView({ kind: "error", message: `导入失败：${selection.message}`, busy: false });
+      return;
+    }
+    const importFiles = selection.files;
+    setImportView({ kind: "busy", message: `正在解析 ${importFiles.length} 个环境文件…`, busy: true });
+    try {
+      const imported = await runtime.importEnvironment(importFiles);
       const record: Readonly<Record<string, unknown>> = imported;
       if (imported.profilePoints.length < 2) {
         throw new Error("环境文件中没有找到至少两个有效的声速剖面节点。Kraken ENV 必须与同名 FLP 一起选择。");
@@ -487,27 +487,29 @@ export function useNormalModePage(options: UseNormalModePageOptions): UseNormalM
       const deepestProfilePoint = Math.max(...imported.profilePoints.map((point) => number(point[0], 0)));
       const firstBathymetry = bathymetry[0];
       const firstBathymetryDepth = Array.isArray(firstBathymetry) ? number(firstBathymetry[1], 0) : 0;
-      const waterDepthM = clamp(number(imported.waterDepthM, firstBathymetryDepth || deepestProfilePoint || 200), 50, 8000);
-      const title = String(imported.title || selectedFiles[0]?.name || "用户环境");
-      const format = String(record.format || selectedFiles[0]?.name.split(".").pop() || "ENV").toUpperCase();
-      const interpolation = String(record.interpolation || "LINEAR").toUpperCase() === "SQUARED_SLOWNESS_LINEAR"
-        ? "squared-slowness-linear"
-        : "linear";
-      const normalized = normalizeProfilePoints(imported.profilePoints, waterDepthM);
+      const projection = projectNormalImport({
+        imported: record as typeof record & { readonly profilePoints: readonly ProfilePoint[] },
+        current: parametersRef.current,
+        fallbackWaterDepthM: firstBathymetryDepth || deepestProfilePoint || 200,
+      });
+      const { waterDepthM } = projection.values;
+      const title = String(imported.title || importFiles[0]?.name || "用户环境");
+      const format = String(record.format || importFiles[0]?.name.split(".").pop() || "ENV").toUpperCase();
+      const normalized = projection.profilePoints;
       const next: NormalPageParameters = {
         ...parametersRef.current,
         profile: "custom",
         environmentTitle: title,
-        frequencyHz: String(clamp(number(imported.frequencyHz, 100), 10, 1000)),
-        sourceDepthM: String(clamp(number(imported.sourceDepthM, 50), 1, waterDepthM - 1)),
+        frequencyHz: String(projection.values.frequencyHz),
+        sourceDepthM: String(projection.values.sourceDepthM),
         waterDepthM: String(waterDepthM),
-        maximumRangeKm: String(clamp(number(imported.maximumRangeKm, 20), 2, 250)),
-        phaseSpeedLowMps: String(clamp(number(record.phaseSpeedLowMps, number(parametersRef.current.phaseSpeedLowMps, 1400)), 1300, 1900)),
-        phaseSpeedHighMps: String(clamp(number(record.phaseSpeedHighMps, number(parametersRef.current.phaseSpeedHighMps, 1700)), 1400, 2400)),
-        bottomSoundSpeedMps: String(clamp(number(record.bottomSoundSpeedMps, 1700), 1400, 3000)),
-        bottomDensityKgM3: String(clamp(number(record.bottomDensityKgM3, 1800), 1000, 3500)),
-        bottomAttenuationDbPerWavelength: String(clamp(number(record.bottomAttenuationDbPerWavelength, 0.5), 0, 5)),
-        interpolation,
+        maximumRangeKm: String(projection.values.maximumRangeKm),
+        phaseSpeedLowMps: String(projection.values.phaseSpeedLowMps),
+        phaseSpeedHighMps: String(projection.values.phaseSpeedHighMps),
+        bottomSoundSpeedMps: String(projection.values.bottomSoundSpeedMps),
+        bottomDensityKgM3: String(projection.values.bottomDensityKgM3),
+        bottomAttenuationDbPerWavelength: String(projection.values.bottomAttenuationDbPerWavelength),
+        interpolation: projection.values.interpolation,
         sourceId: imported.sourceId || null,
       };
       setParameterSnapshot(next);
@@ -515,17 +517,21 @@ export function useNormalModePage(options: UseNormalModePageOptions): UseNormalM
       setCustomProfileDescription(`已导入 ${title} · ${format} · ${normalized.length} 个 SSP 节点`);
       const receiverRanges = unknownArray(record, "receiverRangesM");
       const receiverDepths = unknownArray(record, "receiverDepthsM");
+      const projectionWarnings = unknownArray(record, "projectionWarnings")
+        .map(String).filter(Boolean);
+      const projectionNote = normalProjectionMessage(projectionWarnings, projection);
       const bathymetryNote = record.format === "kraken-env-flp"
         ? ` · 原生 Kraken 解析 · ${receiverRanges.length}×${receiverDepths.length} FLP 网格`
-        : bathymetryVaries(bathymetry) ? " · NM 按入口水深建立距离无关波导" : "";
+        : "";
       setImportView({
         kind: "success",
-        message: `已导入：${title} · ${format} · ${selectedFiles.length} 个文件${bathymetryNote}`,
+        message: `已导入：${title} · ${format} · ${importFiles.length} 个文件${bathymetryNote}${projectionNote}`,
         busy: false,
       });
+      importSelectionRef.current.consume(selection.stem);
       await calculateWith(runtime);
     } catch (error) {
-      setImportView({ kind: "error", message: `导入失败：${describeError(error)}`, busy: false });
+      setImportView({ kind: "error", message: `导入失败：${describeNormalImportError(error)}`, busy: false });
     }
   }, [calculateWith, setCustomSnapshot, setParameterSnapshot]);
 

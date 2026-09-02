@@ -35,7 +35,7 @@ test("original navigation selects exactly one model document at a time", async (
   await expect(page.locator('[data-ooa-page="normal"]')).toHaveCount(1);
   await expect(page.locator("#solveStatus")).toHaveText("COMPLETE", { timeout: 45_000 });
 
-  await page.getByRole("link", { name: "PE Method", exact: true }).click();
+  await page.getByRole("link", { name: "PE", exact: true }).click();
   await expect(page.locator('[data-ooa-page="pe"]')).toHaveCount(1);
   await expect(page.locator("#solveStatus")).toHaveText("COMPLETE", { timeout: 45_000 });
   await expect(page.locator('[data-ooa-page="ray"], [data-ooa-page="normal"]')).toHaveCount(0);

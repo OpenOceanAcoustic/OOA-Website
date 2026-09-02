@@ -125,7 +125,7 @@ export function RayEigenrayLab() {
               <label>
                 {"中心频率"}
                 <div>
-                  <input id="eigenFrequency" type="number" min="20" max="5000" step="10" defaultValue="500" />
+                  <input id="eigenFrequency" type="number" min="20" max="10000" step="10" defaultValue="500" />
                   <span>
                     {"Hz"}
                   </span>

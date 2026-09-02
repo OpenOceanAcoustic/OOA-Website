@@ -11,7 +11,7 @@ for (const model of [
     await page.goto(model.path);
 
     await expect(page.locator("#solveStatus")).toHaveText("COMPLETE", { timeout: 30_000 });
-    await expect(page.locator("#runtimeBadge")).toHaveText("WASM ACTIVE");
+    await expect(page.locator("#resultSource")).toHaveText("OOB WASM");
     expect(pageErrors).toEqual([]);
   });
 }

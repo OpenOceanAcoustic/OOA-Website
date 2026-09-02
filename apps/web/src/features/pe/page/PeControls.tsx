@@ -77,9 +77,9 @@ export function PeControls({ page }: { readonly page: UsePePageResult }) {
       </div>
       <div className="environment-import-bar">
         <button type="button" className="environment-import-button" id="environmentImportButton" disabled={page.importView.busy} onClick={() => fileInput.current?.click()}>
-          <span aria-hidden="true">↑</span>{" 导入 RAM IN / JSON"}
+          <span aria-hidden="true">↑</span>{" 导入 RAM IN / ENV / JSON"}
         </button>
-        <input ref={fileInput} id="environmentFileInput" type="file" accept=".in,.json" hidden onChange={(event) => { void onFilesSelected(event); }} />
+        <input ref={fileInput} id="environmentFileInput" type="file" accept=".in,.env,.json" hidden onChange={(event) => { void onFilesSelected(event); }} />
         <p id="environmentImportStatus" className={page.importView.kind === "idle" ? undefined : page.importView.kind} role="status" aria-live="polite">{page.importView.message}</p>
       </div>
       <div className="control-section environment-section">
