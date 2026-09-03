@@ -136,18 +136,13 @@ export function PeControls({ page }: { readonly page: UsePePageResult }) {
         </div>
       </div>
       <div className="control-section environment-section">
-        <div className="environment-section-title"><span>04</span><strong>网格与 Padé 选项</strong><small>setOptions()</small></div>
+        <div className="environment-section-title"><span>04</span><strong>网格与剖面选项</strong><small>setOptions()</small></div>
         <label className="control-label" htmlFor="peModel">PE 内核</label>
         <div className="select-wrap"><select id="peModel" value={page.parameters.model} onChange={() => { void page.run(); }}><option value="ram">RAM · 流体底 · 浏览器 WASM</option></select></div>
         <div className="control-grid discretization-grid">
           <label>计算域最大深度 / m<NumericInput id="maximumDepth" parameter="maximumDepthM" value={page.parameters.maximumDepthM} min={Number(page.parameters.waterDepthM)} max={10000} step={50} page={page} /></label>
           <label>距离步长 dr / m<NumericInput id="rangeStep" parameter="rangeStepM" value={page.parameters.rangeStepM} min={1} max={100} step={1} page={page} /></label>
           <label>深度步长 dz / m<NumericInput id="depthStep" parameter="depthStepM" value={page.parameters.depthStepM} min={0.25} max={20} step={0.25} page={page} /></label>
-        </div>
-        <div className="range-control pade-control">
-          <div className="range-title"><label htmlFor="nPade">Padé 项数 nPade</label><output id="nPadeOut">{page.parameters.nPade} terms</output></div>
-          <input id="nPade" type="range" min="1" max="10" step="1" value={page.parameters.nPade} onInput={(event) => page.setNumericInput("nPade", inputValue(event))} onChange={(event) => { if (isPeCommitChange(event)) void page.selectPade(event.currentTarget.valueAsNumber); }} />
-          <div className="pade-ticks" aria-hidden="true"><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span><span>10</span></div>
         </div>
         <div className="range-control">
           <div className="range-title"><label htmlFor="inspectRange">垂向剖面距离</label><output id="inspectRangeOut">{Number(page.parameters.inspectRangeKm).toFixed(1)} km</output></div>
