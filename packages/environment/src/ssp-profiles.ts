@@ -52,6 +52,22 @@ export const PROFILE_DEFAULTS: any = Object.freeze({
         bottomAbsorptionDbPerWavelength: 0.5,
     }),
 });
+export const MAX_SANITIZED_SSP_POINT_COUNT: any = 512;
+/**
+ * Bound profile work to a browser-safe size without discarding the deep end.
+ * Sampling is deterministic and evenly spaced in source-index space.
+ */
+export function sampleSspPointsByIndex(points: any): any {
+    if (!Array.isArray(points) || points.length <= MAX_SANITIZED_SSP_POINT_COUNT)
+        return Array.isArray(points) ? points : [];
+    const lastIndex: any = points.length - 1;
+    const sampleLastIndex: any = MAX_SANITIZED_SSP_POINT_COUNT - 1;
+    return Array.from({ length: MAX_SANITIZED_SSP_POINT_COUNT }, (_: any, index: any): any => {
+        const sourceIndex: any = Math.round(index * lastIndex / sampleLastIndex);
+        return points[sourceIndex];
+    });
+}
+
 const clamp: any = (value: any, lower: any, upper: any): any => Math.max(lower, Math.min(upper, Number(value)));
 export function profileDefaults(profile: any): any {
     return PROFILE_DEFAULTS[profile] ?? PROFILE_DEFAULTS.munk;
@@ -60,7 +76,7 @@ export function sanitizeSspPoints(points: any, waterDepthM: any = DEFAULT_WATER_
     const maximumDepth: any = clamp(waterDepthM, 50, 12000);
     const unique: any = new Map();
     if (Array.isArray(points)) {
-        for (const point of points.slice(0, 512)) {
+        for (const point of sampleSspPointsByIndex(points)) {
             if (!Array.isArray(point) || point.length < 2)
                 continue;
             const depth: any = Math.round(clamp(point[0], 0, maximumDepth) * 10) / 10;

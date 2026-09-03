@@ -3,6 +3,7 @@ import { importRayPageEnvironment } from "./environment-parser";
 import { inferEnvironmentDocumentKind } from "@ooa/environment";
 import { RuntimeError, normalizeRuntimeError } from "@ooa/runtime-core";
 import { DEFAULT_WATER_DEPTH_M, generateSspProfile, } from "@ooa/environment/ssp-profiles";
+import { resolveRayFieldLaunchAngleCount } from "./page-beam-count";
 export function createRayPageEngine(): any {
     const MAX_RANGE_M: any = 100000;
     // Browser-interactive defaults. The server version could spend minutes on a
@@ -161,7 +162,7 @@ export function createRayPageEngine(): any {
     function fieldLaunchAngleCount(payload: any): any {
         if (usesImportedEnvironment(payload))
             return axisCount(importedInput.source.launchAngles);
-        return Math.round(clamp(payload?.beam_count ?? DEFAULT_FIELD_LAUNCH_ANGLE_COUNT, 2, 20000));
+        return resolveRayFieldLaunchAngleCount(payload?.beam_count, DEFAULT_FIELD_LAUNCH_ANGLE_COUNT);
     }
     function defaultLaunchAngleConfiguration(): any {
         return {
@@ -382,7 +383,9 @@ export function createRayPageEngine(): any {
             });
         }
         catch (error: any) {
-            throw new RuntimeError("INPUT_INVALID", "Bellhop 环境文件无法解析", { cause: error });
+            const detail: any = error instanceof Error && error.message.trim()
+                ? error.message.trim() : String(error || "未知错误");
+            throw new RuntimeError("INPUT_INVALID", "Bellhop2D 原生环境解析失败：" + detail, { cause: error });
         }
         const pageEnvironment: any = await importRayPageEnvironment(documents);
         importedInput = input;

@@ -1,6 +1,6 @@
-import type { RayRuntime } from '@ooa/runtime-ray';
-import { parseEnvironmentFiles } from '@ooa/environment/browser-import';
+import { importAdaptiveRayEnvironment, type RayRuntime } from '@ooa/runtime-ray';
 import { DEFAULT_WATER_DEPTH_M, generateSspProfile, profileDefaults, resampleSspPoints, sanitizeSspPoints, } from '@ooa/environment/ssp-profiles';
+import { projectCanonicalRayEnvironmentForPage } from './ray-canonical-page-projection';
 
 export interface MountedRayCanvasExperience {
     readonly ready: Promise<void>;
@@ -81,7 +81,7 @@ export function mountRayCanvasExperience(root: HTMLElement, runtime: RayRuntime)
             gradient: Number(controls.gradient.value) / 100,
             water_depth_m: waterDepthM,
             source_depth: Math.max(20, Math.min(waterDepthM - 20, Number(controls.sourceDepth.value) || 1000)),
-            frequency: Math.max(20, Math.min(5000, Number(controls.frequency.value) || 500)),
+            frequency: Math.max(20, Math.min(10000, Number(controls.frequency.value) || 500)),
             bottom_speed: Number(controls.bottomSpeed.value),
             bottom_density: Number(controls.bottomDensity.value),
             bottom_absorption: Number(controls.bottomAbsorption.value),
@@ -1785,34 +1785,44 @@ export function mountRayCanvasExperience(root: HTMLElement, runtime: RayRuntime)
     function applyCanonicalEnvironment(imported: any): any {
         if (!Array.isArray(imported?.profilePoints) || imported.profilePoints.length < 2)
             throw new Error('环境文件中未找到至少两个有效的声速剖面节点');
-        const finiteOr: any = (value: any, fallback: any): any => Number.isFinite(Number(value)) ? Number(value) : fallback;
-        const waterDepthM: any = Math.max(50, Math.min(12000, finiteOr(imported.waterDepthM, finiteOr(imported.profilePoints.at(-1)?.[0], DEFAULT_WATER_DEPTH_M))));
+        const projection: any = projectCanonicalRayEnvironmentForPage(imported);
+        const waterDepthM: any = projection.waterDepthM;
         const bathymetry: any = Array.isArray(imported.bathymetry) ? imported.bathymetry.map((point: any): any => [Number(point[0]), Number(point[1])]) : null;
         const deepestBottomM: any = bathymetry?.reduce((maximum: any, point: any): any => Math.max(maximum, Number(point[1]) || 0), waterDepthM) ?? waterDepthM;
         state.customWaterDepthM = waterDepthM;
         state.maximumDepthM = Math.max(waterDepthM, deepestBottomM);
-        state.customSSP = sanitizeSspPoints(imported.profilePoints.map((point: any): any => [Number(point[0]), Number(point[1])]), waterDepthM);
+        state.customSSP = projection.profilePoints.map((point: any): any => [point[0], point[1]]);
         state.customEnvironment = {
             ...imported,
-            maximumRangeKm: finiteOr(imported.maximumRangeKm, 100),
+            profilePoints: state.customSSP,
+            waterDepthM,
+            sourceDepthM: projection.sourceDepthM,
+            frequencyHz: projection.frequencyHz,
+            maximumRangeKm: projection.maximumRangeKm,
+            bottomSoundSpeedMps: projection.bottomSoundSpeedMps,
+            bottomDensityKgM3: projection.bottomDensityKgM3,
+            bottomAttenuationDbPerWavelength: projection.bottomAttenuationDbPerWavelength,
             bathymetry,
             angleRangeDegrees: Array.isArray(imported.angleRangeDegrees) ? imported.angleRangeDegrees.map(Number) : undefined,
-            beamCount: finiteOr(imported.beamCount, 1000),
+            beamCount: projection.beamCount,
+            projectionMode: 'EDITABLE_PREVIEW',
+            projectionWarnings: projection.projectionWarnings,
         };
-        controls.frequency.value = String(Math.max(20, Math.min(5000, finiteOr(imported.frequencyHz, 500))));
-        controls.bottomSpeed.value = String(Math.max(1400, Math.min(3000, finiteOr(imported.bottomSoundSpeedMps, 1700))));
-        controls.bottomDensity.value = String(Math.max(1000, Math.min(3500, finiteOr(imported.bottomDensityKgM3, 1800))));
-        controls.bottomAbsorption.value = String(Math.max(0, Math.min(5, finiteOr(imported.bottomAttenuationDbPerWavelength, 0.5))));
+        controls.frequency.value = String(projection.frequencyHz);
+        controls.bottomSpeed.value = String(projection.bottomSoundSpeedMps);
+        controls.bottomDensity.value = String(projection.bottomDensityKgM3);
+        controls.bottomAbsorption.value = String(projection.bottomAttenuationDbPerWavelength);
         applyImportedFieldOptions(imported);
         activateProfile('custom', { defaults: false });
-        controls.sourceDepth.value = String(Math.max(20, Math.min(waterDepthM - 20, finiteOr(imported.sourceDepthM, Math.min(1000, waterDepthM / 2)))));
+        controls.sourceDepth.value = String(projection.sourceDepthM);
         updateDepthBounds();
-        const receiverRange: any = Math.max(5, Math.min(95, finiteOr(imported.maximumRangeKm, 50), finiteOr($('receiverRange').value, 50)));
+        const receiverRange: any = Math.max(5, Math.min(95, projection.maximumRangeKm, Number($('receiverRange').value) || 50));
         $('receiverRange').value = String(receiverRange);
         syncLabels();
         syncEigenEnvironmentFromMain();
         renderSSPTables();
         drawSSP();
+        return projection.projectionWarnings;
     }
     async function handleEnvImport(event: any): Promise<any> {
         const files: any = [...event.target.files];
@@ -1824,11 +1834,12 @@ export function mountRayCanvasExperience(root: HTMLElement, runtime: RayRuntime)
         const button: any = $('envImportButton'), status: any = $('envImportStatus');
         button.disabled = true;
         status.className = '';
+        status.removeAttribute('title');
         status.textContent = '正在浏览器中解析环境文件…';
         try {
-            const hasEnv: any = files.some((file: any): any => /\.env$/i.test(file.name));
-            if (hasEnv) {
-                const imported: any = await runtime.importEnvironment(files);
+            const result: any = await importAdaptiveRayEnvironment(runtime, files);
+            if (result.mode === 'native') {
+                const imported: any = result.environment;
                 if (imported.sspPoints.length < 2)
                     throw new Error('ENV 中未找到有效的声速剖面');
                 state.customEnvironment = null;
@@ -1849,11 +1860,20 @@ export function mountRayCanvasExperience(root: HTMLElement, runtime: RayRuntime)
                 status.textContent = `已导入：${imported.title}${imported.rangeDependent ? ' · 2D SSP' : ''} · ${files.length} 个文件 · TL ${imported.fieldRayCount.toLocaleString('zh-CN')} beams · ENV ${imported.beamType} / ${imported.runMode}`;
             }
             else {
-                const imported: any = await parseEnvironmentFiles(files);
-                applyCanonicalEnvironment(imported);
+                const imported: any = result.environment;
+                state.importedEnvironment = null;
+                setImportedOptionAvailability();
+                const projectionWarnings: any = applyCanonicalEnvironment(imported);
                 markEigenStale();
                 status.className = 'success';
-                status.textContent = `已导入：${imported.title} · JSON · ${state.customSSP.length} 个 SSP 节点${canonicalBathymetryVaries(imported.bathymetry) ? ` · ${imported.bathymetry.length} 个地形节点` : ''}`;
+                const fallbackLabel: any = result.nativeFailure
+                    ? 'ENV → CANONICAL CUSTOM · 原生不兼容，已自动回退'
+                    : 'JSON → CANONICAL CUSTOM';
+                status.textContent = `已导入：${imported.title} · ${fallbackLabel} · ${state.customSSP.length} 个 SSP 节点${canonicalBathymetryVaries(imported.bathymetry) ? ` · ${imported.bathymetry.length} 个地形节点` : ''}${projectionWarnings.length ? ' · 可编辑预览（悬停查看投影限制）' : ''}`;
+                if (projectionWarnings.length)
+                    status.title = projectionWarnings.join('\n');
+                if (result.nativeFailure)
+                    status.title = [status.title, `Bellhop2D 原生解析原因：${result.nativeFailure}`].filter(Boolean).join('\n');
             }
             recalculateEnvironment();
         }

@@ -71,7 +71,7 @@ test("new model requests replace in-flight browser calculations", async ({ page 
     range.dispatchEvent(new Event("change", { bubbles: true }));
   });
   await expect(page.locator("#solveStatus")).toHaveText("COMPLETE", { timeout: 90_000 });
-  await expect(page.locator("#runtimeBadge")).toHaveText("WASM ACTIVE");
+  await expect(page.locator("#resultSource")).toHaveText("OOB WASM");
 
   await page.goto("/pe/");
   await expect(page.locator("#solveStatus")).toHaveText("COMPLETE", { timeout: 30_000 });
@@ -85,5 +85,5 @@ test("new model requests replace in-flight browser calculations", async ({ page 
     step.dispatchEvent(new Event("change", { bubbles: true }));
   });
   await expect(page.locator("#solveStatus")).toHaveText("COMPLETE", { timeout: 90_000 });
-  await expect(page.locator("#runtimeBadge")).toHaveText("WASM ACTIVE");
+  await expect(page.locator("#resultSource")).toHaveText("OOB WASM");
 });

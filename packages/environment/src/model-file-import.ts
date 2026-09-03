@@ -1,6 +1,6 @@
 import { parseEnvironmentDocuments } from "./browser-page-import";
 const MAX_FILE_COUNT: any = 8;
-const MAX_TOTAL_BYTES: any = 16 * 1024 * 1024;
+const MAX_TOTAL_BYTES: any = 32 * 1024 * 1024;
 function isObject(value: any): any {
     return value !== null && typeof value === "object";
 }
@@ -55,7 +55,7 @@ function normalizeDocuments(documents: any, allowedExtensions: any): any {
     }
     const bytes: any = normalized.reduce((total: any, document: any): any => total + document.bytes, 0);
     if (bytes > MAX_TOTAL_BYTES)
-        throw new RangeError("environment import exceeds the 16 MiB limit");
+        throw new RangeError("environment import exceeds the 32 MiB limit");
     return normalized;
 }
 async function fileDocuments(files: any): Promise<any> {

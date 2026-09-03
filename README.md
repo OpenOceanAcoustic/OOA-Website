@@ -14,7 +14,7 @@ Worker/WebAssembly 中执行，静态主机不接收实验环境，也不执行�
 
 | Model family | Default source | Website dependency |
 |---|---|---|
-| Ray Mode | `../OpenOcean-Field-RayMode-Bellhop` | `@openocean/field-bellhop-2d` |
+| Ray Mode | `../OpenOcean-Field-RayMode` | `@openocean/field-bellhop-2d` |
 | Normal Mode | `../OpenOcean-Field-NormalMode` | `@openocean/field-normal-mode-kraken` |
 | PE | `../OpenOcean-Field-PE` | `@openocean/field-pe-ram` |
 
@@ -50,6 +50,21 @@ the original `f45c697` document, styling and browser interactions through
 explicit section-level React markup. Its model SDK is loaded only inside the corresponding
 Runtime when that page starts; the original navigation uses normal links, so
 changing model pages unloads the active page and its Worker.
+
+## Environment import
+
+三个页面都接受统一 FieldDocument v4/兼容 JSON，并按内容嗅探 JSON，不只依赖
+文件扩展名。一次选择的文件总量上限为 32 MiB：
+
+- Ray Mode：Bellhop `.env`，以及可选的同名 `.ssp`/`.bty`；
+- Normal Mode：同名 Kraken `.env` + `.flp`，两份文件可以分两次选择；
+- PE：RAM `.in`（也接受以 `.env` 命名的 JSON）。
+
+导入器优先使用对应原生模型解析器，再快速回退到严格的 canonical/兼容解析。
+FieldDocument 中超出当前页面能力的二维 SSP、复杂边界、接收网格或数值范围会转换
+为页面可编辑预览；导入状态会明确列出“原值 → 页面实际值”和任何有损投影，
+原始 JSON 本身不会被改写。RAMGeo/RAMS 原生文本尚不做猜测性转换，会返回明确的
+不支持错误。
 
 ## Verification
 

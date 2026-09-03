@@ -47,13 +47,29 @@ test("production SPA ships exactly the three first-phase model families", async 
     assert.ok(files.includes(`assets/${asset}`), `${asset} is missing`);
   }
 
+  const workerAssets = files
+    .filter((file) => /^assets\/[a-z0-9-]+\.worker-[^.]+\.js$/.test(file))
+    .map((file) => file.replace(/^assets\//, "").replace(/-[^.]+\.js$/, ""))
+    .sort();
+  assert.deepEqual(workerAssets, ["bellhop2d.worker", "kraken.worker", "ram.worker"]);
+
+  const nativeAssets = files
+    .filter((file) => /^assets\/_.*_native_.*\.(?:mjs|wasm)$/.test(file))
+    .map((file) => file.replace(/^assets\//, ""))
+    .sort();
+  assert.deepEqual(nativeAssets, [...expectedNativeAssets].sort());
+
+  // Canonical FieldDocument metadata may legitimately name backends such as
+  // Krakenc and RAMGeo even though this first-phase SPA projects them onto the
+  // three shipped page runtimes. Guard the executable assets, not metadata text.
+
   const searchable = await Promise.all(
     files
       .filter((file) => /\.(?:html|js|mjs|map)$/.test(file))
       .map(async (file) => `${file}\n${await readFile(resolve(distRoot, file), "utf8")}`),
   );
   const bundleText = searchable.join("\n").toLowerCase();
-  for (const forbidden of ["nx2d", "bellhop3d", "krakenc", "ramgeo", "rams.worker"]) {
+  for (const forbidden of ["nx2d", "bellhop3d"]) {
     assert.equal(bundleText.includes(forbidden), false, `${forbidden} leaked into production output`);
   }
 });

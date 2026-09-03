@@ -1,5 +1,6 @@
 import type { ModelPageName } from "./PageDocument";
 import { ModelNavigation } from "@ooa/ui";
+import "./model-page-header.css";
 
 const routes: ReadonlyArray<Readonly<{
   page: ModelPageName;
@@ -8,44 +9,29 @@ const routes: ReadonlyArray<Readonly<{
 }>> = [
   { page: "ray", href: "/", label: "Ray Mode" },
   { page: "normal", href: "/normal-mode/", label: "Normal Mode" },
-  { page: "pe", href: "/pe/", label: "PE Method" },
+  { page: "pe", href: "/pe/", label: "PE" },
 ];
 
 export function ModelPageHeader({ activePage }: { readonly activePage: ModelPageName }) {
   return (
-    <header className="site-header">
-      <div className="site-shell site-header-inner">
-        <a className="brand" href="/" aria-label="返回 OOA Ray Mode">
-          <span className="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
-          <span><strong>OOA-Field</strong><small>CLIENT-SIDE ACOUSTICS</small></span>
-        </a>
-        <ModelNavigation
-          ariaLabel="传播模型"
-          items={routes.map((route) => ({
-            href: route.href,
-            label: route.label,
-            active: route.page === activePage,
-          }))}
-        />
+    <header className="topbar">
+      <a className="brand" href="/" aria-label="OpenOceanAcousticLab 首页">
+        <span className="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
+        <span><strong>OpenOceanAcousticLab</strong><small>ACOUSTIC PROPAGATION LAB</small></span>
+      </a>
+      <ModelNavigation
+        ariaLabel="主导航"
+        items={routes.map((route) => ({
+          href: route.href,
+          label: route.label,
+          active: route.page === activePage,
+        }))}
+      />
+      <div className="status">
+        <span aria-hidden="true"></span>
+        OOA LAB <b>READY</b>
       </div>
     </header>
-  );
-}
-
-export function RuntimeBanner({
-  message,
-  mode = "loading",
-  badge = "WASM LOADING",
-}: {
-  readonly message: string;
-  readonly mode?: "loading" | "wasm" | "demo" | "error";
-  readonly badge?: string;
-}) {
-  return (
-    <div className="runtime-banner" id="runtimeBanner" data-mode={mode} role="status" aria-live="polite">
-      <span id="runtimeMessage">{message}</span>
-      <b id="runtimeBadge">{badge}</b>
-    </div>
   );
 }
 

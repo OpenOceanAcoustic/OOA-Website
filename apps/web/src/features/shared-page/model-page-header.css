@@ -1,0 +1,172 @@
+:where([data-ooa-page="ray"], [data-ooa-page="normal"], [data-ooa-page="pe"]) .topbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  height: 72px;
+  display: flex;
+  align-items: center;
+  padding: 0 42px;
+  border-bottom: 1px solid #173d4c;
+  background: rgba(5, 17, 24, 0.94);
+  backdrop-filter: blur(14px);
+}
+
+:where([data-ooa-page="ray"], [data-ooa-page="normal"], [data-ooa-page="pe"]) .topbar a {
+  text-decoration: none;
+}
+
+:where([data-ooa-page="ray"], [data-ooa-page="normal"], [data-ooa-page="pe"]) .topbar .brand {
+  min-width: 300px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #e9f5f8;
+  font-family: Inter, "SF Pro Display", "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+
+:where([data-ooa-page="ray"], [data-ooa-page="normal"], [data-ooa-page="pe"]) .topbar .brand > span:last-child {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+:where([data-ooa-page="ray"], [data-ooa-page="normal"], [data-ooa-page="pe"]) .topbar .brand strong {
+  display: block;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+:where([data-ooa-page="ray"], [data-ooa-page="normal"], [data-ooa-page="pe"]) .topbar .brand small {
+  display: block;
+  color: #6b8994;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 10px;
+  line-height: normal;
+  letter-spacing: 0.14em;
+}
+
+:where([data-ooa-page="ray"], [data-ooa-page="normal"], [data-ooa-page="pe"]) .topbar .brand-mark {
+  position: static;
+  width: 27px;
+  height: 23px;
+  display: flex;
+  align-items: end;
+  gap: 3px;
+  padding: 3px;
+  border: 1px solid #2c6978;
+  border-radius: 5px;
+  transform: skewX(-8deg);
+}
+
+:where([data-ooa-page="ray"], [data-ooa-page="normal"], [data-ooa-page="pe"]) .topbar .brand-mark i {
+  position: static;
+  left: auto;
+  width: 5px;
+  display: block;
+  border-radius: 1px;
+  background: #62d8e7;
+  box-shadow: none;
+  transform-origin: center;
+}
+
+:where([data-ooa-page="ray"], [data-ooa-page="normal"], [data-ooa-page="pe"]) .topbar .brand-mark i:nth-child(1) {
+  height: 8px;
+  opacity: 0.5;
+  transform: none;
+}
+
+:where([data-ooa-page="ray"], [data-ooa-page="normal"], [data-ooa-page="pe"]) .topbar .brand-mark i:nth-child(2) {
+  height: 15px;
+  transform: none;
+}
+
+:where([data-ooa-page="ray"], [data-ooa-page="normal"], [data-ooa-page="pe"]) .topbar .brand-mark i:nth-child(3) {
+  height: 11px;
+  opacity: 0.75;
+  transform: none;
+}
+
+:where([data-ooa-page="ray"], [data-ooa-page="normal"], [data-ooa-page="pe"]) .topbar .mode-nav {
+  width: auto;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  gap: 38px;
+  overflow: visible;
+}
+
+:where([data-ooa-page="ray"], [data-ooa-page="normal"], [data-ooa-page="pe"]) .topbar .mode-nav a {
+  position: relative;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #86a1aa;
+  font-family: Inter, "SF Pro Display", "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: normal;
+  letter-spacing: normal;
+  text-transform: none;
+  white-space: nowrap;
+}
+
+:where([data-ooa-page="ray"], [data-ooa-page="normal"], [data-ooa-page="pe"]) .topbar .mode-nav a:hover,
+:where([data-ooa-page="ray"], [data-ooa-page="normal"], [data-ooa-page="pe"]) .topbar .mode-nav a.active {
+  border: 0;
+  background: transparent;
+  color: #e9f5f8;
+}
+
+:where([data-ooa-page="ray"], [data-ooa-page="normal"], [data-ooa-page="pe"]) .topbar .mode-nav a.active::after {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 2px;
+  content: "";
+  background: #62d8e7;
+  box-shadow: 0 0 12px #62d8e7;
+}
+
+:where([data-ooa-page="ray"], [data-ooa-page="normal"], [data-ooa-page="pe"]) .topbar .status {
+  margin-left: auto;
+  color: #72909a;
+  font: 11px ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+
+:where([data-ooa-page="ray"], [data-ooa-page="normal"], [data-ooa-page="pe"]) .topbar .status span {
+  width: 7px;
+  height: 7px;
+  display: inline-block;
+  margin-right: 7px;
+  border-radius: 50%;
+  background: #c5f16b;
+  box-shadow: 0 0 10px rgba(197, 241, 107, 0.75);
+}
+
+:where([data-ooa-page="ray"], [data-ooa-page="normal"], [data-ooa-page="pe"]) .topbar .status b {
+  margin-left: 5px;
+  color: #b4d3d9;
+}
+
+@media (max-width: 760px) {
+  :where([data-ooa-page="ray"], [data-ooa-page="normal"], [data-ooa-page="pe"]) .topbar {
+    padding: 0 18px;
+  }
+
+  :where([data-ooa-page="ray"], [data-ooa-page="normal"], [data-ooa-page="pe"]) .topbar .mode-nav,
+  :where([data-ooa-page="ray"], [data-ooa-page="normal"], [data-ooa-page="pe"]) .topbar .status {
+    display: none;
+  }
+
+  :where([data-ooa-page="ray"], [data-ooa-page="normal"], [data-ooa-page="pe"]) .topbar .brand {
+    min-width: 0;
+  }
+}

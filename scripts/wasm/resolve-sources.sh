@@ -3,7 +3,7 @@ set -euo pipefail
 
 website_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
-export OOA_RAY_MODE_SOURCE="${OOA_RAY_MODE_SOURCE:-${website_root}/../OpenOcean-Field-RayMode-Bellhop}"
+export OOA_RAY_MODE_SOURCE="${OOA_RAY_MODE_SOURCE:-${website_root}/../OpenOcean-Field-RayMode}"
 export OOA_NORMAL_MODE_SOURCE="${OOA_NORMAL_MODE_SOURCE:-${website_root}/../OpenOcean-Field-NormalMode}"
 export OOA_PE_SOURCE="${OOA_PE_SOURCE:-${website_root}/../OpenOcean-Field-PE}"
 

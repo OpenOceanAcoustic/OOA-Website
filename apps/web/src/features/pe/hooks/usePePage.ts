@@ -30,6 +30,7 @@ import {
   type PeCanvasElements,
   type PeConvergencePlot,
 } from "../canvas/pe-renderers";
+import { peProjectionMessage, projectPeImport } from "./pe-import-projection";
 
 export type PeSolveStatus = "READY" | "MARCHING" | "COMPLETE" | "FAILED";
 export type PeImportStatusKind = "idle" | "busy" | "success" | "error";
@@ -58,9 +59,7 @@ export type PeNumericParameter = Exclude<keyof PePageParameters,
 
 export interface PeRuntimeView {
   readonly mode: "loading" | "wasm" | "demo" | "error";
-  readonly badge: string;
   readonly engine: string;
-  readonly message: string;
   readonly resultSource: string;
 }
 
@@ -120,7 +119,7 @@ export interface UsePePageOptions {
   readonly createRuntime?: () => PeRuntime;
 }
 
-const DEFAULT_IMPORT_MESSAGE = "支持 RAM .in 与统一环境 JSON；文件仅在本机浏览器中解析。";
+const DEFAULT_IMPORT_MESSAGE = "支持 RAM token 格式的 .in/.env 与统一环境 JSON；文件仅在本机浏览器中解析。";
 
 function clamp(value: number, minimum: number, maximum: number): number {
   return Math.max(minimum, Math.min(maximum, Number(value)));
@@ -166,7 +165,7 @@ function errorText(error: unknown): string {
   } catch {
     // Fall through to the stable parser error.
   }
-  return "未能识别文件内容，请选择一个 RAM .in 文件或一个环境 JSON。";
+  return "未能识别文件内容，请选择 RAM token 格式的 .in/.env 文件或环境 JSON。";
 }
 
 function bathymetryVaries(bathymetry: readonly ProfilePoint[]): boolean {
@@ -179,11 +178,7 @@ function runtimeView(result: PePageResult): PeRuntimeView {
   const isWasm = result.runtime.mode === "wasm";
   return {
     mode: isWasm ? "wasm" : "demo",
-    badge: isWasm ? "WASM ACTIVE" : "DEMO FALLBACK",
     engine: result.runtime.engine || (isWasm ? "PE WASM" : "DEMO FALLBACK"),
-    message: isWasm
-      ? "PE 正在浏览器 Web Worker / WebAssembly 中推进，环境参数和场结果不会上传到服务器。"
-      : `WASM SDK 尚未生效：${result.runtime.warning || "backend unavailable"}。当前数据只演示 nPade 交互与图表，不能用于工程计算。`,
     resultSource: isWasm ? "OOB WASM" : "DEMO",
   };
 }
@@ -235,9 +230,7 @@ export function usePePage(options: UsePePageOptions): UsePePageResult {
   const [importView, setImportView] = useState<PeImportView>({ kind: "idle", message: DEFAULT_IMPORT_MESSAGE, busy: false });
   const [runtimeState, setRuntimeState] = useState<PeRuntimeView>({
     mode: "loading",
-    badge: "WASM LOADING",
     engine: "WASM LOADING",
-    message: "正在加载本地 RAM WebAssembly Runtime；输入和结果不会上传到服务器。",
     resultSource: "—",
   });
   const runtimeRef = useRef<PeRuntime | null>(null);
@@ -512,7 +505,13 @@ export function usePePage(options: UsePePageOptions): UsePePageResult {
       const parsed: PeImportedEnvironment = await runtime.importEnvironment(selectedFiles);
       if (parsed.profilePoints.length < 2) throw new Error("导入文件中没有至少两个有效的声速剖面节点");
       const deepest = parsed.profilePoints.reduce((maximum, point) => Math.max(maximum, point[0]), 0);
-      const waterDepthM = clamp(number(parsed.waterDepthM, deepest || 200), 50, 8000);
+      const parsedRecord = parsed as unknown as Readonly<Record<string, unknown>>;
+      const projection = projectPeImport({
+        imported: parsed,
+        current: parametersRef.current,
+        fallbackWaterDepthM: deepest || 200,
+      });
+      const { waterDepthM } = projection.values;
       const modelHints = parsed.modelHints;
       const metadata: ImportedPeMetadata = {
         title: String(parsed.title || selectedFiles[0]?.name || "导入环境"),
@@ -523,30 +522,33 @@ export function usePePage(options: UsePePageOptions): UsePePageResult {
         receiverDepthCount: number(modelHints.receiverDepthCount, 0),
       };
       setImportedSnapshot(metadata);
-      setCustomSnapshot(normalizeProfilePoints(parsed.profilePoints, waterDepthM));
+      setCustomSnapshot(projection.profilePoints);
       setParameterSnapshot({
         ...parametersRef.current,
         profile: "custom",
         environmentTitle: metadata.title,
         sourceId: metadata.sourceId,
         waterDepthM: String(waterDepthM),
-        sourceDepthM: String(clamp(number(parsed.sourceDepthM, number(parametersRef.current.sourceDepthM, 50)), 1, waterDepthM - 1)),
-        frequencyHz: String(clamp(number(parsed.frequencyHz, number(parametersRef.current.frequencyHz, 100)), 10, 1000)),
-        maximumRangeKm: String(clamp(number(parsed.maximumRangeKm, number(parametersRef.current.maximumRangeKm, 20)), 2, 250)),
-        maximumDepthM: String(clamp(Math.max(waterDepthM, number(parsed.maximumDepthM, number(parametersRef.current.maximumDepthM, 300))), waterDepthM, 10000)),
-        rangeStepM: String(clamp(number(parsed.rangeStepM, number(parametersRef.current.rangeStepM, 25)), 1, 100)),
-        depthStepM: String(clamp(number(parsed.depthStepM, number(parametersRef.current.depthStepM, 2)), 0.25, 20)),
-        nPade: String(Math.round(clamp(number(parsed.nPade, number(parametersRef.current.nPade, 4)), 1, 10))),
-        bottomSoundSpeedMps: String(Math.round(clamp(number(parsed.bottomSoundSpeedMps, 1700), 1400, 3000))),
-        bottomDensityKgM3: String(Math.round(clamp(number(parsed.bottomDensityKgM3, 1800), 1000, 3500))),
-        bottomAttenuationDbPerWavelength: clamp(number(parsed.bottomAttenuationDbPerWavelength, 0.5), 0, 5).toFixed(2),
+        sourceDepthM: String(projection.values.sourceDepthM),
+        frequencyHz: String(projection.values.frequencyHz),
+        maximumRangeKm: String(projection.values.maximumRangeKm),
+        maximumDepthM: String(projection.values.maximumDepthM),
+        rangeStepM: String(projection.values.rangeStepM),
+        depthStepM: String(projection.values.depthStepM),
+        nPade: String(projection.values.nPade),
+        bottomSoundSpeedMps: String(projection.values.bottomSoundSpeedMps),
+        bottomDensityKgM3: String(projection.values.bottomDensityKgM3),
+        bottomAttenuationDbPerWavelength: String(projection.values.bottomAttenuationDbPerWavelength),
       });
       const terrainPoints = parsed.bathymetry.length;
+      const projectionWarnings = Array.isArray(parsedRecord.projectionWarnings)
+        ? parsedRecord.projectionWarnings.map(String).filter(Boolean) : [];
+      const projectionNote = peProjectionMessage(projectionWarnings, projection.warnings);
       setImportView({
         kind: "success",
         message: parsed.sourceId
-          ? `已导入并原生解析 ${metadata.title}；${terrainPoints} 个地形节点、${metadata.mediumSectionCount} 个介质段和 ${metadata.receiverDepthCount} 个接收深度将完整送入 RAM WASM。`
-          : `已导入 ${metadata.title}；SSP、水深、声源与底质将送入本地 PE WASM。`,
+          ? `已导入并原生解析 ${metadata.title}；${terrainPoints} 个地形节点、${metadata.mediumSectionCount} 个介质段和 ${metadata.receiverDepthCount} 个接收深度以原生模板送入 RAM WASM。${projectionNote}`
+          : `已导入 ${metadata.title}；SSP、水深、声源与底质将送入本地 PE WASM。${projectionNote}`,
         busy: false,
       });
       await calculateWith(runtime);

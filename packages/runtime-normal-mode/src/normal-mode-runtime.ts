@@ -1,6 +1,7 @@
 import { RuntimeError, normalizeRuntimeError, type RuntimeInfo } from "@ooa/runtime-core";
 import { parseNormalModeEnvironmentFiles } from "@ooa/environment/model-file-import";
 import { createNormalModePageEngine } from "./page-engine";
+import { adaptNormalModeEnvironmentFiles } from "./import-compatibility";
 import { synthesizeSingleModeField } from "./single-mode-field";
 import type {
   NormalImportedEnvironment,
@@ -62,11 +63,12 @@ function createEngineAdapter(demonstration: boolean): NormalModeRuntimeAdapter {
       memoryLimitBytes: 0,
     }) : engine.prepare,
     importEnvironment: async (files) => {
-      const parsed = await parseNormalModeEnvironmentFiles(files, engine.importEnvironment) as
+      const adaptedFiles = await adaptNormalModeEnvironmentFiles(files);
+      const parsed = await parseNormalModeEnvironmentFiles(adaptedFiles, engine.importEnvironment) as
         NormalImportedEnvironment | CanonicalPageEnvironment;
       return "sourceId" in parsed
         ? parsed as NormalImportedEnvironment
-        : canonicalNormalEnvironment(parsed as CanonicalPageEnvironment, files);
+        : canonicalNormalEnvironment(parsed as CanonicalPageEnvironment, adaptedFiles);
     },
     run: async (request) => await (demonstration ? engine.runDemonstration(request) : engine.run(request)) as Omit<NormalModePageResult, "experimentId">,
     cancel: engine.cancel,

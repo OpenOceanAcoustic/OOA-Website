@@ -30,7 +30,7 @@ export function RayFieldLab() {
             </span>
           </div>
           <div className="env-import">
-            <input id="envFileInput" type="file" accept=".env,.json,.bty,.ati,.ssp,.trc,.brc,.sbp" multiple hidden />
+            <input id="envFileInput" type="file" accept=".env,.ssp,.bty,.json" multiple hidden />
             <button type="button" id="envImportButton">
               <span>
                 {"↑"}
@@ -38,7 +38,7 @@ export function RayFieldLab() {
               {" 导入环境文件 / JSON"}
             </button>
             <small id="envImportStatus">
-              {"支持 Bellhop ENV + 同名伴随文件，或统一环境 JSON"}
+              {"支持 Bellhop ENV + 同名 SSP/BTY，或统一环境 JSON；原生不兼容时自动转为严格校验的自定义环境"}
             </small>
           </div>
           <section className="environment-group profile-group">
@@ -188,7 +188,7 @@ export function RayFieldLab() {
               </label>
               <label>
                 {"中心频率"}
-                <input id="frequency" type="number" min="20" max="5000" step="10" defaultValue="500" />
+                <input id="frequency" type="number" min="20" max="10000" step="10" defaultValue="500" />
                 <span>
                   {"Hz"}
                 </span>

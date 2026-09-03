@@ -33,6 +33,48 @@ describe("environment public interface", () => {
     ]);
   });
 
+  it("imports a current FieldDocument through the public interface", async () => {
+    const imported = await importEnvironmentDocuments([{
+      name: "field-case.json",
+      kind: "json",
+      content: JSON.stringify({
+        documentInfo: { formatRevision: 4 },
+        parameters: {
+          title: "FieldCase",
+          source: { frequenciesHz: [80], pointsNedMeters: [[0, 0, 30]] },
+          receiver: { geometry: { pointsNedMeters: [[0, 10_000, 50]] } },
+          waterColumn: {
+            profile: {
+              soundSpeed: {
+                depthsMeters: [0, 200],
+                values: [1490, 1510],
+              },
+            },
+          },
+          seabed: {
+            geometry: { rangesMeters: [0, 10_000], depthsMeters: [200, 220] },
+            condition: {
+              material: {
+                compressionalSoundSpeed: { value: 1700 },
+                density: { value: 1800 },
+                compressionalAttenuation: { value: 0.5 },
+              },
+            },
+          },
+        },
+        runs: [],
+      }),
+    }]);
+
+    expect(imported.environment).toMatchObject({
+      title: "FieldCase",
+      frequencyHz: 80,
+      waterDepthM: 200,
+    });
+    expect(imported.environment.bathymetry.at(-1)).toEqual({ rangeM: 10_000, depthM: 220 });
+    expect(imported.modelHints).toMatchObject({ format: "field-document-v4", sourceDepthM: 30, maximumRangeKm: 10 });
+  });
+
   it("rejects non-increasing SSP depths", () => {
     const issues = validateEnvironment({
       title: "bad",

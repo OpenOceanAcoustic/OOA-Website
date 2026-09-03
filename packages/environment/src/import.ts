@@ -1,4 +1,5 @@
 import { ENVIRONMENT_PRESETS } from "./presets";
+import { parseEnvironmentJson as parsePageEnvironmentJson } from "./browser-page-import";
 import type {
   AcousticEnvironment,
   BathymetryPoint,
@@ -12,7 +13,7 @@ type JsonRecord = Record<string, unknown>;
 export type EnvironmentModelFamily = "ray" | "normal-mode" | "pe";
 
 const MAX_FILE_COUNT = 16;
-const MAX_TOTAL_BYTES = 16 * 1024 * 1024;
+const MAX_TOTAL_BYTES = 32 * 1024 * 1024;
 
 function finite(value: unknown, fallback: number): number {
   return typeof value === "number" && Number.isFinite(value) ? value : fallback;
@@ -63,12 +64,49 @@ function jsonBathymetry(value: unknown, waterDepthM: number): BathymetryPoint[] 
   });
 }
 
+function parseFieldDocumentJson(value: JsonRecord, document: EnvironmentDocument): ImportedEnvironment {
+  const parsed = parsePageEnvironmentJson(value, { title: document.name }) as Readonly<Record<string, unknown>>;
+  const profile = tuples(parsed.profilePoints).map((point) => ({
+    depthM: finite(point[0], Number.NaN),
+    speedMps: finite(point[1], Number.NaN),
+  }));
+  const waterDepthM = finite(parsed.waterDepthM, profile.at(-1)?.depthM ?? 0);
+  const bathymetry = tuples(parsed.bathymetry).map((point) => ({
+    rangeM: finite(point[0], 0) * 1000,
+    depthM: finite(point[1], waterDepthM),
+  }));
+  const environment: AcousticEnvironment = {
+    title: String(parsed.title ?? document.name),
+    frequencyHz: finite(parsed.frequencyHz, 50),
+    waterDepthM,
+    soundSpeedProfile: profile,
+    bathymetry,
+    bottom: {
+      soundSpeedMps: finite(parsed.bottomSoundSpeedMps, 1700),
+      densityKgM3: finite(parsed.bottomDensityKgM3, 1800),
+      attenuationDbPerWavelength: finite(parsed.bottomAttenuationDbPerWavelength, 0.5),
+    },
+  };
+  const physicalKeys = new Set([
+    "title", "frequencyHz", "waterDepthM", "profilePoints", "bathymetry",
+    "bottomSoundSpeedMps", "bottomDensityKgM3", "bottomAttenuationDbPerWavelength",
+  ]);
+  const modelHints = Object.fromEntries(
+    Object.entries(parsed).filter(([key]) => !physicalKeys.has(key)),
+  );
+  return { environment: assertEnvironment(environment), documents: [document], modelHints };
+}
+
 function parseJson(document: EnvironmentDocument): ImportedEnvironment {
   const decoded: unknown = JSON.parse(document.content.replace(/^\uFEFF/, ""));
   if (decoded === null || typeof decoded !== "object" || Array.isArray(decoded)) {
     throw new TypeError("environment JSON root must be an object");
   }
   const value = decoded as JsonRecord;
+  if (value.parameters !== null && typeof value.parameters === "object"
+    && !Array.isArray(value.parameters)) {
+    return parseFieldDocumentJson(value, document);
+  }
   const profile = profileFromJson(value);
   const waterDepthM = finite(value.waterDepthM, profile.at(-1)?.depthM ?? 0);
   const environment: AcousticEnvironment = {
@@ -333,7 +371,7 @@ function validateDocuments(documents: readonly EnvironmentDocument[]): void {
     names.add(name);
     totalBytes += new TextEncoder().encode(document.content).byteLength;
   }
-  if (totalBytes > MAX_TOTAL_BYTES) throw new RangeError("environment import exceeds the 16 MiB limit");
+  if (totalBytes > MAX_TOTAL_BYTES) throw new RangeError("environment import exceeds the 32 MiB limit");
 }
 
 export async function importEnvironmentDocuments(
