@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import type { UseNormalModePageResult } from "../hooks/useNormalModePage";
 
 function format(value: number, digits = 3): string {
@@ -11,6 +12,17 @@ export function NormalField({ page }: { readonly page: UseNormalModePageResult }
   const active = result?.field.activeModeCount;
   const modeCount = result?.modes.count ?? page.modeMaximum;
   const modeLimit = Math.min(modeCount, Math.max(1, Number(page.parameters.modeLimit) || 1));
+  const pendingModeLimit = useRef<string | null>(null);
+  const previewModeLimit = (value: string) => {
+    pendingModeLimit.current = value;
+    page.setNumericInput("modeLimit", value);
+  };
+  const commitModeLimit = () => {
+    const value = pendingModeLimit.current;
+    if (value === null) return;
+    pendingModeLimit.current = null;
+    page.commitNumericInput("modeLimit", value);
+  };
   return (
     <section className="panel field-panel">
       <div className="panel-head">
@@ -81,7 +93,11 @@ export function NormalField({ page }: { readonly page: UseNormalModePageResult }
             value={modeLimit}
             disabled={result === null || page.solveBusy}
             aria-describedby="modeLimitEffect"
-            onChange={(event) => page.commitNumericInput("modeLimit", event.currentTarget.value)}
+            onInput={(event) => previewModeLimit(event.currentTarget.value)}
+            onPointerUp={commitModeLimit}
+            onPointerCancel={commitModeLimit}
+            onKeyUp={commitModeLimit}
+            onBlur={commitModeLimit}
           />
           <div className="range-ends"><span>仅保留基阶</span><span>完整模态场</span></div>
         </div>
