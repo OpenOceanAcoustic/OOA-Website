@@ -1,4 +1,5 @@
 import type { ModelPageName } from "./PageDocument";
+import dolphinHeadLogo from "@ooa/assets/brand/dolphin-front-headphones.png";
 import { ModelNavigation } from "@ooa/ui";
 import "./model-page-header.css";
 
@@ -16,7 +17,14 @@ export function ModelPageHeader({ activePage }: { readonly activePage: ModelPage
   return (
     <header className="topbar">
       <a className="brand" href="/" aria-label="OpenOceanAcousticLab 首页">
-        <span className="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
+        <img
+          className="brand-logo"
+          src={dolphinHeadLogo}
+          width="44"
+          height="44"
+          alt=""
+          aria-hidden="true"
+        />
         <span><strong>OpenOceanAcousticLab</strong><small>ACOUSTIC PROPAGATION LAB</small></span>
       </a>
       <ModelNavigation

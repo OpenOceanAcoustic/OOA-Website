@@ -6,6 +6,7 @@
   "exports": {
     ".": "./src/catalog.ts",
     "./catalog.json": "./src/catalog.json",
+    "./brand/dolphin-front-headphones.png": "./src/brand/dolphin-front-headphones.png",
     "./brand/ooa-mark.svg": "./src/brand/ooa-mark.svg",
     "./icons/import.svg": "./src/icons/import.svg"
   }
