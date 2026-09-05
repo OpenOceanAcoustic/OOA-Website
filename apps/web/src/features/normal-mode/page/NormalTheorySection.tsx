@@ -19,11 +19,7 @@ export function NormalTheorySection() {
     modeCount: 4,
     profile: "pekeris",
   });
-  const [playing, setPlaying] = useState(() => (
-    typeof window === "undefined"
-    || typeof window.matchMedia !== "function"
-    || !window.matchMedia("(prefers-reduced-motion: reduce)").matches
-  ));
+  const [playing, setPlaying] = useState(false);
   const standingCanvas = useRef<HTMLCanvasElement>(null);
   const dispersionCanvas = useRef<HTMLCanvasElement>(null);
   const travelingCanvas = useRef<HTMLCanvasElement>(null);
@@ -57,6 +53,16 @@ export function NormalTheorySection() {
     let animationFrame = 0;
     let previousTime = performance.now();
     const animate = (currentTime: number) => {
+      const bounds = standingCanvas.current?.closest(".normal-theory")?.getBoundingClientRect();
+      if (document.hidden || !bounds || bounds.bottom < 0 || bounds.top > window.innerHeight) {
+        previousTime = currentTime;
+        animationFrame = window.requestAnimationFrame(animate);
+        return;
+      }
+      if (currentTime - previousTime < 1000 / 24) {
+        animationFrame = window.requestAnimationFrame(animate);
+        return;
+      }
       const elapsedSeconds = Math.min((currentTime - previousTime) / 1000, 0.05);
       previousTime = currentTime;
       phase.current = (phase.current + elapsedSeconds * 0.72) % (Math.PI * 2);
@@ -80,7 +86,7 @@ export function NormalTheorySection() {
   };
 
   return (
-    <section className="normal-theory" aria-labelledby="normalTheoryTitle">
+    <section id="theory" className="normal-theory" aria-labelledby="normalTheoryTitle">
       <div className="workspace-heading normal-theory-heading">
         <div>
           <p className="micro">01 · HOW NORMAL MODES PROPAGATE</p>

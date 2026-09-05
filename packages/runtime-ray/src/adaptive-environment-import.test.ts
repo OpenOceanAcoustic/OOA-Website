@@ -67,6 +67,20 @@ describe("adaptive Ray environment import", () => {
     });
   });
 
+  it("accepts bare ENV and BTY options through the validated fallback", async () => {
+    const importEnvironment = vi.fn(async () => { throw new Error("unquoted native option"); });
+    const bare = validBellhop.replace(/'(CVWT|A|IB)'/g, "$1").replace("50.0 /", "5.5 /");
+    const result = await importAdaptiveRayEnvironment({ importEnvironment }, [
+      envFile(bare),
+      { name: "adaptive.bty", data: "L ! linear\n2\n0 200\n20 200\n" } as unknown as File,
+    ]);
+    expect(result.mode).toBe("canonical");
+    if (result.mode !== "canonical") throw new Error("expected canonical fallback");
+    expect(result.nativeFailure).toBe("unquoted native option");
+    expect(result.environment).toMatchObject({ sourceDepthM: 5.5, sspOption: "CVWT", bottomOption: "A", runType: "IB", bathymetryInterpolation: "L" });
+    expect(result.environment.bathymetry).toEqual([[0, 200], [20, 200]]);
+  });
+
   it("allows demo mode to import a canonical Bellhop ENV", async () => {
     const runtime = createRayRuntime({ demonstration: true });
     try {

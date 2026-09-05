@@ -9,7 +9,7 @@ function prepareCanvas(canvas: HTMLCanvasElement) {
   const height = Math.round(rectangle.height);
   if (width < 2 || height < 2) return null;
 
-  const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+  const pixelRatio = 1;
   const targetWidth = Math.round(width * pixelRatio);
   const targetHeight = Math.round(height * pixelRatio);
   if (canvas.width !== targetWidth || canvas.height !== targetHeight) {
@@ -123,8 +123,8 @@ export function renderPeMarch(canvas: HTMLCanvasElement, progress: number) {
   const bottom = 31;
   const plotWidth = width - left - right;
   const plotHeight = height - top - bottom;
-  const columns = Math.max(100, Math.min(180, Math.round(plotWidth / 6)));
-  const rows = Math.max(55, Math.min(90, Math.round(plotHeight / 4)));
+  const columns = Math.max(60, Math.min(100, Math.round(plotWidth / 10)));
+  const rows = Math.max(32, Math.min(50, Math.round(plotHeight / 7)));
   const cellWidth = plotWidth / columns;
   const cellHeight = plotHeight / rows;
 

@@ -9,7 +9,7 @@ export function NormalHero({ page }: { readonly page: UseNormalModePageResult })
         </p>
         <h1>
           {"拆解波导中的每一个"}
-          <br />
+          {" "}
           <em>
             {"传播模态。"}
           </em>

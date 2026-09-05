@@ -38,7 +38,8 @@ function drawSoundSpeedProfile(canvas: HTMLCanvasElement, result: NormalModePage
     xMaximum: maximum,
     yMinimum: 0,
     yMaximum: result.environment.waterDepthM,
-    xLabel: "c / m·s⁻¹",
+    xLabel: "声速 / m·s⁻¹",
+    xFormatter: (value: number) => Number(value.toFixed(2)).toString(),
     yLabel: "深度 / m",
     depthAxis: true,
   });
@@ -64,7 +65,7 @@ function drawSpectrum(canvas: HTMLCanvasElement, result: NormalModePageResult, s
   drawPolyline(plot, points, { color: "rgba(98,216,231,.72)", width: 1.2 });
   drawPoints(plot, points, { color: "#62d8e7", radius: 2 });
   const selected = points[selectedMode];
-  if (selected !== undefined) drawPoints(plot, [selected], { color: "#f8b44c", radius: 5, stroke: "#ffe0a0", strokeWidth: 1.2 });
+  if (selected !== undefined) drawPoints(plot, [selected], { color: "#f8b44c", radius: 7, stroke: "#fff2cc", strokeWidth: 2 });
   return plot;
 }
 

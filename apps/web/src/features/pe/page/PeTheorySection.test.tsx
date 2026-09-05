@@ -14,9 +14,9 @@ describe("PeTheorySection", () => {
     expect(container.querySelector(".pe-theory-formula math")).not.toBeNull();
     expect(screen.getByText("Padé(n)")).toBeInTheDocument();
 
-    const toggle = screen.getByRole("button", { name: "暂停递推" });
+    const toggle = screen.getByRole("button", { name: "播放递推" });
     fireEvent.click(toggle);
-    expect(screen.getByRole("button", { name: "播放递推" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "暂停递推" })).toBeInTheDocument();
     expect(renderer.renderPeMarch).toHaveBeenCalled();
   });
 });

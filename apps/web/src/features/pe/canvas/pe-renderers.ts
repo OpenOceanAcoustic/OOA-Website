@@ -29,7 +29,8 @@ function drawEnvironment(canvas: HTMLCanvasElement, result: PePageResult): void 
     xMaximum: maximum,
     yMinimum: 0,
     yMaximum: result.parameters.maximumDepthM,
-    xLabel: "c / m·s⁻¹",
+    xLabel: "声速 / m·s⁻¹",
+    xFormatter: (value: number) => Number(value.toFixed(2)).toString(),
     yLabel: "深度 / m",
     depthAxis: true,
   });

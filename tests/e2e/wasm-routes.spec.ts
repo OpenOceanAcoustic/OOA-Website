@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 const routes = [
   { path: "/", page: "ray", heading: "声线，如何一步步 穿过海洋。", status: "#simStatus", complete: "SIMULATION COMPLETE" },
   { path: "/normal-mode/", page: "normal", heading: "拆解波导中的每一个 传播模态。", status: "#solveStatus", complete: "COMPLETE" },
-  { path: "/pe/", page: "pe", heading: "观察 Padé 阶数如何改变前向声场。", status: "#solveStatus", complete: "COMPLETE" },
+  { path: "/pe/", page: "pe", heading: "Padé 阶数如何影响声场", status: "#solveStatus", complete: "COMPLETE" },
 ] as const;
 
 for (const route of routes) {

@@ -63,7 +63,7 @@ function prepareCanvas(canvas: HTMLCanvasElement) {
   const height = Math.round(rectangle.height);
   if (width < 2 || height < 2) return null;
 
-  const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+  const pixelRatio = 1;
   const targetWidth = Math.round(width * pixelRatio);
   const targetHeight = Math.round(height * pixelRatio);
   if (canvas.width !== targetWidth || canvas.height !== targetHeight) {

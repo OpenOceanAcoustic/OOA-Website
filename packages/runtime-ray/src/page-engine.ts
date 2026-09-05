@@ -433,7 +433,7 @@ export function createRayPageEngine(): any {
         const bottomDensity: any = clamp(payload.bottom_density ?? 1800, 1000, 3500);
         const bottomAbsorption: any = clamp(payload.bottom_absorption ?? 0.5, 0, 5);
         const frequency: any = clamp(payload.frequency ?? 500, 20, 10000);
-        const sourceDepth: any = clamp(payload.source_depth ?? 1000, 20, domain.waterDepthM - 20);
+        const sourceDepth: any = clamp(payload.source_depth ?? 1000, 0, domain.waterDepthM);
         const emptyHalfspace: any = {
             depthM: 0,
             compressionalSpeedMps: 0,

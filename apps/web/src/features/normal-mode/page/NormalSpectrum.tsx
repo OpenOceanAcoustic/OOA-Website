@@ -36,10 +36,11 @@ export function NormalSpectrum({ page }: { readonly page: UseNormalModePageResul
           </span>
         </div>
       </div>
+      <p className="chart-help">点击节点查看该模态，下方显示当前阶数、水平波数及单位。</p>
       <div className="plot-wrap spectrum-wrap">
         <canvas ref={page.canvases.spectrum} id="spectrumCanvas" tabIndex={0} aria-label="可点击选择的水平波数模态谱" onPointerDown={page.selectModeFromSpectrum}></canvas>
         <span className="plot-note">
-          {"CLICK TO SELECT MODE"}
+          {"点击节点选择模态"}
         </span>
       </div>
       <div className="metric-strip">

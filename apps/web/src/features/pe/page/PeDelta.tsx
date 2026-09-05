@@ -1,8 +1,8 @@
-import type { CSSProperties } from "react";
 import { formatPeValue, type UsePePageResult } from "../hooks/usePePage";
 
 export function PeDelta({ page }: { readonly page: UsePePageResult }) {
   const result = page.result;
+  const magnitude = Math.max(0.5, Math.ceil((result?.metrics.deltaMaxDb ?? 0.5) * 2) / 2);
   return (
     <section className="panel pe-delta-panel">
       <div className="panel-head">
@@ -14,15 +14,9 @@ export function PeDelta({ page }: { readonly page: UsePePageResult }) {
             {"相对 nPade=10 的 ΔTL"}
           </h3>
         </div>
-        <div className="plot-legend">
-          <span>
-            <i style={{ "--legend": "#267dc1" } as CSSProperties}></i>
-            {"偏低"}
-          </span>
-          <span>
-            <i style={{ "--legend": "#e56b33" } as CSSProperties}></i>
-            {"偏高"}
-          </span>
+        <div className="field-scale delta-scale" aria-label={`差值色标，负 ${magnitude} 到正 ${magnitude} dB，以零为中心`}>
+          <i aria-hidden="true"></i>
+          <div className="scale-ticks"><span>−{magnitude}</span><span>−{magnitude / 2}</span><span>0</span><span>{magnitude / 2}</span><span>{magnitude} dB</span></div>
         </div>
       </div>
       <div className="plot-wrap field-wrap">

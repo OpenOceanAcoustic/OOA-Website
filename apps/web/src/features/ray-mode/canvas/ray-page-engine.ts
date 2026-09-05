@@ -9,7 +9,7 @@ export interface MountedRayCanvasExperience {
 
 export function mountRayCanvasExperience(root: HTMLElement, runtime: RayRuntime): MountedRayCanvasExperience {
     const listenerScope: any = new AbortController();
-    const plotPadding: any = { l: 39, r: 12, t: 19, b: 28 };
+    const plotPadding: any = { l: 56, r: 26, t: 24, b: 44 };
     const fieldZoomLimits: any = { minimum: 1, maximum: 8, step: 1.25 };
     const listen: any = (target: any, type: any, listener: any, options: any = {}): any => target.addEventListener(type, listener, { ...options, signal: listenerScope.signal });
     const $: any = (id: any): any => root.querySelector(`#${CSS.escape(id)}`);
@@ -63,7 +63,7 @@ export function mountRayCanvasExperience(root: HTMLElement, runtime: RayRuntime)
     function formatAngle(value: any): any { const normalized: any = Math.abs(value) < .00005 ? 0 : value; return `${normalized < 0 ? '−' : normalized > 0 ? '+' : ''}${Math.abs(normalized).toFixed(1)}°`; }
     function formatAngleRange(range: any): any { return `${formatAngle(range?.[0] ?? -20.3)} — ${formatAngle(range?.[1] ?? 20.3)}`; }
     function fitCanvas(canvas: any): any {
-        const ratio: any = Math.min(window.devicePixelRatio || 1, 2);
+        const ratio: any = Math.min(window.devicePixelRatio || 1, canvas === canvases.intro ? 1 : 2);
         const rect: any = canvas.getBoundingClientRect();
         const w: any = Math.max(1, Math.round(rect.width * ratio));
         const h: any = Math.max(1, Math.round(rect.height * ratio));
@@ -82,7 +82,7 @@ export function mountRayCanvasExperience(root: HTMLElement, runtime: RayRuntime)
             axis_depth: Number(controls.axisDepth.value),
             gradient: Number(controls.gradient.value) / 100,
             water_depth_m: waterDepthM,
-            source_depth: Math.max(20, Math.min(waterDepthM - 20, Number(controls.sourceDepth.value) || 1000)),
+            source_depth: Math.max(0, Math.min(waterDepthM, Number(controls.sourceDepth.value) || 0)),
             frequency: Math.max(20, Math.min(10000, Number(controls.frequency.value) || 500)),
             bottom_speed: Number(controls.bottomSpeed.value),
             bottom_density: Number(controls.bottomDensity.value),
@@ -233,7 +233,7 @@ export function mountRayCanvasExperience(root: HTMLElement, runtime: RayRuntime)
         ctx.fill();
         ctx.shadowBlur = 0;
         ctx.fillStyle = '#64848e';
-        ctx.font = '9px ui-monospace,monospace';
+        ctx.font = '12px ui-monospace,monospace';
         for (let i: any = 0; i <= 4; i++) {
             const depth: any = maximumDepthM * i / 4;
             ctx.textAlign = 'right';
@@ -255,12 +255,12 @@ export function mountRayCanvasExperience(root: HTMLElement, runtime: RayRuntime)
         state.customSSP = sanitizeSspPoints(state.customSSP, state.customWaterDepthM);
     }
     function updateDepthBounds(): any {
-        const maximumDepth: any = environmentWaterDepthM(), maximumSource: any = Math.max(20, maximumDepth - 20);
+        const maximumDepth: any = environmentWaterDepthM(), maximumSource: any = maximumDepth, maximumReceiver: any = Math.max(20, maximumDepth - 20);
         controls.sourceDepth.max = String(maximumSource);
         eigenEnvControls.sourceDepth.max = String(maximumSource);
-        $('receiverDepth').max = String(maximumSource);
-        controls.sourceDepth.value = String(Math.max(20, Math.min(maximumSource, Number(controls.sourceDepth.value) || 20)));
-        $('receiverDepth').value = String(Math.max(20, Math.min(maximumSource, Number($('receiverDepth').value) || Math.min(1000, maximumSource))));
+        $('receiverDepth').max = String(maximumReceiver);
+        controls.sourceDepth.value = String(Math.max(0, Math.min(maximumSource, Number(controls.sourceDepth.value) || 0)));
+        $('receiverDepth').value = String(Math.max(20, Math.min(maximumReceiver, Number($('receiverDepth').value) || Math.min(1000, maximumReceiver))));
         controls.axisDepth.max = String(Math.max(50, Math.min(2600, maximumSource)));
         eigenEnvControls.axisDepth.max = controls.axisDepth.max;
     }
@@ -440,8 +440,8 @@ export function mountRayCanvasExperience(root: HTMLElement, runtime: RayRuntime)
         const pw: any = w - pad.l - pad.r, ph: any = h - pad.t - pad.b;
         ctx.strokeStyle = 'rgba(92,151,169,.14)';
         ctx.lineWidth = 1;
-        ctx.fillStyle = '#5f7f89';
-        ctx.font = '10px ui-monospace, monospace';
+        ctx.fillStyle = '#a3bec8';
+        ctx.font = '12px ui-monospace, monospace';
         for (let i: any = 0; i <= 5; i++) {
             const x: any = pad.l + pw * i / 5, label: any = minimumRangeKm + rangeStep * i;
             ctx.beginPath();
@@ -450,7 +450,7 @@ export function mountRayCanvasExperience(root: HTMLElement, runtime: RayRuntime)
             ctx.stroke();
             if (!opts.noLabels) {
                 ctx.textAlign = 'center';
-                ctx.fillText(formatAxisTick(label, rangeStep), x, h - 12);
+                ctx.fillText(formatAxisTick(label, rangeStep), x, h - 24);
             }
         }
         for (let i: any = 0; i <= 5; i++) {
@@ -645,7 +645,7 @@ export function mountRayCanvasExperience(root: HTMLElement, runtime: RayRuntime)
             ctx.stroke();
         });
         ctx.fillStyle = '#688a94';
-        ctx.font = '9px ui-monospace, monospace';
+        ctx.font = '12px ui-monospace, monospace';
         for (let i: any = 0; i <= 5; i++) {
             const depth: any = maximumDepthM * i / 5, y: any = p.t + p.ph * i / 5;
             ctx.textAlign = 'right';
@@ -698,7 +698,7 @@ export function mountRayCanvasExperience(root: HTMLElement, runtime: RayRuntime)
         const rect: any = canvases.ray.getBoundingClientRect(), a: any = plotPadding, ph: any = rect.height - a.t - a.b, px: any = event.clientX - rect.left, py: any = event.clientY - rect.top, maximumRangeKm: any = state.data?.maximum_range_km || 100, maximumDepthM: any = state.data?.maximum_depth_m || displayDepthM();
         const domain: any = fieldDomain(maximumRangeKm, maximumDepthM), depthSpan: any = domain.maximumDepthM - domain.minimumDepthM, rangeSpan: any = domain.maximumRangeKm - domain.minimumRangeKm;
         const depth: any = domain.minimumDepthM + Math.max(0, Math.min(1, (py - a.t) / ph)) * depthSpan;
-        return { depth: Math.round(Math.max(20, Math.min(maximumDepthM - 20, depth)) / 10) * 10, px, py, sourceX: a.l + (0 - domain.minimumRangeKm) / rangeSpan * (rect.width - a.l - a.r), sourceY: a.t + (params().source_depth - domain.minimumDepthM) / depthSpan * ph };
+        return { depth: Math.round(Math.max(0, Math.min(maximumDepthM, depth)) * 10) / 10, px, py, sourceX: a.l + (0 - domain.minimumRangeKm) / rangeSpan * (rect.width - a.l - a.r), sourceY: a.t + (params().source_depth - domain.minimumDepthM) / depthSpan * ph };
     }
     function drawBathymetry(ctx: any, a: any, data: any, progress: any = 1, domain: any = null): any {
         const points: any = data?.bathymetry;
@@ -879,7 +879,7 @@ export function mountRayCanvasExperience(root: HTMLElement, runtime: RayRuntime)
             ctx.stroke();
             ctx.setLineDash([]);
             ctx.fillStyle = '#f1c878';
-            ctx.font = '11px ui-monospace, monospace';
+            ctx.font = '12px ui-monospace, monospace';
             ctx.textAlign = 'left';
             ctx.fillText(`${sourceDepth.toLocaleString('zh-CN')} m`, sx + 12, sy - 10);
         }
@@ -1084,11 +1084,12 @@ export function mountRayCanvasExperience(root: HTMLElement, runtime: RayRuntime)
         const a: any = ray[low], b: any = ray[Math.min(ray.length - 1, high)], mix: any = Math.max(0, Math.min(1, (rangeKm - a[0]) / Math.max(1e-8, b[0] - a[0])));
         return a.map((value: any, index: any): any => value + (b[index] - value) * mix);
     }
-    const introPressureGroups: any = introAngles.map((angle: any): any => Array.from({ length: 7 }, (_: any, index: any): any => introTrace(angle - 1.35 + index * .45, .45, .9)));
     const introFieldStops: any = [[146, 0, 0], [255, 25, 0], [255, 183, 0], [225, 255, 16], [37, 238, 196], [0, 184, 246], [0, 74, 222], [4, 6, 130]];
     function introFieldColor(tl: any): any { const value: any = Math.max(0, Math.min(1, (tl - 40) / 50)) * (introFieldStops.length - 1), index: any = Math.min(introFieldStops.length - 2, Math.floor(value)), mix: any = value - index; return introFieldStops[index].map((channel: any, channelIndex: any): any => Math.round(channel + (introFieldStops[index + 1][channelIndex] - channel) * mix)); }
     function introBuildPressureModel(): any {
-        const cols: any = 180, rows: any = 100, size: any = cols * rows, omega: any = 2 * Math.PI * 50, components: any = introPressureGroups.map((): any => ({ real: new Float64Array(size), imaginary: new Float64Array(size), energy: new Float64Array(size) }));
+        // Teaching-only samples: release these traces after building the small preview grid.
+        const introPressureGroups: any = introAngles.map((angle: any): any => [-1.35, 0, 1.35].map((offset: any): any => introTrace(angle + offset, .45, .9)));
+        const cols: any = 90, rows: any = 50, size: any = cols * rows, omega: any = 2 * Math.PI * 50, components: any = introPressureGroups.map((): any => ({ real: new Float32Array(size), imaginary: new Float32Array(size), energy: new Float32Array(size) }));
         let maximum: any = 0;
         introPressureGroups.forEach((rayGroup: any, groupIndex: any): any => rayGroup.forEach((ray: any): any => {
             for (let column: any = 0; column < cols; column++) {
@@ -1470,7 +1471,7 @@ export function mountRayCanvasExperience(root: HTMLElement, runtime: RayRuntime)
         ctx.fillStyle = bar;
         ctx.fillRect(barX, barY, barW, 6);
         ctx.fillStyle = '#c2d3d7';
-        ctx.font = '10px ui-monospace, monospace';
+        ctx.font = '12px ui-monospace, monospace';
         ctx.textAlign = 'left';
         ctx.fillText('90 dB', barX, barY + 17);
         ctx.textAlign = 'right';
@@ -1491,7 +1492,7 @@ export function mountRayCanvasExperience(root: HTMLElement, runtime: RayRuntime)
             ctx.fillRect(front - 20, plot.y, 25, plot.h);
         }
         ctx.fillStyle = '#bdced2';
-        ctx.font = '11px ui-monospace, monospace';
+        ctx.font = '12px ui-monospace, monospace';
         ctx.textAlign = 'left';
         ctx.fillText('0 m', plot.x + 4, plot.y + 13);
         ctx.fillText('5 km', plot.x + 4, plot.y + plot.h - 5);
@@ -1548,7 +1549,7 @@ export function mountRayCanvasExperience(root: HTMLElement, runtime: RayRuntime)
         ctx.stroke();
         ctx.setLineDash([]);
         ctx.fillStyle = '#7898a1';
-        ctx.font = '11px ui-monospace, monospace';
+        ctx.font = '12px ui-monospace, monospace';
         ctx.textAlign = 'right';
         ctx.fillText('0', chart.x - 6, chart.y + 4);
         ctx.fillText('1.3k', chart.x - 6, cy(1300) + 4);
@@ -1574,7 +1575,18 @@ export function mountRayCanvasExperience(root: HTMLElement, runtime: RayRuntime)
         const duration: any = 10800, offset: any = typeof initialProgress === 'number' ? Math.max(0, Math.min(.95, initialProgress)) : 0;
         cancelAnimationFrame(state.introRaf);
         state.introStart = performance.now() - duration * offset;
+        let previousTime = 0;
         function frame(now: any): any {
+            const bounds = canvases.intro.getBoundingClientRect();
+            if (document.hidden || bounds.bottom < 0 || bounds.top > window.innerHeight) {
+                state.introRaf = null;
+                return;
+            }
+            if (now - previousTime < 1000 / 24) {
+                state.introRaf = requestAnimationFrame(frame);
+                return;
+            }
+            previousTime = now;
             const progress: any = Math.min(1, (now - state.introStart) / duration);
             drawIntroRay(progress);
             if (progress < 1)
@@ -1613,8 +1625,8 @@ export function mountRayCanvasExperience(root: HTMLElement, runtime: RayRuntime)
         a.ph = h - a.t - a.b;
         ctx.strokeStyle = 'rgba(92,151,169,.14)';
         ctx.lineWidth = 1;
-        ctx.fillStyle = '#5f7f89';
-        ctx.font = '10px ui-monospace, monospace';
+        ctx.fillStyle = '#a3bec8';
+        ctx.font = '12px ui-monospace, monospace';
         for (let i: any = 0; i <= 5; i++) {
             const x: any = a.l + a.pw * i / 5;
             ctx.beginPath();
@@ -1622,7 +1634,7 @@ export function mountRayCanvasExperience(root: HTMLElement, runtime: RayRuntime)
             ctx.lineTo(x, a.t + a.ph);
             ctx.stroke();
             ctx.textAlign = 'center';
-            ctx.fillText((maxRange * i / 5).toFixed(0), x, h - 12);
+            ctx.fillText((maxRange * i / 5).toFixed(0), x, h - 24);
         }
         for (let i: any = 0; i <= 5; i++) {
             const y: any = a.t + a.ph * i / 5, depth: any = maxDepth * i / 5;
@@ -1679,7 +1691,7 @@ export function mountRayCanvasExperience(root: HTMLElement, runtime: RayRuntime)
         ctx.arc(sourceX, sourceY, 9, 0, Math.PI * 2);
         ctx.stroke();
         ctx.fillStyle = '#e2be78';
-        ctx.font = '10px ui-monospace,monospace';
+        ctx.font = '12px ui-monospace,monospace';
         ctx.textAlign = 'left';
         ctx.fillText(`声源 ${sourceDepth.toLocaleString('zh-CN')} m`, sourceX + 12, sourceY - 10);
         const rx: any = x(receiver.range_km), ry: any = y(receiver.depth_m), boxLeft: any = Math.max(0, receiver.range_km - 1), boxRight: any = Math.min(maxRange, receiver.range_km + 1), boxTop: any = Math.max(0, receiver.depth_m - 180), boxBottom: any = Math.min(maxDepth, receiver.depth_m + 180);
@@ -1704,7 +1716,7 @@ export function mountRayCanvasExperience(root: HTMLElement, runtime: RayRuntime)
         ctx.strokeStyle = '#f8b44c';
         ctx.strokeRect(x(boxLeft), y(boxTop), x(boxRight) - x(boxLeft), y(boxBottom) - y(boxTop));
         ctx.fillStyle = '#e2be78';
-        ctx.font = '10px ui-monospace, monospace';
+        ctx.font = '12px ui-monospace, monospace';
         ctx.textAlign = rx > w - 165 ? 'right' : 'left';
         ctx.fillText(`${receiver.range_km.toFixed(1)} km · ${receiver.depth_m.toFixed(0)} m`, rx + (rx > w - 165 ? -10 : 10), ry - 10);
         const zw: any = Math.min(230, w * .34), zh: any = Math.min(150, h * .36), zx: any = w - zw - 24, zy: any = 32;
@@ -1750,7 +1762,7 @@ export function mountRayCanvasExperience(root: HTMLElement, runtime: RayRuntime)
         ctx.fill();
         ctx.restore();
         ctx.fillStyle = '#688a94';
-        ctx.font = '10px ui-monospace, monospace';
+        ctx.font = '12px ui-monospace, monospace';
         ctx.textAlign = 'left';
         ctx.fillText('LOCAL CONVERGENCE', zx + 8, zy + 12);
     }
@@ -1777,7 +1789,7 @@ export function mountRayCanvasExperience(root: HTMLElement, runtime: RayRuntime)
             moveReceiver(event);
             return;
         }
-        const point: any = receiverFromPointer(event), depth: any = Math.round(Math.max(20, Math.min(point.maxDepth - 20, point.depth_m)) / 10) * 10;
+        const point: any = receiverFromPointer(event), depth: any = Math.round(Math.max(0, Math.min(point.maxDepth, (point.py - point.a.t) / point.ph * point.maxDepth)) * 10) / 10;
         controls.sourceDepth.value = String(depth);
         eigenEnvControls.sourceDepth.value = String(depth);
         syncLabels();
@@ -1837,8 +1849,8 @@ export function mountRayCanvasExperience(root: HTMLElement, runtime: RayRuntime)
         a.pw = w - a.l - a.r;
         a.ph = h - a.t - a.b;
         ctx.strokeStyle = 'rgba(92,151,169,.14)';
-        ctx.fillStyle = '#5f7f89';
-        ctx.font = '10px ui-monospace, monospace';
+        ctx.fillStyle = '#a3bec8';
+        ctx.font = '12px ui-monospace, monospace';
         for (let i: any = 0; i <= 4; i++) {
             const y: any = a.t + a.ph * i / 4;
             ctx.beginPath();
@@ -1860,7 +1872,7 @@ export function mountRayCanvasExperience(root: HTMLElement, runtime: RayRuntime)
             const x: any = a.l + a.pw * i / 4;
             ctx.fillStyle = '#486b76';
             ctx.textAlign = 'center';
-            ctx.fillText((lo + (hi - lo) * i / 4).toFixed(2), x, h - 12);
+            ctx.fillText((lo + (hi - lo) * i / 4).toFixed(2), x, h - 24);
         }
         ctx.fillText('到达时间 / s', a.l + a.pw / 2, h - 3);
         ctx.save();
@@ -2108,7 +2120,7 @@ export function mountRayCanvasExperience(root: HTMLElement, runtime: RayRuntime)
                 if (projectionWarnings.length)
                     status.title = projectionWarnings.join('\n');
                 if (result.nativeFailure)
-                    status.title = [status.title, `Bellhop2D 原生解析原因：${result.nativeFailure}`].filter(Boolean).join('\n');
+                    status.textContent += ` · Bellhop2D 原生检查：${result.nativeFailure}`;
             }
             recalculateEnvironment();
         }
@@ -2230,14 +2242,13 @@ export function mountRayCanvasExperience(root: HTMLElement, runtime: RayRuntime)
     activateProfile('munk', { defaults: false });
     updateFieldOptionStatus();
     syncFieldZoomControls();
-    drawIntroRay(0);
+    drawIntroRay(1);
     drawSSP();
     drawRay();
     drawLoss();
     drawVelocity();
     drawEigen();
     drawArrivals();
-    startIntroAnimation(0);
     const ready: any = runtime.prepare().then(recalculateEnvironment).catch((error: any): any => {
         $('simStatus').textContent = 'WASM ERROR';
         $('simTime').textContent = error instanceof Error ? error.message : 'WASM LOAD FAILED';

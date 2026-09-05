@@ -18,6 +18,11 @@ function canonical(overrides: Record<string, unknown> = {}) {
 }
 
 describe("Ray canonical page projection audit", () => {
+  it.each([0, 0.5, 5, 19, 199.5, 200])("preserves a valid source depth of %s m", (depth) => {
+    const projection = projectCanonicalRayEnvironmentForPage(canonical({ sourceDepthM: depth }));
+    expect(projection.sourceDepthM).toBe(depth);
+  });
+
   it("records every scalar clamp as original value to actual value", () => {
     const projection = projectCanonicalRayEnvironmentForPage(canonical({
       profilePoints: [[0, 1_200.04], [20_000, 2_100.06]],
@@ -36,7 +41,7 @@ describe("Ray canonical page projection audit", () => {
 
     expect(projection).toMatchObject({
       waterDepthM: 12_000,
-      sourceDepthM: 11_980,
+      sourceDepthM: 12_000,
       frequencyHz: 10_000,
       maximumRangeKm: 250,
       bottomSoundSpeedMps: 1_400,
@@ -49,7 +54,7 @@ describe("Ray canonical page projection audit", () => {
     const audit = projection.projectionWarnings.join("\n");
     expect(audit).toContain("上游投影限制。");
     expect(audit).toContain("水深：原值 20,000 m → 页面实际值 12,000 m");
-    expect(audit).toContain("声源深度：原值 19,999 m → 页面实际值 11,980 m");
+    expect(audit).toContain("声源深度：原值 19,999 m → 页面实际值 12,000 m");
     expect(audit).toContain("频率：原值 20,000 Hz → 页面实际值 10,000 Hz");
     expect(audit).toContain("最大距离：原值 400 km → 页面实际值 250 km");
     expect(audit).toContain("海底纵波声速：原值 1,200 m/s → 页面实际值 1,400 m/s");

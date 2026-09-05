@@ -1,3 +1,4 @@
+import { SectionLinks } from "../../shared-page/WorkspaceNavigation";
 export function RayTheorySection() {
   return (
     <section className="ray-intro" aria-labelledby="rayIntroTitle">
@@ -34,16 +35,17 @@ export function RayTheorySection() {
           {" 完成相干叠加，直观展示二维声场的形成过程。"}
         </p>
       </div>
+      <SectionLinks theoryId="principle" labId="lab" resultsId="results" />
       <div className="ray-intro-copy">
-        <div className="equation-card" aria-label="声线轨迹方程、动态射线方程、几何波束与声压计算公式">
-          <div className="equation-title">
+        <details className="equation-card" aria-label="声线轨迹方程、动态射线方程、几何波束与声压计算公式">
+          <summary className="equation-title">
             <span>
               {"RAY · DYNAMIC RAY · PRESSURE"}
             </span>
             <strong>
-              {"声线、波束与声压"}
+              {"展开推导：声线、波束与声压"}
             </strong>
-          </div>
+          </summary>
           <section className="equation-section" aria-labelledby="trajectoryEquationTitle">
             <div className="equation-section-head">
               <span>
@@ -309,7 +311,7 @@ export function RayTheorySection() {
               </i>
               {" 和 "}
               <i>
-                {"p(s)"}
+                {"π(s)"}
               </i>
               {"："}
             </p>
@@ -343,7 +345,7 @@ export function RayTheorySection() {
                         {"c"}
                       </mi>
                       <mi>
-                        {"p"}
+                        {"π"}
                       </mi>
                       <mo stretchy="false">
                         {"("}
@@ -367,7 +369,7 @@ export function RayTheorySection() {
                             {"d"}
                           </mi>
                           <mi>
-                            {"p"}
+                            {"π"}
                           </mi>
                         </mrow>
                         <mrow>
@@ -446,7 +448,7 @@ export function RayTheorySection() {
                   </span>
                   <span>
                     <i>
-                      {"p(s)"}
+                      {"π(s)"}
                     </i>
                     {" 与 "}
                     <i>
@@ -466,9 +468,9 @@ export function RayTheorySection() {
                   <small>
                     {"这里的 "}
                     <i>
-                      {"p(s)"}
+                      {"π(s)"}
                     </i>
-                    {" 是动态变量，不是声压。"}
+                    {" 表示与 q(s) 共轭的动态变量；复声压仍记为 p。"}
                   </small>
                 </div>
               </div>
@@ -778,7 +780,7 @@ export function RayTheorySection() {
               </strong>
             </div>
           </section>
-        </div>
+        </details>
       </div>
       <div className="intro-visual-column">
         <section className="intro-principle" id="principle" aria-labelledby="introPrincipleTitle">
@@ -873,8 +875,8 @@ export function RayTheorySection() {
                 {"从声线、波束到声压叠加"}
               </h3>
             </div>
-            <button id="introReplay" className="intro-replay" aria-label="重新播放声线动画">
-              {"↻ REPLAY"}
+            <button id="introReplay" className="intro-replay" aria-label="播放声线动画">
+              {"▶ 播放 / 重播"}
             </button>
           </div>
           <div className="intro-canvas-wrap">
