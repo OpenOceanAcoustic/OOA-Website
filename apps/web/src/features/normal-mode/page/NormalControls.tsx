@@ -178,17 +178,12 @@ export function NormalControls({ page }: NormalControlsProps) {
         </div>
       </div>
       <div className="control-section environment-section">
-        <div className="environment-section-title"><span>04</span><strong>求解与模态选择</strong><small>setOptions()</small></div>
+        <div className="environment-section-title"><span>04</span><strong>求解与单模态选择</strong><small>setOptions()</small></div>
         <label className="control-label" htmlFor="normalModel">Normal Mode 内核</label>
         <div className="select-wrap"><select id="normalModel" value={page.parameters.model} onChange={() => { void page.run(); }}><option value="kraken">Kraken · 浏览器 WASM</option></select></div>
         <div className="control-grid phase-speed-grid">
           <label>最小相速度 / m/s<NumericInput id="phaseSpeedLow" parameter="phaseSpeedLowMps" value={page.parameters.phaseSpeedLowMps} min={1300} max={1900} step={10} allowZero page={page} /></label>
           <label>最大相速度 / m/s<NumericInput id="phaseSpeedHigh" parameter="phaseSpeedHighMps" value={page.parameters.phaseSpeedHighMps} min={1400} max={2400} step={10} allowZero page={page} /></label>
-        </div>
-        <div className="range-control">
-          <div className="range-title"><label htmlFor="modeLimit">参与叠加的前 N 阶模态</label><output id="modeLimitOut">{page.parameters.modeLimit} modes</output></div>
-          <input id="modeLimit" type="range" min="1" max={page.modeMaximum} step="1" value={page.parameters.modeLimit} onInput={(event) => page.setNumericInput("modeLimit", inputValue(event))} onChange={(event) => { if (isCommitChange(event)) page.commitNumericInput("modeLimit", event.currentTarget.value); }} />
-          <div className="range-ends"><span>单模态</span><span>完整模态场</span></div>
         </div>
         <div className="range-control">
           <div className="range-title"><label htmlFor="selectedMode">单模态编号</label><output id="selectedModeOut">{modeLabel}</output></div>

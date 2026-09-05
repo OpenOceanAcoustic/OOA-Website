@@ -27,10 +27,12 @@ export function PeRoute() {
           </div>
           <div className="pe-grid">
             <PeControls page={page} />
-            <PeField page={page} />
-            <PeDelta page={page} />
-            <PeConvergence page={page} />
-            <PeProfile page={page} />
+            <div className="pe-results-grid">
+              <PeField page={page} />
+              <PeDelta page={page} />
+              <PeConvergence page={page} />
+              <PeProfile page={page} />
+            </div>
           </div>
           <PeMethodNote />
         </section>

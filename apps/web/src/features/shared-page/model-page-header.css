@@ -46,45 +46,12 @@
   letter-spacing: 0.14em;
 }
 
-:where([data-ooa-page="ray"], [data-ooa-page="normal"], [data-ooa-page="pe"]) .topbar .brand-mark {
-  position: static;
-  width: 27px;
-  height: 23px;
-  display: flex;
-  align-items: end;
-  gap: 3px;
-  padding: 3px;
-  border: 1px solid #2c6978;
-  border-radius: 5px;
-  transform: skewX(-8deg);
-}
-
-:where([data-ooa-page="ray"], [data-ooa-page="normal"], [data-ooa-page="pe"]) .topbar .brand-mark i {
-  position: static;
-  left: auto;
-  width: 5px;
+:where([data-ooa-page="ray"], [data-ooa-page="normal"], [data-ooa-page="pe"]) .topbar .brand-logo {
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
   display: block;
-  border-radius: 1px;
-  background: #62d8e7;
-  box-shadow: none;
-  transform-origin: center;
-}
-
-:where([data-ooa-page="ray"], [data-ooa-page="normal"], [data-ooa-page="pe"]) .topbar .brand-mark i:nth-child(1) {
-  height: 8px;
-  opacity: 0.5;
-  transform: none;
-}
-
-:where([data-ooa-page="ray"], [data-ooa-page="normal"], [data-ooa-page="pe"]) .topbar .brand-mark i:nth-child(2) {
-  height: 15px;
-  transform: none;
-}
-
-:where([data-ooa-page="ray"], [data-ooa-page="normal"], [data-ooa-page="pe"]) .topbar .brand-mark i:nth-child(3) {
-  height: 11px;
-  opacity: 0.75;
-  transform: none;
+  object-fit: contain;
 }
 
 :where([data-ooa-page="ray"], [data-ooa-page="normal"], [data-ooa-page="pe"]) .topbar .mode-nav {

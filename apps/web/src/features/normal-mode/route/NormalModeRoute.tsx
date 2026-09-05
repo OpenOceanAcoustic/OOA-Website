@@ -29,10 +29,12 @@ export function NormalModeRoute() {
           </div>
           <div className="normal-grid">
             <NormalControls page={page} />
-            <NormalSpectrum page={page} />
-            <NormalModeDetail page={page} />
-            <NormalField page={page} />
-            <NormalDelta page={page} />
+            <div className="normal-results-grid">
+              <NormalSpectrum page={page} />
+              <NormalModeDetail page={page} />
+              <NormalField page={page} />
+              <NormalDelta page={page} />
+            </div>
           </div>
           <NormalMethodNote />
         </section>

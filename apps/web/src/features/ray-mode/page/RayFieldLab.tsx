@@ -1,3 +1,111 @@
+interface PlotZoomControlsProps {
+  readonly canvasId:
+    | "rayCanvas"
+    | "lossCanvas"
+    | "horizontalVelocityCanvas"
+    | "verticalVelocityCanvas";
+  readonly label: "声线轨迹图" | "传播损失图" | "水平质点振速图" | "垂直质点振速图";
+  readonly prefix: "ray" | "loss" | "horizontalVelocity" | "verticalVelocity";
+}
+
+function PlotZoomControls({ canvasId, label, prefix }: PlotZoomControlsProps) {
+  return (
+    <div className="plot-zoom-controls" role="group" aria-label={`${label}缩放控制`} title={`${label}缩放控制`}>
+      <button
+        type="button"
+        id={`${prefix}ZoomOut`}
+        aria-controls={canvasId}
+        aria-label={`缩小${label}`}
+        title={`缩小${label}`}
+      >
+        {"−"}
+      </button>
+      <button
+        type="button"
+        id={`${prefix}ZoomReset`}
+        className="plot-zoom-reset"
+        aria-controls={canvasId}
+        aria-label={`重置${label}缩放`}
+        title={`重置${label}缩放`}
+      >
+        {"100%"}
+      </button>
+      <button
+        type="button"
+        id={`${prefix}ZoomIn`}
+        aria-controls={canvasId}
+        aria-label={`放大${label}`}
+        title={`放大${label}`}
+      >
+        {"+"}
+      </button>
+    </div>
+  );
+}
+
+interface VelocityPlotToolbarProps {
+  readonly direction: "HORIZONTAL" | "VERTICAL";
+  readonly label: "水平振速" | "垂直振速";
+  readonly component: "r" | "z";
+}
+
+function VelocityPlotToolbar({ direction, label, component }: VelocityPlotToolbarProps) {
+  const horizontal = component === "r";
+  const readoutId = horizontal ? "horizontalVelocityReadout" : "verticalVelocityReadout";
+  const canvasId = horizontal ? "horizontalVelocityCanvas" : "verticalVelocityCanvas";
+  const zoomPrefix = horizontal ? "horizontalVelocity" : "verticalVelocity";
+  const plotLabel = horizontal ? "水平质点振速图" : "垂直质点振速图";
+
+  return (
+    <div className="velocity-component-head">
+      <div className="velocity-component-meta">
+        <div className="velocity-component-title">
+          {direction}
+          {" · "}
+          {label}
+          {" v"}
+          <sub>{component}</sub>
+        </div>
+        <div className="velocity-readout">
+          <span>
+            {"●"}
+          </span>
+          <div>
+            <small>
+              {label}
+              {"幅值"}
+            </small>
+            <strong id={readoutId}>
+              {"—"}
+            </strong>
+          </div>
+        </div>
+      </div>
+      <PlotZoomControls canvasId={canvasId} label={plotLabel} prefix={zoomPrefix} />
+      <div className="velocity-colorbar">
+        <div>
+          <span>
+            {"−20 log₁₀ |v"}
+            <sub>{component}</sub>
+            {"| / dB"}
+          </span>
+          <strong>
+            {"OOB NATIVE"}
+          </strong>
+        </div>
+        <i aria-hidden="true"></i>
+        <p>
+          <span>{"30"}</span>
+          <span>{"50"}</span>
+          <span>{"70"}</span>
+          <span>{"90"}</span>
+          <span>{"120"}</span>
+        </p>
+      </div>
+    </div>
+  );
+}
+
 export function RayFieldLab() {
   return (
     <section className="lab-section" id="lab">
@@ -342,157 +450,168 @@ export function RayFieldLab() {
             </button>
           </section>
         </aside>
-        <section className="ray-panel panel">
-          <div className="panel-head canvas-heading">
-            <div>
-              <span className="micro">
-                {"RAY GEOMETRY"}
-              </span>
-              <h3>
-                {"声线轨迹"}
-              </h3>
-            </div>
-            <div className="legend">
-              <span>
-                <i className="source-key"></i>
-                {"声源"}
-              </span>
-              <span>
-                <i className="ray-key"></i>
-                {"声线"}
-              </span>
-              <span>
-                <i className="terrain-key"></i>
-                {"海底地形"}
-              </span>
-            </div>
-          </div>
-          <div className="main-canvas-wrap">
-            <canvas id="rayCanvas" aria-label="声线路径动态图"></canvas>
-            <div className="canvas-axis x-axis">
-              {"距离 / km"}
-            </div>
-            <div className="canvas-axis y-axis">
-              {"深度 / m"}
-            </div>
-            <div className="sim-badge">
-              <span id="simPulse"></span>
-              <b id="simStatus">
-                {"CALCULATING"}
-              </b>
-              <small id="simTime">
-                {"00.0 ms"}
-              </small>
-            </div>
-            <div className="source-drag-hint">
-              {"拖动声源上下调整深度 ↕"}
-            </div>
-          </div>
-          <div className="ray-footer">
-            <div>
-              <span>
-                {"发射角"}
-              </span>
-              <strong id="launchAngleDisplay">
-                {"−20.3° — +20.3°"}
-              </strong>
-            </div>
-            <div>
-              <span>
-                {"显示声线数量"}
-              </span>
-              <strong id="displayRayCount">
-                {"50 DISPLAY RAYS"}
-              </strong>
-            </div>
-            <div>
-              <span>
-                {"最大距离"}
-              </span>
-              <strong id="maximumRangeDisplay">
-                {"100 km"}
-              </strong>
-            </div>
-          </div>
-        </section>
-        <section className="loss-panel panel">
-          <div className="panel-head canvas-heading">
-            <div>
-              <span className="micro">
-                {"TRANSMISSION LOSS"}
-              </span>
-              <h3>
-                {"传播损失"}
-              </h3>
-            </div>
-            <div className="loss-head-meta">
-              <span id="fieldRayCount">
-                {"1,000 RAYS"}
-              </span>
-              <button className="icon-button" id="replayButton" title="刷新绘图" aria-label="刷新绘图">
-                {"↻"}
-              </button>
-            </div>
-          </div>
-          <div className="main-canvas-wrap loss-wrap">
-            <canvas id="lossCanvas" aria-label="传播损失图"></canvas>
-            <div className="canvas-axis x-axis">
-              {"距离 / km"}
-            </div>
-            <div className="canvas-axis y-axis">
-              {"深度 / m"}
-            </div>
-            <div className="colorbar">
+        <div className="primary-plot-grid">
+          <section className="ray-panel panel">
+            <div className="panel-head canvas-heading">
               <div>
-                <span>
-                  {"TRANSMISSION LOSS / dB"}
+                <span className="micro">
+                  {"RAY GEOMETRY"}
                 </span>
-                <strong id="fieldModeLabel">
-                  {"INCOHERENT · GEOM CART"}
-                </strong>
+                <h3>
+                  {"声线轨迹"}
+                </h3>
               </div>
-              <i></i>
-              <p>
-                <span>
-                  {"40"}
-                </span>
-                <span>
-                  {"55"}
-                </span>
-                <span>
-                  {"70"}
-                </span>
-                <span>
-                  {"85"}
-                </span>
-                <span>
-                  {"100"}
-                </span>
-              </p>
+              <div className="ray-head-tools">
+                <div className="legend">
+                  <span>
+                    <i className="source-key"></i>
+                    {"声源"}
+                  </span>
+                  <span>
+                    <i className="ray-key"></i>
+                    {"声线"}
+                  </span>
+                  <span>
+                    <i className="terrain-key"></i>
+                    {"海底地形"}
+                  </span>
+                </div>
+                <PlotZoomControls canvasId="rayCanvas" label="声线轨迹图" prefix="ray" />
+              </div>
             </div>
-            <div className="receiver-readout">
-              <span>
-                {"●"}
-              </span>
-              <div>
-                <small>
-                  {"光标位置损失"}
+            <div className="main-canvas-wrap">
+              <canvas id="rayCanvas" aria-label="声线路径动态图"></canvas>
+              <div className="canvas-axis x-axis">
+                {"距离 / km"}
+              </div>
+              <div className="canvas-axis y-axis">
+                {"深度 / m"}
+              </div>
+              <div className="sim-badge">
+                <span id="simPulse"></span>
+                <b id="simStatus">
+                  {"CALCULATING"}
+                </b>
+                <small id="simTime">
+                  {"00.0 ms"}
                 </small>
-                <strong id="tlReadout">
-                  {"— dB"}
+              </div>
+              <div className="source-drag-hint plot-interaction-hint">
+                {"拖动声源调整深度 ↕ · 滚轮缩放 · 拖动平移"}
+              </div>
+            </div>
+            <div className="ray-footer">
+              <div>
+                <span>
+                  {"发射角"}
+                </span>
+                <strong id="launchAngleDisplay">
+                  {"−20.3° — +20.3°"}
+                </strong>
+              </div>
+              <div>
+                <span>
+                  {"显示声线数量"}
+                </span>
+                <strong id="displayRayCount">
+                  {"50 DISPLAY RAYS"}
+                </strong>
+              </div>
+              <div>
+                <span>
+                  {"最大距离"}
+                </span>
+                <strong id="maximumRangeDisplay">
+                  {"100 km"}
                 </strong>
               </div>
             </div>
-          </div>
-          <div className="loss-summary">
-            <span>
-              {"当前环境形成的低损失声道集中在"}
-            </span>
-            <strong id="channelSummary">
-              {"1,300 m 附近"}
-            </strong>
-          </div>
-        </section>
+          </section>
+          <section className="loss-panel panel">
+            <div className="panel-head canvas-heading">
+              <div>
+                <span className="micro">
+                  {"TRANSMISSION LOSS"}
+                </span>
+                <h3>
+                  {"传播损失"}
+                </h3>
+              </div>
+              <div className="loss-head-meta">
+                <span id="fieldRayCount">
+                  {"1,000 RAYS"}
+                </span>
+                <PlotZoomControls canvasId="lossCanvas" label="传播损失图" prefix="loss" />
+                <button className="icon-button" id="replayButton" title="刷新绘图" aria-label="刷新绘图">
+                  {"↻"}
+                </button>
+              </div>
+            </div>
+            <div className="loss-colorbar-toolbar">
+              <div className="colorbar">
+                <div>
+                  <span>
+                    {"TRANSMISSION LOSS / dB"}
+                  </span>
+                  <strong id="fieldModeLabel">
+                    {"INCOHERENT · GEOM CART"}
+                  </strong>
+                </div>
+                <i aria-hidden="true"></i>
+                <p>
+                  <span>
+                    {"40"}
+                  </span>
+                  <span>
+                    {"55"}
+                  </span>
+                  <span>
+                    {"70"}
+                  </span>
+                  <span>
+                    {"85"}
+                  </span>
+                  <span>
+                    {"100"}
+                  </span>
+                </p>
+              </div>
+              <div className="receiver-readout">
+                <span>
+                  {"●"}
+                </span>
+                <div>
+                  <small>
+                    {"光标位置损失"}
+                  </small>
+                  <strong id="tlReadout">
+                    {"— dB"}
+                  </strong>
+                </div>
+              </div>
+            </div>
+            <div className="main-canvas-wrap loss-wrap">
+              <canvas id="lossCanvas" aria-label="传播损失图"></canvas>
+              <div className="canvas-axis x-axis">
+                {"距离 / km"}
+              </div>
+              <div className="canvas-axis y-axis">
+                {"深度 / m"}
+              </div>
+              <div className="plot-interaction-hint">
+                {"滚轮缩放 · 拖动平移"}
+              </div>
+            </div>
+            <div className="loss-summary">
+              <span>
+                {"当前环境形成的低损失声道集中在"}
+              </span>
+              <strong id="channelSummary">
+                {"1,300 m 附近"}
+              </strong>
+            </div>
+          </section>
+        </div>
         <section className="velocity-panel panel">
           <div className="panel-head canvas-heading">
             <div>
@@ -508,123 +627,33 @@ export function RayFieldLab() {
             </div>
           </div>
           <div className="velocity-grid">
-            <div className="main-canvas-wrap velocity-wrap velocity-component">
-              <canvas id="horizontalVelocityCanvas" aria-label="OOB原生水平质点振速级图"></canvas>
-              <div className="velocity-component-title">
-                {"HORIZONTAL · 水平振速 v"}
-                <sub>
-                  {"r"}
-                </sub>
-              </div>
-              <div className="canvas-axis x-axis">
-                {"距离 / km"}
-              </div>
-              <div className="canvas-axis y-axis">
-                {"深度 / m"}
-              </div>
-              <div className="velocity-colorbar">
-                <div>
-                  <span>
-                    {"−20 log₁₀ |v"}
-                    <sub>
-                      {"r"}
-                    </sub>
-                    {"| / dB"}
-                  </span>
-                  <strong>
-                    {"OOB NATIVE"}
-                  </strong>
+            <div className="velocity-component">
+              <VelocityPlotToolbar direction="HORIZONTAL" label="水平振速" component="r" />
+              <div className="main-canvas-wrap velocity-wrap">
+                <canvas id="horizontalVelocityCanvas" aria-label="OOB原生水平质点振速级图"></canvas>
+                <div className="canvas-axis x-axis">
+                  {"距离 / km"}
                 </div>
-                <i></i>
-                <p>
-                  <span>
-                    {"30"}
-                  </span>
-                  <span>
-                    {"50"}
-                  </span>
-                  <span>
-                    {"70"}
-                  </span>
-                  <span>
-                    {"90"}
-                  </span>
-                  <span>
-                    {"120"}
-                  </span>
-                </p>
-              </div>
-              <div className="velocity-readout">
-                <span>
-                  {"●"}
-                </span>
-                <div>
-                  <small>
-                    {"水平振速幅值"}
-                  </small>
-                  <strong id="horizontalVelocityReadout">
-                    {"—"}
-                  </strong>
+                <div className="canvas-axis y-axis">
+                  {"深度 / m"}
+                </div>
+                <div className="plot-interaction-hint">
+                  {"滚轮缩放 · 拖动平移"}
                 </div>
               </div>
             </div>
-            <div className="main-canvas-wrap velocity-wrap velocity-component">
-              <canvas id="verticalVelocityCanvas" aria-label="OOB原生垂直质点振速级图"></canvas>
-              <div className="velocity-component-title">
-                {"VERTICAL · 垂直振速 v"}
-                <sub>
-                  {"z"}
-                </sub>
-              </div>
-              <div className="canvas-axis x-axis">
-                {"距离 / km"}
-              </div>
-              <div className="canvas-axis y-axis">
-                {"深度 / m"}
-              </div>
-              <div className="velocity-colorbar">
-                <div>
-                  <span>
-                    {"−20 log₁₀ |v"}
-                    <sub>
-                      {"z"}
-                    </sub>
-                    {"| / dB"}
-                  </span>
-                  <strong>
-                    {"OOB NATIVE"}
-                  </strong>
+            <div className="velocity-component">
+              <VelocityPlotToolbar direction="VERTICAL" label="垂直振速" component="z" />
+              <div className="main-canvas-wrap velocity-wrap">
+                <canvas id="verticalVelocityCanvas" aria-label="OOB原生垂直质点振速级图"></canvas>
+                <div className="canvas-axis x-axis">
+                  {"距离 / km"}
                 </div>
-                <i></i>
-                <p>
-                  <span>
-                    {"30"}
-                  </span>
-                  <span>
-                    {"50"}
-                  </span>
-                  <span>
-                    {"70"}
-                  </span>
-                  <span>
-                    {"90"}
-                  </span>
-                  <span>
-                    {"120"}
-                  </span>
-                </p>
-              </div>
-              <div className="velocity-readout">
-                <span>
-                  {"●"}
-                </span>
-                <div>
-                  <small>
-                    {"垂直振速幅值"}
-                  </small>
-                  <strong id="verticalVelocityReadout">
-                    {"—"}
-                  </strong>
+                <div className="canvas-axis y-axis">
+                  {"深度 / m"}
+                </div>
+                <div className="plot-interaction-hint">
+                  {"滚轮缩放 · 拖动平移"}
                 </div>
               </div>
             </div>
