@@ -13,7 +13,7 @@
     "wasm:freeze": "bash scripts/wasm/build-release.sh --freeze",
     "wasm:release": "bash scripts/wasm/build-release.sh --locked",
     "check:wasm-lock": "node scripts/wasm/verify-package-lock.mjs",
-    "verify:wasm": "node scripts/wasm/verify-packages.mjs && npm run check:wasm-lock && node scripts/wasm/print-provenance.mjs",
+    "verify:wasm": "node scripts/wasm/verify-packages.mjs && node scripts/wasm/print-provenance.mjs",
     "verify:imports": "node scripts/verify/import-boundaries.mjs",
     "verify:structure": "node scripts/verify/page-structure.mjs",
     "dev": "npm run dev --workspace @ooa/web",
@@ -25,7 +25,7 @@
     "test:build": "npm run build && node --test tests/build/spa-artifacts.test.mjs && npm run verify:release",
     "test:e2e": "npm run build && playwright test",
     "check": "npm run verify:wasm && npm run verify:imports && npm run verify:structure && npm run typecheck && npm test",
-    "check:release": "npm run check && node scripts/release/verify-clean-sources.mjs && npm run test:build && playwright test && npm run visual:test",
+    "check:release": "npm run check && node scripts/release/verify-clean-sources.mjs && npm run check:wasm-lock && npm run test:build && playwright test && npm run visual:test",
     "test:watch": "vitest",
     "visual:test": "playwright test --config=playwright.visual.config.ts",
     "visual:update": "playwright test --config=playwright.visual.config.ts --update-snapshots"

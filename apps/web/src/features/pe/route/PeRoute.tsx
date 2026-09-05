@@ -7,6 +7,7 @@ import { PeField } from "../page/PeField";
 import { PeHero } from "../page/PeHero";
 import { PeMethodNote } from "../page/PeMethodNote";
 import { PeProfile } from "../page/PeProfile";
+import { PeTheorySection } from "../page/PeTheorySection";
 import { usePePage } from "../hooks/usePePage";
 import "@ooa/styles/model-lab.css";
 import "@ooa/styles/controls.css";
@@ -20,6 +21,7 @@ export function PeRoute() {
       <ModelPageHeader activePage="pe" />
       <main className="site-shell">
         <PeHero page={page} />
+        <PeTheorySection />
         <section className="workspace" aria-labelledby="workspaceTitle">
           <div className="workspace-heading">
             <div><p className="micro">02 · WIDE-ANGLE APPROXIMATION</p><h2 id="workspaceTitle">Padé 阶数影响实验台</h2></div>
