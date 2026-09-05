@@ -1,5 +1,5 @@
 import { CollapsibleControls } from "../../shared-page/WorkspaceNavigation";
-import { VelocityGlossary } from "./VelocityGlossary";
+import { RayGeometryGlossary, TransmissionLossGlossary, VelocityGlossary } from "./VelocityGlossary";
 
 interface PlotZoomControlsProps {
   readonly canvasId:
@@ -530,6 +530,7 @@ export function RayFieldLab() {
                 </strong>
               </div>
             </div>
+            <RayGeometryGlossary />
           </section>
           <section className="loss-panel panel">
             <div className="panel-head canvas-heading">
@@ -614,6 +615,7 @@ export function RayFieldLab() {
                 {"1,300 m 附近"}
               </strong>
             </div>
+            <TransmissionLossGlossary />
           </section>
         </div>
         <section className="velocity-panel panel">

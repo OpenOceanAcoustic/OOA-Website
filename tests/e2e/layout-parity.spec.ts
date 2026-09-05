@@ -54,7 +54,7 @@ const pages = [
     title: "OOA-RayMode · 声传播交互实验室",
     headings: ["声线，如何一步步 穿过海洋。", "看见声音，理解海洋。", "传播链路实验台", "精确本征声线"],
     canvasCount: 9,
-    controlCount: 123,
+    controlCount: 139,
     page: "ray",
   },
   {
@@ -224,41 +224,209 @@ test("Ray Mode heatmap color scales and labels stay above the plotting surfaces"
   }
 });
 
-test("Ray Mode velocity glossary supports reduced motion and keyboard dialog access", async ({ page }) => {
+const rayGlossaryContracts = [
+  { panel: ".ray-panel", scope: "ray-geometry", termCount: 8, streamLabel: "声线轨迹名词流" },
+  { panel: ".loss-panel", scope: "transmission-loss", termCount: 8, streamLabel: "传播损失名词流" },
+  { panel: ".velocity-panel", scope: "velocity", termCount: 12, streamLabel: "质点振速名词流" },
+] as const;
+
+test("Ray Mode plot glossaries share readable terms and keyboard dialog access", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/");
 
-  const velocityPanel = page.locator(".velocity-panel");
-  const glossary = velocityPanel.locator(":scope > .velocity-grid ~ .velocity-glossary");
-  const terms = glossary.locator("button.velocity-term");
-  await expect(glossary).toHaveCount(1);
-  await expect(terms).toHaveCount(12);
+  const dialogIds: string[] = [];
+  for (const contract of rayGlossaryContracts) {
+    const panel = page.locator(contract.panel);
+    const glossary = panel.locator(":scope > .plot-glossary--" + contract.scope);
+    const stream = glossary.locator(":scope > .plot-term-stream");
+    const terms = stream.locator("button.plot-term");
+    await expect(glossary).toHaveCount(1);
+    await expect(glossary).toHaveAttribute("aria-labelledby", contract.scope + "GlossaryTitle");
+    await expect(stream).toHaveAttribute("aria-label", contract.streamLabel);
+    await expect(terms).toHaveCount(contract.termCount);
 
-  const termNames = (await terms.allTextContents()).map((name) => name.trim());
-  expect(termNames.every((name) => name.length > 0)).toBe(true);
-  expect(new Set(termNames).size).toBe(12);
-  expect(await terms.evaluateAll((elements) => elements.map((element) => getComputedStyle(element).animationName)))
-    .toEqual(Array.from({ length: 12 }, () => "none"));
+    const termNames = (await terms.allTextContents()).map((name) => name.trim());
+    expect(termNames.every((name) => name.length > 0)).toBe(true);
+    expect(new Set(termNames).size).toBe(contract.termCount);
+    expect(await terms.evaluateAll((elements) => elements.every((element) => (
+      Number.parseFloat(getComputedStyle(element).fontSize) >= 14
+    )))).toBe(true);
+    expect(await terms.evaluateAll((elements) => elements.map((element) => getComputedStyle(element).animationName)))
+      .toEqual(Array.from({ length: contract.termCount }, () => "none"));
+    expect(await terms.evaluateAll((elements) => elements.every((element) => (
+      element.getAttribute("aria-haspopup") === "dialog"
+      && element.getAttribute("aria-expanded") === "false"
+    )))).toBe(true);
 
-  const trigger = glossary.getByRole("button", { name: "质点振速", exact: true });
-  await trigger.focus();
-  await expect(trigger).toBeFocused();
-  await trigger.press("Enter");
+    const controlledIds = await terms.evaluateAll((elements) => (
+      elements.map((element) => element.getAttribute("aria-controls"))
+    ));
+    expect(controlledIds.every((id) => id !== null && id.length > 0)).toBe(true);
+    expect(new Set(controlledIds).size).toBe(1);
+    const dialogId = controlledIds[0];
+    expect(dialogId).toBe(contract.scope + "GlossaryDialog");
+    if (dialogId === null) throw new Error("Plot glossary trigger has no controlled dialog ID");
+    dialogIds.push(dialogId);
 
-  const dialog = page.getByRole("dialog", { name: "质点振速", exact: true });
-  await expect(dialog).toBeVisible();
-  await expect(dialog).toHaveAttribute("aria-modal", "true");
-  await expect(dialog).toContainText("介质质点");
-  await expect(dialog).toContainText("声速");
-  await expect(dialog).toContainText(/不是|不同/);
+    const trigger = terms.first();
+    await trigger.focus();
+    await expect(trigger).toBeFocused();
+    await trigger.press("Enter");
 
-  const closeButton = dialog.locator("button.velocity-glossary-close");
-  await expect(closeButton).toHaveAccessibleName(/关闭/);
-  await expect(closeButton).toBeFocused();
-  await page.keyboard.press("Escape");
+    const dialog = page.locator("#" + dialogId);
+    await expect(dialog).toBeVisible();
+    await expect(dialog).toHaveAttribute("role", "dialog");
+    await expect(dialog).toHaveAttribute("aria-modal", "true");
+    await expect(dialog).toHaveAttribute("aria-labelledby", contract.scope + "GlossaryDialogTitle");
+    await expect(dialog).toContainText("名词解释");
+    await expect(trigger).toHaveAttribute("aria-expanded", "true");
 
-  await expect(dialog).toHaveCount(0);
-  await expect(trigger).toBeFocused();
+    const closeButton = dialog.locator("button.plot-glossary-close");
+    await expect(closeButton).toHaveAccessibleName(/关闭/);
+    await expect(closeButton).toBeFocused();
+    await page.keyboard.press("Escape");
+
+    await expect(dialog).toHaveCount(0);
+    await expect(trigger).toBeFocused();
+    await expect(trigger).toHaveAttribute("aria-expanded", "false");
+  }
+
+  expect(new Set(dialogIds).size).toBe(rayGlossaryContracts.length);
+  const glossaryElementIds = await page.locator(".plot-glossary [id]").evaluateAll((elements) => (
+    elements.map((element) => element.id)
+  ));
+  expect(new Set(glossaryElementIds).size).toBe(glossaryElementIds.length);
+});
+
+test("Ray Mode aligns the desktop result stack and both velocity plots", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/");
+  await expect(page.locator("#simStatus")).toHaveText("SIMULATION COMPLETE", { timeout: 30_000 });
+
+  for (const width of [1440, 1280, 1024, 901]) {
+    await page.setViewportSize({ width, height: 900 });
+
+    const controls = page.locator(".lab-grid > .workspace-controls");
+    const controlPanel = controls.locator(":scope > .control-panel");
+    const primaryPlots = page.locator(".lab-grid > .primary-plot-grid");
+    const velocityPanel = page.locator(".lab-grid > .velocity-panel");
+    const velocityGlossary = velocityPanel.locator(":scope > .plot-glossary--velocity");
+    const horizontalComponent = velocityPanel.locator(".velocity-component").nth(0);
+    const verticalComponent = velocityPanel.locator(".velocity-component").nth(1);
+    const [
+      controlsBox,
+      controlPanelBox,
+      primaryBox,
+      velocityBox,
+      velocityGlossaryBox,
+      horizontalPlotBox,
+      verticalPlotBox,
+      horizontalHintBox,
+      verticalHintBox,
+      rayCanvasBox,
+      lossCanvasBox,
+    ] = await Promise.all([
+      controls.boundingBox(),
+      controlPanel.boundingBox(),
+      primaryPlots.boundingBox(),
+      velocityPanel.boundingBox(),
+      velocityGlossary.boundingBox(),
+      horizontalComponent.locator(":scope > .velocity-wrap").boundingBox(),
+      verticalComponent.locator(":scope > .velocity-wrap").boundingBox(),
+      horizontalComponent.locator(":scope > .plot-interaction-hint").boundingBox(),
+      verticalComponent.locator(":scope > .plot-interaction-hint").boundingBox(),
+      page.locator("#rayCanvas").boundingBox(),
+      page.locator("#lossCanvas").boundingBox(),
+    ]);
+    if (
+      controlsBox === null
+      || controlPanelBox === null
+      || primaryBox === null
+      || velocityBox === null
+      || velocityGlossaryBox === null
+      || horizontalPlotBox === null
+      || verticalPlotBox === null
+      || horizontalHintBox === null
+      || verticalHintBox === null
+      || rayCanvasBox === null
+      || lossCanvasBox === null
+    ) {
+      throw new Error("Ray Mode desktop result layout has no box at " + width + "px");
+    }
+
+    const controlsBottom = controlsBox.y + controlsBox.height;
+    const controlPanelBottom = controlPanelBox.y + controlPanelBox.height;
+    const primaryBottom = primaryBox.y + primaryBox.height;
+    const velocityBottom = velocityBox.y + velocityBox.height;
+    const velocityGlossaryBottom = velocityGlossaryBox.y + velocityGlossaryBox.height;
+    const horizontalPlotBottom = horizontalPlotBox.y + horizontalPlotBox.height;
+    const verticalPlotBottom = verticalPlotBox.y + verticalPlotBox.height;
+    const horizontalHintBottom = horizontalHintBox.y + horizontalHintBox.height;
+    const verticalHintBottom = verticalHintBox.y + verticalHintBox.height;
+
+    expect(Math.abs(controlsBottom - velocityBottom)).toBeLessThanOrEqual(1);
+    expect(Math.abs(controlPanelBottom - velocityGlossaryBottom)).toBeLessThanOrEqual(1);
+    expect(Math.abs(velocityBox.y - primaryBottom - 20)).toBeLessThanOrEqual(1);
+    expect(Math.abs(horizontalPlotBox.y - verticalPlotBox.y)).toBeLessThanOrEqual(1);
+    expect(Math.abs(horizontalPlotBottom - verticalPlotBottom)).toBeLessThanOrEqual(1);
+    expect(Math.abs(horizontalHintBottom - verticalHintBottom)).toBeLessThanOrEqual(1);
+
+    if (width >= 1400) {
+      const rayCanvasBottom = rayCanvasBox.y + rayCanvasBox.height;
+      const lossCanvasBottom = lossCanvasBox.y + lossCanvasBox.height;
+      expect(Math.abs(rayCanvasBox.y - lossCanvasBox.y)).toBeLessThanOrEqual(1);
+      expect(Math.abs(rayCanvasBottom - lossCanvasBottom)).toBeLessThanOrEqual(1);
+    }
+  }
+});
+
+test("Ray Mode plot glossaries remain usable without horizontal page overflow on mobile", async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 900 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/");
+
+  for (const contract of rayGlossaryContracts) {
+    const glossary = page.locator(contract.panel).locator(":scope > .plot-glossary--" + contract.scope);
+    const stream = glossary.locator(":scope > .plot-term-stream");
+    const terms = stream.locator("button.plot-term");
+    await expect(glossary).toBeVisible();
+    await expect(stream).toBeVisible();
+    await expect(terms).toHaveCount(contract.termCount);
+    expect(await terms.evaluateAll((elements) => elements.every((element) => {
+      const box = element.getBoundingClientRect();
+      const style = getComputedStyle(element);
+      return box.width > 0 && box.height > 0 && style.visibility !== "hidden" && style.display !== "none";
+    }))).toBe(true);
+
+    const [streamBox, firstTermBox] = await Promise.all([stream.boundingBox(), terms.first().boundingBox()]);
+    if (streamBox === null || firstTermBox === null) throw new Error("Mobile glossary has no layout box");
+    expect(firstTermBox.x).toBeGreaterThanOrEqual(streamBox.x - 1);
+    expect(firstTermBox.x + firstTermBox.width).toBeLessThanOrEqual(streamBox.x + streamBox.width + 1);
+
+    const lastTerm = terms.last();
+    await lastTerm.click();
+    const dialog = page.locator("#" + contract.scope + "GlossaryDialog");
+    await expect(dialog).toBeVisible();
+    await expect(lastTerm).toHaveAttribute("aria-expanded", "true");
+    await expect(dialog.locator("button.plot-glossary-close")).toBeFocused();
+    await page.keyboard.press("Escape");
+    await expect(dialog).toHaveCount(0);
+    await expect(lastTerm).toBeFocused();
+    await expect(lastTerm).toHaveAttribute("aria-expanded", "false");
+    expect(await stream.evaluate((element) => element.scrollLeft)).toBeGreaterThan(0);
+
+    const lastTermBox = await lastTerm.boundingBox();
+    if (lastTermBox === null) throw new Error("Last mobile glossary term has no layout box");
+    expect(lastTermBox.x).toBeGreaterThanOrEqual(streamBox.x - 1);
+    expect(lastTermBox.x + lastTermBox.width).toBeLessThanOrEqual(streamBox.x + streamBox.width + 1);
+  }
+
+  const documentWidths = await page.evaluate(() => ({
+    viewport: document.documentElement.clientWidth,
+    document: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth),
+  }));
+  expect(documentWidths.document).toBeLessThanOrEqual(documentWidths.viewport + 1);
 });
 
 test("Ray Mode gives comparison plots readable widths across breakpoints", async ({ page }) => {
