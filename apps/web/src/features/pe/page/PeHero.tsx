@@ -8,9 +8,9 @@ export function PeHero({ page }: { readonly page: UsePePageResult }) {
           {"OPENOCEAN FIELD · PARABOLIC EQUATION"}
         </p>
         <h1>
-          {"观察 Padé 阶数如何改变"}
+          {"Padé 阶数如何影响"}
           <em>
-            {"前向声场。"}
+            {"声场"}
           </em>
         </h1>
         <p className="lead">

@@ -1,3 +1,5 @@
+import { ResourceDownload } from "../../shared-page/ModelPageChrome";
+
 export function RayFooter() {
   return (
     <footer>
@@ -19,6 +21,7 @@ export function RayFooter() {
       <p>
         {"交互结果用于原理演示；工程计算请使用 OOB 原生求解器及经验证的环境数据。"}
       </p>
+      <ResourceDownload />
       <a href="#top">
         {"BACK TO TOP ↑"}
       </a>

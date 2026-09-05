@@ -60,7 +60,7 @@
 :where([data-ooa-page="normal"]) .normal-theory-control output,
 :where([data-ooa-page="normal"]) .normal-theory-animation-control output {
   color: var(--ooa-cyan);
-  font: 9px var(--ooa-mono);
+  font: 12px var(--ooa-mono);
   letter-spacing: 0.05em;
 }
 :where([data-ooa-page="normal"]) .normal-theory-control small,
@@ -68,7 +68,7 @@
   display: block;
   margin-top: 8px;
   color: #557984;
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.45;
 }
 :where([data-ooa-page="normal"]) .normal-theory-control input[type="range"] {
@@ -84,7 +84,7 @@
   border-radius: 4px;
   background: #061c25;
   color: #c5e2e7;
-  font: 9px var(--ooa-mono);
+  font: 12px var(--ooa-mono);
 }
 :where([data-ooa-page="normal"]) .normal-theory-animation-control > div {
   display: grid;
@@ -99,7 +99,7 @@
   border-radius: 4px;
   background: rgba(27, 112, 128, 0.28);
   color: #c7f3f7;
-  font: 9px var(--ooa-mono);
+  font: 12px var(--ooa-mono);
   white-space: nowrap;
 }
 :where([data-ooa-page="normal"]) .normal-theory-animation-control button span { margin-right: 7px; color: var(--ooa-cyan); }
@@ -151,7 +151,7 @@
   gap: 12px;
   margin: 15px 0;
   color: #789ca5;
-  font: 9px var(--ooa-mono);
+  font: 12px var(--ooa-mono);
   text-align: center;
 }
 :where([data-ooa-page="normal"]) .normal-theory-flow span {
@@ -193,12 +193,12 @@
   border: 1px solid rgba(98, 216, 231, 0.34);
   border-radius: 50%;
   color: var(--ooa-cyan);
-  font: 9px var(--ooa-mono);
+  font: 12px var(--ooa-mono);
 }
 :where([data-ooa-page="normal"]) .normal-theory-card header p {
   margin: 0 0 4px;
   color: #4b8998;
-  font: 10px var(--ooa-mono);
+  font: 12px var(--ooa-mono);
   letter-spacing: 0.13em;
 }
 :where([data-ooa-page="normal"]) .normal-theory-card h3 {
@@ -230,7 +230,7 @@
 :where([data-ooa-page="normal"]) .normal-theory-footnote {
   margin: 14px 2px 0;
   color: #52737d;
-  font: 10px var(--ooa-mono);
+  font: 12px var(--ooa-mono);
   line-height: 1.55;
   text-align: right;
 }
@@ -239,7 +239,7 @@
 :where([data-ooa-page="normal"]) .detail-plots { display: grid; min-height: 383px; }
 :where([data-ooa-page="normal"]) .detail-plots .plot-wrap { min-height: 383px; }
 :where([data-ooa-page="normal"]) .field-wrap { min-height: 360px; }
-:where([data-ooa-page="normal"]) .field-scale { display: flex; align-items: center; gap: 7px; color: #6e929c; font: 8px var(--ooa-mono); }
+:where([data-ooa-page="normal"]) .field-scale { display: flex; align-items: center; gap: 7px; color: #6e929c; font: 12px var(--ooa-mono); }
 :where([data-ooa-page="normal"]) .field-scale i { width: 88px; height: 7px; border-radius: 8px; background: linear-gradient(90deg, #800000, #ff9d00, #f7ef21, #26d28b, #00bce1, #0050d6, #030468); }
 :where([data-ooa-page="normal"]) .field-head-tools { display: grid; justify-items: end; gap: 8px; }
 :where([data-ooa-page="normal"]) .field-view-toggle {
@@ -257,7 +257,7 @@
   border-radius: 2px;
   background: transparent;
   color: #678993;
-  font: 8px var(--ooa-mono);
+  font: 12px var(--ooa-mono);
   letter-spacing: 0.04em;
 }
 :where([data-ooa-page="normal"]) .field-view-toggle button:hover { color: var(--ooa-cyan); }
@@ -275,7 +275,7 @@
   border-radius: 4px;
   background: rgba(12, 61, 73, 0.32);
   color: var(--ooa-cyan);
-  font: 9px var(--ooa-mono);
+  font: 12px var(--ooa-mono);
   letter-spacing: 0.04em;
 }
 :where([data-ooa-page="normal"]) .mode-field-action:hover { border-color: var(--ooa-cyan); background: rgba(22, 83, 96, 0.42); }
@@ -294,7 +294,7 @@
   border-radius: 4px;
   background: rgba(10, 52, 65, 0.42);
   color: var(--ooa-cyan);
-  font: 10px var(--ooa-mono);
+  font: 12px var(--ooa-mono);
   letter-spacing: 0.04em;
 }
 :where([data-ooa-page="normal"]) .environment-import-button span { margin-right: 6px; font-size: 14px; }
@@ -303,7 +303,7 @@
 :where([data-ooa-page="normal"]) .environment-import-bar p {
   margin: 8px 1px 0;
   color: #64848e;
-  font-size: 8px;
+  font-size: 12px;
   line-height: 1.55;
 }
 :where([data-ooa-page="normal"]) .environment-import-bar p.busy { color: var(--ooa-amber); }
@@ -324,7 +324,7 @@
   gap: 10px;
   min-height: 29px;
   color: #7899a3;
-  font-size: 10px;
+  font-size: 12px;
 }
 :where([data-ooa-page="normal"]) .material-number-edit {
   min-width: 128px;
@@ -346,17 +346,17 @@
   background: transparent;
   color: #dff5f8;
   text-align: right;
-  font-size: 10px;
+  font-size: 12px;
 }
 :where([data-ooa-page="normal"]) .material-number-edit b {
   padding: 0 7px 0 3px;
   color: #557985;
-  font: 7px var(--ooa-mono);
+  font: 12px var(--ooa-mono);
   font-weight: 400;
   white-space: nowrap;
 }
 :where([data-ooa-page="normal"]) .material-range-control > input[type="range"] { margin: 10px 0 5px; }
-:where([data-ooa-page="normal"]) .material-range-control .range-ends { font-size: 7px; }
+:where([data-ooa-page="normal"]) .material-range-control .range-ends { font-size: 12px; }
 
 @media (max-width: 1320px) {
   :where([data-ooa-page="normal"]) .normal-theory-controls { grid-template-columns: repeat(2, minmax(0, 1fr)); }

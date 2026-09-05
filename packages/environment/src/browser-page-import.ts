@@ -100,6 +100,10 @@ function quotedValue(source: any): any {
     const match: any = String(source).match(/^\s*(['"])(.*?)\1/);
     return match?.[2]?.trim();
 }
+// ENV/BTY options may be quoted or bare; numeric records must remain numeric.
+function optionValue(source: any): any {
+    return quotedValue(source) ?? String(source).match(/^\s*([A-Za-z][A-Za-z0-9*]*)(?=\s|\/|$)/)?.[1];
+}
 function sameWithinTolerance(left: any, right: any): any {
     return Math.abs(left - right) <= Math.max(1e-7, Math.abs(right) * 1e-8);
 }
@@ -983,7 +987,7 @@ function parseInlineBellhop(lines: any): any {
     const title: any = quotedValue(lines[0]);
     const frequency: any = numbersIn(lines[1])[0];
     const mediaCount: any = numbersIn(lines[2])[0];
-    const sspOption: any = quotedValue(lines[3]);
+    const sspOption: any = optionValue(lines[3]);
     if (title === undefined)
         throw new SyntaxError("Bellhop ENV title must be quoted");
     if (!Number.isFinite(frequency) || frequency <= 0)
@@ -991,7 +995,7 @@ function parseInlineBellhop(lines: any): any {
     if (!Number.isInteger(mediaCount) || mediaCount < 1)
         throw new SyntaxError("Bellhop ENV media count is invalid");
     if (sspOption === undefined)
-        throw new SyntaxError("Bellhop ENV SSP option must be quoted");
+        throw new SyntaxError("Bellhop ENV SSP option is missing or invalid");
     let cursor: any = 4;
     const profilePoints: any = [];
     let waterDepthM: any = 0;
@@ -1007,7 +1011,7 @@ function parseInlineBellhop(lines: any): any {
         }
         cursor += 1;
         let reachedBottom: any = false;
-        while (cursor < lines.length && quotedValue(lines[cursor]) === undefined) {
+        while (cursor < lines.length && optionValue(lines[cursor]) === undefined) {
             const row: any = numbersIn(beforeSlash(lines[cursor]));
             if (row.length >= 2) {
                 const point: any = [row[0], row[1]];
@@ -1029,7 +1033,7 @@ function parseInlineBellhop(lines: any): any {
             throw new SyntaxError(`Bellhop ENV medium ${medium + 1} profile does not reach its bottom`);
         waterDepthM = mediumBottomM;
     }
-    const bottomOption: any = quotedValue(lines[cursor]);
+    const bottomOption: any = optionValue(lines[cursor]);
     if (bottomOption === undefined)
         throw new SyntaxError("Bellhop ENV bottom option is missing");
     cursor += 1;
@@ -1050,11 +1054,11 @@ function parseInlineBellhop(lines: any): any {
     cursor = receiverDepths.cursor;
     const receiverRanges: any = readBellhopAxis(lines, cursor, "receiver range");
     cursor = receiverRanges.cursor;
-    while (cursor < lines.length && quotedValue(lines[cursor]) === undefined)
+    while (cursor < lines.length && optionValue(lines[cursor]) === undefined)
         cursor += 1;
     if (cursor >= lines.length)
         throw new SyntaxError("Bellhop ENV run type is missing");
-    const runType: any = quotedValue(lines[cursor]);
+    const runType: any = optionValue(lines[cursor]);
     cursor += 1;
     const beamTokens: any = cursor < lines.length ? numbersIn(beforeSlash(lines[cursor])) : [];
     if (beamTokens.length === 0)
@@ -1115,7 +1119,7 @@ export function parseBellhopSsp(source: any, baseProfilePoints: any): any {
 /** Parse a Bellhop `.bty` into `[range km, depth m]` pairs. */
 export function parseBellhopBathymetry(source: any): any {
     const lines: any = bellhopLines(source);
-    if (lines.length < 3 || quotedValue(lines[0]) === undefined) {
+    if (lines.length < 3 || optionValue(lines[0]) === undefined) {
         throw new SyntaxError("Bellhop BTY interpolation option is missing");
     }
     const tokens: any = numbersIn(lines.slice(1).join("\n"));
@@ -1128,7 +1132,7 @@ export function parseBellhopBathymetry(source: any): any {
         tokens[1 + index * 2],
         tokens[2 + index * 2],
     ]);
-    return { interpolation: quotedValue(lines[0]), points };
+    return { interpolation: optionValue(lines[0]), points };
 }
 /** Parse a Bellhop ENV string and optional same-stem SSP/BTY sidecar strings. */
 export function parseBellhopEnvironment(source: any, options: any = {}): any {

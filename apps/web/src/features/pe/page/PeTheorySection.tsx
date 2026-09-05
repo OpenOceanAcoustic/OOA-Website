@@ -4,11 +4,7 @@ import { renderPeMarch } from "../canvas/pe-theory-renderer";
 export function PeTheorySection() {
   const canvas = useRef<HTMLCanvasElement>(null);
   const progress = useRef(0.16);
-  const [playing, setPlaying] = useState(() => (
-    typeof window === "undefined"
-    || typeof window.matchMedia !== "function"
-    || !window.matchMedia("(prefers-reduced-motion: reduce)").matches
-  ));
+  const [playing, setPlaying] = useState(false);
 
   const draw = useCallback((currentProgress: number) => {
     if (canvas.current) renderPeMarch(canvas.current, currentProgress);
@@ -33,6 +29,16 @@ export function PeTheorySection() {
     let animationFrame = 0;
     let previousTime = performance.now();
     const animate = (currentTime: number) => {
+      const bounds = canvas.current?.getBoundingClientRect();
+      if (document.hidden || !bounds || bounds.bottom < 0 || bounds.top > window.innerHeight) {
+        previousTime = currentTime;
+        animationFrame = window.requestAnimationFrame(animate);
+        return;
+      }
+      if (currentTime - previousTime < 1000 / 24) {
+        animationFrame = window.requestAnimationFrame(animate);
+        return;
+      }
       const elapsedSeconds = Math.min((currentTime - previousTime) / 1000, 0.05);
       previousTime = currentTime;
       progress.current = (progress.current + elapsedSeconds * 0.075) % 1;
@@ -49,7 +55,7 @@ export function PeTheorySection() {
   };
 
   return (
-    <section className="pe-theory" aria-labelledby="peTheoryTitle">
+    <section id="theory" className="pe-theory" aria-labelledby="peTheoryTitle">
       <div className="workspace-heading pe-theory-heading">
         <div><p className="micro">01 · RANGE MARCHING</p><h2 id="peTheoryTitle">把声场从 r 递推到 r + Δr</h2></div>
         <p>PE 不一次求出整个二维声场，而是反复应用单步传播算子，沿距离方向向前推进。</p>
