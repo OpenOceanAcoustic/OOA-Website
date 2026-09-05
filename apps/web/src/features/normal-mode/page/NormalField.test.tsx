@@ -5,7 +5,8 @@ import type { UseNormalModePageResult } from "../hooks/useNormalModePage";
 import { NormalField } from "./NormalField";
 
 describe("NormalField", () => {
-  it("recomputes the modal field when the mode limit changes", () => {
+  it("previews range input and commits the latest value once when interaction finishes", () => {
+    const setNumericInput = vi.fn();
     const commitNumericInput = vi.fn();
     const page = {
       parameters: { modeLimit: "4" },
@@ -22,12 +23,34 @@ describe("NormalField", () => {
       solveBusy: false,
       canvases: { field: createRef<HTMLCanvasElement>() },
       setFieldView: vi.fn(),
+      setNumericInput,
       commitNumericInput,
     } as unknown as UseNormalModePageResult;
 
     render(<NormalField page={page} />);
-    fireEvent.change(screen.getByLabelText("参与叠加的前 N 阶模态"), { target: { value: "7" } });
+    const modeLimit = screen.getByLabelText("参与叠加的前 N 阶模态");
+
+    fireEvent.input(modeLimit, { target: { value: "6" } });
+    fireEvent.input(modeLimit, { target: { value: "7" } });
+
+    expect(setNumericInput).toHaveBeenNthCalledWith(1, "modeLimit", "6");
+    expect(setNumericInput).toHaveBeenNthCalledWith(2, "modeLimit", "7");
+    expect(commitNumericInput).not.toHaveBeenCalled();
+
+    fireEvent.pointerUp(modeLimit);
 
     expect(commitNumericInput).toHaveBeenCalledWith("modeLimit", "7");
+    expect(commitNumericInput).toHaveBeenCalledTimes(1);
+
+    fireEvent.blur(modeLimit);
+    expect(commitNumericInput).toHaveBeenCalledTimes(1);
+
+    fireEvent.input(modeLimit, { target: { value: "8" } });
+    fireEvent.keyUp(modeLimit, { key: "ArrowRight" });
+    expect(commitNumericInput).toHaveBeenNthCalledWith(2, "modeLimit", "8");
+
+    fireEvent.input(modeLimit, { target: { value: "9" } });
+    fireEvent.blur(modeLimit);
+    expect(commitNumericInput).toHaveBeenNthCalledWith(3, "modeLimit", "9");
   });
 });

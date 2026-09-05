@@ -22,6 +22,10 @@ async function collectFiles(directory, prefix = "") {
 test("production SPA ships exactly the three first-phase model families", async () => {
   const files = await collectFiles(distRoot);
   assert.ok(files.includes("index.html"));
+  assert.ok(
+    files.some((file) => /^assets\/dolphin-front-headphones-[^.]+\.png$/.test(file)),
+    "hashed header logo is missing",
+  );
 
   for (const workerPrefix of ["bellhop2d.worker-", "kraken.worker-", "ram.worker-"]) {
     assert.equal(

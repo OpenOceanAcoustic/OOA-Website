@@ -20,6 +20,7 @@ for (const viewport of viewports) {
     test(`${route.name} matches ${viewport.name}`, async ({ page }, testInfo) => {
       await page.clock.install({ time: new Date("2026-08-31T12:00:00Z") });
       await page.setViewportSize(viewport);
+      await page.emulateMedia({ reducedMotion: "reduce" });
       await page.goto(route.path, { waitUntil: "networkidle" });
       await expect(page.locator(route.status)).toHaveText(route.complete, { timeout: 60_000 });
       await page.evaluate(async () => { await document.fonts.ready; });

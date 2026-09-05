@@ -9,11 +9,13 @@ export interface MountedRayCanvasExperience {
 
 export function mountRayCanvasExperience(root: HTMLElement, runtime: RayRuntime): MountedRayCanvasExperience {
     const listenerScope: any = new AbortController();
-    const listen: any = (target: any, type: any, listener: any): any => target.addEventListener(type, listener, { signal: listenerScope.signal });
+    const plotPadding: any = { l: 39, r: 12, t: 19, b: 28 };
+    const fieldZoomLimits: any = { minimum: 1, maximum: 8, step: 1.25 };
+    const listen: any = (target: any, type: any, listener: any, options: any = {}): any => target.addEventListener(type, listener, { ...options, signal: listenerScope.signal });
     const $: any = (id: any): any => root.querySelector(`#${CSS.escape(id)}`);
     const initialProfile: any = generateSspProfile({ profile: 'munk' });
     const initialSSP: any = resampleSspPoints(initialProfile.depths.map((depth: any, index: any): any => [depth, initialProfile.speeds[index]]), initialProfile.waterDepthM);
-    const state: any = { data: null, animation: 0, raf: null, request: 0, environmentRequest: 0, lossImage: null, velocityImages: { horizontal: null, vertical: null }, eigen: null, eigenRequest: 0, environmentMode: 'munk', importedEnvironment: null, customEnvironment: null, customSSP: initialSSP, customWaterDepthM: DEFAULT_WATER_DEPTH_M, maximumDepthM: DEFAULT_WATER_DEPTH_M, sspDrag: -1, sourceDragging: false, solvedSourceDepth: null, eigenSourceDragging: false, solvedEigenSourceDepth: null, receiverDragging: false, receiverPreview: null, introRaf: null, introStart: 0, introProgress: 0 };
+    const state: any = { data: null, animation: 0, raf: null, request: 0, environmentRequest: 0, lossImage: null, velocityImages: { horizontal: null, vertical: null }, fieldView: { zoom: 1, x: 0, y: 0 }, fieldPanning: null, eigen: null, eigenRequest: 0, environmentMode: 'munk', importedEnvironment: null, customEnvironment: null, customSSP: initialSSP, customWaterDepthM: DEFAULT_WATER_DEPTH_M, maximumDepthM: DEFAULT_WATER_DEPTH_M, sspDrag: -1, sourceDragging: false, sourcePointerId: null, solvedSourceDepth: null, eigenSourceDragging: false, solvedEigenSourceDepth: null, receiverDragging: false, receiverPreview: null, introRaf: null, introStart: 0, introProgress: 0 };
     const controls: any = {
         profile: $('profile'), axisDepth: $('axisDepth'), gradient: $('gradient'),
         sourceDepth: $('sourceDepth'), frequency: $('frequency'), bottomSpeed: $('bottomSpeed'),
@@ -421,40 +423,175 @@ export function mountRayCanvasExperience(root: HTMLElement, runtime: RayRuntime)
         clearTimeout(debounce);
         debounce = setTimeout(recalculateEnvironment, 80);
     }
+    function formatAxisTick(value: any, step: any, compactThousands: any = false): any {
+        if (compactThousands && Math.abs(value) >= 1000) {
+            const scaledStep: any = Math.abs(step) / 1000;
+            const digits: any = scaledStep >= 1 ? 0 : scaledStep >= .1 ? 1 : 2;
+            return `${(value / 1000).toFixed(digits)}k`;
+        }
+        const digits: any = Math.abs(step) >= 10 ? 0 : Math.abs(step) >= 1 ? 1 : 2;
+        return Number(value).toFixed(digits);
+    }
     function axes(ctx: any, w: any, h: any, opts: any = {}): any {
-        const pad: any = opts.pad || { l: 39, r: 12, t: 19, b: 28 };
-        const maximumRangeKm: any = opts.maximumRangeKm || 100;
-        const maximumDepthM: any = opts.maximumDepthM || 5000;
+        const pad: any = opts.pad || plotPadding;
+        const minimumRangeKm: any = Number.isFinite(opts.minimumRangeKm) ? opts.minimumRangeKm : 0, maximumRangeKm: any = Number.isFinite(opts.maximumRangeKm) ? opts.maximumRangeKm : 100;
+        const minimumDepthM: any = Number.isFinite(opts.minimumDepthM) ? opts.minimumDepthM : 0, maximumDepthM: any = Number.isFinite(opts.maximumDepthM) ? opts.maximumDepthM : 5000;
+        const rangeStep: any = (maximumRangeKm - minimumRangeKm) / 5, depthStep: any = (maximumDepthM - minimumDepthM) / 5;
         const pw: any = w - pad.l - pad.r, ph: any = h - pad.t - pad.b;
         ctx.strokeStyle = 'rgba(92,151,169,.14)';
         ctx.lineWidth = 1;
         ctx.fillStyle = '#5f7f89';
         ctx.font = '10px ui-monospace, monospace';
         for (let i: any = 0; i <= 5; i++) {
-            const x: any = pad.l + pw * i / 5;
+            const x: any = pad.l + pw * i / 5, label: any = minimumRangeKm + rangeStep * i;
             ctx.beginPath();
             ctx.moveTo(x, pad.t);
             ctx.lineTo(x, pad.t + ph);
             ctx.stroke();
             if (!opts.noLabels) {
-                const label: any = maximumRangeKm * i / 5;
                 ctx.textAlign = 'center';
-                ctx.fillText(label >= 10 ? label.toFixed(0) : label.toFixed(1), x, h - 12);
+                ctx.fillText(formatAxisTick(label, rangeStep), x, h - 12);
             }
         }
         for (let i: any = 0; i <= 5; i++) {
-            const y: any = pad.t + ph * i / 5;
+            const y: any = pad.t + ph * i / 5, label: any = minimumDepthM + depthStep * i;
             ctx.beginPath();
             ctx.moveTo(pad.l, y);
             ctx.lineTo(pad.l + pw, y);
             ctx.stroke();
             if (!opts.noLabels) {
-                const label: any = maximumDepthM * i / 5;
                 ctx.textAlign = 'right';
-                ctx.fillText(label >= 1000 ? `${(label / 1000).toFixed(label % 1000 ? 1 : 0)}k` : label.toFixed(0), pad.l - 6, y + 3);
+                ctx.fillText(formatAxisTick(label, depthStep, true), pad.l - 6, y + 3);
             }
         }
         return { ...pad, pw, ph };
+    }
+    function fieldDomain(maximumRangeKm: any = state.data?.maximum_range_km || 100, maximumDepthM: any = state.data?.maximum_depth_m || displayDepthM()): any {
+        const span: any = 1 / state.fieldView.zoom;
+        return {
+            minimumRangeKm: state.fieldView.x * maximumRangeKm,
+            maximumRangeKm: (state.fieldView.x + span) * maximumRangeKm,
+            minimumDepthM: state.fieldView.y * maximumDepthM,
+            maximumDepthM: (state.fieldView.y + span) * maximumDepthM,
+            normalizedX: state.fieldView.x,
+            normalizedY: state.fieldView.y,
+            span,
+        };
+    }
+    function syncFieldZoomControls(): any {
+        const label: any = `${Math.round(state.fieldView.zoom * 100)}%`;
+        ['ray', 'loss', 'horizontalVelocity', 'verticalVelocity'].forEach((prefix: any): any => {
+            const zoomOut: any = $(`${prefix}ZoomOut`), reset: any = $(`${prefix}ZoomReset`), zoomIn: any = $(`${prefix}ZoomIn`);
+            if (!zoomOut || !reset || !zoomIn)
+                return;
+            zoomOut.disabled = state.fieldView.zoom <= fieldZoomLimits.minimum + .0001;
+            zoomIn.disabled = state.fieldView.zoom >= fieldZoomLimits.maximum - .0001;
+            reset.textContent = label;
+            reset.dataset.zoom = String(state.fieldView.zoom);
+            reset.dataset.viewX = state.fieldView.x.toFixed(6);
+            reset.dataset.viewY = state.fieldView.y.toFixed(6);
+            reset.title = `重置联动视图（当前 ${label}）`;
+        });
+        const zoomed: any = state.fieldView.zoom > fieldZoomLimits.minimum + .0001;
+        [canvases.ray, canvases.loss, canvases.horizontalVelocity, canvases.verticalVelocity].forEach((canvas: any): any => canvas?.classList.toggle('zoomed', zoomed));
+    }
+    function setFieldZoom(nextZoom: any, anchorX: any = .5, anchorY: any = .5): any {
+        if (state.fieldPanning || state.sourceDragging)
+            return;
+        cancelAnimationFrame(state.raf);
+        state.raf = null;
+        state.animation = 1;
+        const current: any = state.fieldView, currentSpan: any = 1 / current.zoom;
+        const zoom: any = Math.max(fieldZoomLimits.minimum, Math.min(fieldZoomLimits.maximum, Number(nextZoom) || fieldZoomLimits.minimum));
+        const nextSpan: any = 1 / zoom, ax: any = Math.max(0, Math.min(1, anchorX)), ay: any = Math.max(0, Math.min(1, anchorY));
+        const focusX: any = current.x + ax * currentSpan, focusY: any = current.y + ay * currentSpan;
+        state.fieldView = zoom <= fieldZoomLimits.minimum + .0001
+            ? { zoom: fieldZoomLimits.minimum, x: 0, y: 0 }
+            : {
+                zoom,
+                x: Math.max(0, Math.min(1 - nextSpan, focusX - ax * nextSpan)),
+                y: Math.max(0, Math.min(1 - nextSpan, focusY - ay * nextSpan)),
+            };
+        syncFieldZoomControls();
+        drawRay(1);
+        drawLoss(1);
+        drawVelocity(1);
+    }
+    function fieldAnchor(event: any, canvas: any): any {
+        const rect: any = canvas.getBoundingClientRect();
+        const width: any = Math.max(1, rect.width - plotPadding.l - plotPadding.r), height: any = Math.max(1, rect.height - plotPadding.t - plotPadding.b);
+        return {
+            x: Math.max(0, Math.min(1, (event.clientX - rect.left - plotPadding.l) / width)),
+            y: Math.max(0, Math.min(1, (event.clientY - rect.top - plotPadding.t) / height)),
+        };
+    }
+    function handleFieldWheel(event: any, canvas: any): any {
+        if (!event.deltaY)
+            return;
+        event.preventDefault();
+        if (state.fieldPanning || state.sourceDragging)
+            return;
+        const modeMultiplier: any = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? canvas.clientHeight : 1;
+        const deltaPixels: any = Math.max(-120, Math.min(120, event.deltaY * modeMultiplier));
+        const factor: any = Math.exp(-deltaPixels * Math.log(fieldZoomLimits.step) / 120);
+        const anchor: any = fieldAnchor(event, canvas);
+        setFieldZoom(state.fieldView.zoom * factor, anchor.x, anchor.y);
+    }
+    function startFieldPan(event: any, canvas: any): any {
+        if (!state.data || state.fieldView.zoom <= fieldZoomLimits.minimum + .0001 || state.fieldPanning || state.sourceDragging || event.isPrimary === false || (Number.isFinite(event.button) && event.button !== 0))
+            return false;
+        const rect: any = canvas.getBoundingClientRect(), localX: any = event.clientX - rect.left, localY: any = event.clientY - rect.top;
+        const plotWidth: any = Math.max(1, rect.width - plotPadding.l - plotPadding.r), plotHeight: any = Math.max(1, rect.height - plotPadding.t - plotPadding.b);
+        if (localX < plotPadding.l || localX > plotPadding.l + plotWidth || localY < plotPadding.t || localY > plotPadding.t + plotHeight)
+            return false;
+        cancelAnimationFrame(state.raf);
+        state.raf = null;
+        state.animation = 1;
+        state.fieldPanning = {
+            canvas,
+            pointerId: event.pointerId,
+            startClientX: event.clientX,
+            startClientY: event.clientY,
+            startViewX: state.fieldView.x,
+            startViewY: state.fieldView.y,
+            span: 1 / state.fieldView.zoom,
+            plotWidth,
+            plotHeight,
+        };
+        canvas.classList.add('panning');
+        canvas.setPointerCapture?.(event.pointerId);
+        event.preventDefault();
+        return true;
+    }
+    function moveFieldPan(event: any): any {
+        const pan: any = state.fieldPanning;
+        if (!pan || pan.pointerId !== event.pointerId)
+            return false;
+        const span: any = pan.span, maximumOffset: any = 1 - span;
+        const nextX: any = Math.max(0, Math.min(maximumOffset, pan.startViewX - (event.clientX - pan.startClientX) / pan.plotWidth * span));
+        const nextY: any = Math.max(0, Math.min(maximumOffset, pan.startViewY - (event.clientY - pan.startClientY) / pan.plotHeight * span));
+        if (Math.abs(nextX - state.fieldView.x) > 1e-8 || Math.abs(nextY - state.fieldView.y) > 1e-8) {
+            state.fieldView = { ...state.fieldView, x: nextX, y: nextY };
+            syncFieldZoomControls();
+            drawRay(1);
+            drawLoss(1);
+            drawVelocity(1);
+        }
+        event.preventDefault();
+        return true;
+    }
+    function finishFieldPan(event: any): any {
+        const pan: any = state.fieldPanning;
+        if (!pan || pan.pointerId !== event.pointerId)
+            return false;
+        if (event.type === 'pointerup')
+            moveFieldPan(event);
+        state.fieldPanning = null;
+        pan.canvas.classList.remove('panning');
+        if (pan.canvas.hasPointerCapture?.(event.pointerId))
+            pan.canvas.releasePointerCapture?.(event.pointerId);
+        event.preventDefault();
+        return true;
     }
     function sspPlotDomain(profile: any): any {
         const speeds: any = profile.map((point: any): any => Number(point[1])).filter(Number.isFinite), rawMin: any = Math.min(...speeds), rawMax: any = Math.max(...speeds), padding: any = Math.max(2, (rawMax - rawMin) * .08);
@@ -558,17 +695,25 @@ export function mountRayCanvasExperience(root: HTMLElement, runtime: RayRuntime)
         debounce = setTimeout(recalculateEnvironment, commit ? 10 : 180);
     }
     function sourceFromPointer(event: any): any {
-        const rect: any = canvases.ray.getBoundingClientRect(), a: any = { l: 39, r: 12, t: 19, b: 28 }, ph: any = rect.height - a.t - a.b, px: any = event.clientX - rect.left, py: any = event.clientY - rect.top, maximumDepthM: any = displayDepthM();
-        return { depth: Math.round(Math.max(20, Math.min(maximumDepthM - 20, (py - a.t) / ph * maximumDepthM)) / 10) * 10, px, py, sourceX: a.l, sourceY: a.t + params().source_depth / maximumDepthM * ph };
+        const rect: any = canvases.ray.getBoundingClientRect(), a: any = plotPadding, ph: any = rect.height - a.t - a.b, px: any = event.clientX - rect.left, py: any = event.clientY - rect.top, maximumRangeKm: any = state.data?.maximum_range_km || 100, maximumDepthM: any = state.data?.maximum_depth_m || displayDepthM();
+        const domain: any = fieldDomain(maximumRangeKm, maximumDepthM), depthSpan: any = domain.maximumDepthM - domain.minimumDepthM, rangeSpan: any = domain.maximumRangeKm - domain.minimumRangeKm;
+        const depth: any = domain.minimumDepthM + Math.max(0, Math.min(1, (py - a.t) / ph)) * depthSpan;
+        return { depth: Math.round(Math.max(20, Math.min(maximumDepthM - 20, depth)) / 10) * 10, px, py, sourceX: a.l + (0 - domain.minimumRangeKm) / rangeSpan * (rect.width - a.l - a.r), sourceY: a.t + (params().source_depth - domain.minimumDepthM) / depthSpan * ph };
     }
-    function drawBathymetry(ctx: any, a: any, data: any, progress: any = 1): any {
+    function drawBathymetry(ctx: any, a: any, data: any, progress: any = 1, domain: any = null): any {
         const points: any = data?.bathymetry;
         if (!points?.length)
             return;
-        const maximumRangeKm: any = data.maximum_range_km || 100, maximumDepthM: any = data.maximum_depth_m || 5000, limit: any = maximumRangeKm * progress, x: any = (range: any): any => a.l + range / maximumRangeKm * a.pw, y: any = (depth: any): any => a.t + depth / maximumDepthM * a.ph, visible: any = points.filter((point: any): any => point[0] <= limit);
+        const maximumRangeKm: any = data.maximum_range_km || 100, maximumDepthM: any = data.maximum_depth_m || 5000;
+        const view: any = domain || { minimumRangeKm: 0, maximumRangeKm, minimumDepthM: 0, maximumDepthM };
+        const rangeSpan: any = view.maximumRangeKm - view.minimumRangeKm, depthSpan: any = view.maximumDepthM - view.minimumDepthM, limit: any = maximumRangeKm * progress;
+        const x: any = (range: any): any => a.l + (range - view.minimumRangeKm) / rangeSpan * a.pw, y: any = (depth: any): any => a.t + (depth - view.minimumDepthM) / depthSpan * a.ph, visible: any = points.filter((point: any): any => point[0] <= limit);
         if (!visible.length)
             return;
         ctx.save();
+        ctx.beginPath();
+        ctx.rect(a.l, a.t, a.pw, a.ph);
+        ctx.clip();
         ctx.beginPath();
         visible.forEach((point: any, index: any): any => index ? ctx.lineTo(x(point[0]), y(point[1])) : ctx.moveTo(x(point[0]), y(point[1])));
         ctx.lineTo(x(visible.at(-1)[0]), a.t + a.ph);
@@ -586,20 +731,27 @@ export function mountRayCanvasExperience(root: HTMLElement, runtime: RayRuntime)
         ctx.restore();
     }
     function startSourceDrag(event: any): any {
-        if (!state.data)
-            return;
+        if (!state.data || state.fieldPanning || state.sourceDragging || event.isPrimary === false || (Number.isFinite(event.button) && event.button !== 0))
+            return false;
         const point: any = sourceFromPointer(event);
         if (Math.hypot(point.px - point.sourceX, point.py - point.sourceY) > 22)
-            return;
+            return false;
+        cancelAnimationFrame(state.raf);
+        state.raf = null;
+        state.animation = 1;
         clearTimeout(debounce);
         state.sourceDragging = true;
+        state.sourcePointerId = event.pointerId;
+        canvases.ray.classList.remove('source-hover');
         canvases.ray.classList.add('dragging');
         canvases.ray.setPointerCapture?.(event.pointerId);
         moveSource(event);
+        event.preventDefault();
+        return true;
     }
     function moveSource(event: any): any {
-        if (!state.sourceDragging)
-            return;
+        if (!state.sourceDragging || state.sourcePointerId !== event.pointerId)
+            return false;
         const point: any = sourceFromPointer(event);
         controls.sourceDepth.value = String(point.depth);
         syncLabels();
@@ -607,32 +759,76 @@ export function mountRayCanvasExperience(root: HTMLElement, runtime: RayRuntime)
         $('simStatus').textContent = 'DRAGGING SOURCE';
         $('simTime').textContent = 'RELEASE TO RUN';
         drawRay(1);
+        event.preventDefault();
+        return true;
     }
     function finishSourceDrag(event: any): any {
-        if (!state.sourceDragging)
-            return;
-        moveSource(event);
+        if (!state.sourceDragging || state.sourcePointerId !== event.pointerId)
+            return false;
+        if (event.type === 'pointerup')
+            moveSource(event);
         state.sourceDragging = false;
+        state.sourcePointerId = null;
         canvases.ray.classList.remove('dragging');
+        if (canvases.ray.hasPointerCapture?.(event.pointerId))
+            canvases.ray.releasePointerCapture?.(event.pointerId);
         syncEigenEnvironmentFromMain();
         recalculateEnvironment();
+        event.preventDefault();
+        return true;
+    }
+    function updateRaySourceHover(event: any): any {
+        if (!state.data || state.sourceDragging || state.fieldPanning) {
+            canvases.ray.classList.remove('source-hover');
+            return;
+        }
+        const point: any = sourceFromPointer(event);
+        canvases.ray.classList.toggle('source-hover', Math.hypot(point.px - point.sourceX, point.py - point.sourceY) <= 22);
+    }
+    function startRayInteraction(event: any): any {
+        if (startSourceDrag(event))
+            return;
+        canvases.ray.classList.remove('source-hover');
+        startFieldPan(event, canvases.ray);
+    }
+    function moveRayInteraction(event: any): any {
+        if (state.sourceDragging) {
+            moveSource(event);
+            return;
+        }
+        if (!moveFieldPan(event))
+            updateRaySourceHover(event);
+    }
+    function finishRayInteraction(event: any): any {
+        if (finishSourceDrag(event)) {
+            if (event.type === 'pointerup')
+                updateRaySourceHover(event);
+            return;
+        }
+        if (finishFieldPan(event) && event.type === 'pointerup')
+            updateRaySourceHover(event);
     }
     function drawRay(progress: any = 1): any {
         const { ctx, w, h }: any = fitCanvas(canvases.ray);
         ctx.clearRect(0, 0, w, h);
         ctx.fillStyle = '#06161f';
         ctx.fillRect(0, 0, w, h);
-        const maximumRangeKm: any = state.data?.maximum_range_km || 100, maximumDepthM: any = state.data?.maximum_depth_m || displayDepthM(), a: any = axes(ctx, w, h, { maximumRangeKm, maximumDepthM });
+        const maximumRangeKm: any = state.data?.maximum_range_km || 100, maximumDepthM: any = state.data?.maximum_depth_m || displayDepthM(), domain: any = fieldDomain(maximumRangeKm, maximumDepthM);
+        const a: any = axes(ctx, w, h, domain);
         if (!state.data)
             return;
-        const y: any = (z: any): any => a.t + z / maximumDepthM * a.ph, x: any = (r: any): any => a.l + r / maximumRangeKm * a.pw, sourceDepth: any = params().source_depth, solvedDepth: any = state.solvedSourceDepth ?? sourceDepth, previewShift: any = sourceDepth - solvedDepth;
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(a.l, a.t, a.pw, a.ph);
+        ctx.clip();
+        const rangeSpan: any = domain.maximumRangeKm - domain.minimumRangeKm, depthSpan: any = domain.maximumDepthM - domain.minimumDepthM, y: any = (z: any): any => a.t + (z - domain.minimumDepthM) / depthSpan * a.ph, x: any = (r: any): any => a.l + (r - domain.minimumRangeKm) / rangeSpan * a.pw, sourceDepth: any = params().source_depth, solvedDepth: any = state.solvedSourceDepth ?? sourceDepth, previewShift: any = sourceDepth - solvedDepth;
         const grad: any = ctx.createLinearGradient(0, a.t, 0, a.t + a.ph);
         grad.addColorStop(0, 'rgba(20,72,89,.16)');
         grad.addColorStop(.5, 'rgba(18,91,108,.08)');
         grad.addColorStop(1, 'rgba(4,10,16,.25)');
         ctx.fillStyle = grad;
         ctx.fillRect(a.l, a.t, a.pw, a.ph);
-        drawBathymetry(ctx, a, state.data, progress);
+        drawBathymetry(ctx, a, state.data, progress, domain);
         if (['munk', 'surface'].includes(params().profile)) {
             ctx.strokeStyle = 'rgba(197,241,107,.28)';
             ctx.setLineDash([4, 5]);
@@ -695,6 +891,7 @@ export function mountRayCanvasExperience(root: HTMLElement, runtime: RayRuntime)
             ctx.lineTo(fx, a.t + a.ph);
             ctx.stroke();
         }
+        ctx.restore();
     }
     const stops: any = [[148, 0, 0], [255, 20, 0], [255, 154, 0], [255, 242, 0], [48, 224, 122], [0, 205, 230], [0, 105, 244], [0, 23, 184], [2, 3, 105]];
     function tlColor(tl: any): any {
@@ -725,24 +922,43 @@ export function mountRayCanvasExperience(root: HTMLElement, runtime: RayRuntime)
         ctx.clearRect(0, 0, w, h);
         ctx.fillStyle = '#06161f';
         ctx.fillRect(0, 0, w, h);
-        const axisOptions: any = { maximumRangeKm: state.data?.maximum_range_km || 100, maximumDepthM: state.data?.maximum_depth_m || displayDepthM() }, a: any = axes(ctx, w, h, axisOptions);
+        const maximumRangeKm: any = state.data?.maximum_range_km || 100, maximumDepthM: any = state.data?.maximum_depth_m || displayDepthM();
+        const axisOptions: any = fieldDomain(maximumRangeKm, maximumDepthM), a: any = axes(ctx, w, h, axisOptions);
         if (!state.lossImage)
             return;
+        const visibleFraction: any = Math.max(0, Math.min(1, (progress - axisOptions.normalizedX) / axisOptions.span));
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(a.l, a.t, a.pw, a.ph);
+        ctx.clip();
         ctx.imageSmoothingEnabled = true;
         ctx.imageSmoothingQuality = 'high';
-        ctx.globalAlpha = .96;
-        ctx.drawImage(state.lossImage, 0, 0, state.lossImage.width * progress, state.lossImage.height, a.l, a.t, a.pw * progress, a.ph);
-        ctx.globalAlpha = 1;
-        drawBathymetry(ctx, a, state.data, progress);
-        axes(ctx, w, h, axisOptions);
-        if (progress < 1) {
-            const fx: any = a.l + a.pw * progress;
+        if (visibleFraction > 0) {
+            ctx.globalAlpha = .96;
+            ctx.drawImage(
+                state.lossImage,
+                state.lossImage.width * axisOptions.normalizedX,
+                state.lossImage.height * axisOptions.normalizedY,
+                state.lossImage.width * axisOptions.span * visibleFraction,
+                state.lossImage.height * axisOptions.span,
+                a.l,
+                a.t,
+                a.pw * visibleFraction,
+                a.ph,
+            );
+            ctx.globalAlpha = 1;
+        }
+        drawBathymetry(ctx, a, state.data, progress, axisOptions);
+        if (progress < 1 && visibleFraction > 0 && visibleFraction < 1) {
+            const fx: any = a.l + a.pw * visibleFraction;
             const g: any = ctx.createLinearGradient(fx - 18, 0, fx + 8, 0);
             g.addColorStop(0, 'rgba(98,216,231,0)');
             g.addColorStop(1, 'rgba(98,216,231,.42)');
             ctx.fillStyle = g;
             ctx.fillRect(fx - 18, a.t, 26, a.ph);
         }
+        ctx.restore();
+        axes(ctx, w, h, axisOptions);
     }
     function velocityColor(level: any): any { return tlColor(40 + (Math.max(30, Math.min(120, level)) - 30) / 90 * 60); }
     function buildVelocityImages(): any {
@@ -766,27 +982,46 @@ export function mountRayCanvasExperience(root: HTMLElement, runtime: RayRuntime)
         });
     }
     function drawVelocityComponent(canvas: any, image: any, progress: any): any {
-        const { ctx, w, h }: any = fitCanvas(canvas), axisOptions: any = { maximumRangeKm: state.data?.maximum_range_km || 100, maximumDepthM: state.data?.maximum_depth_m || displayDepthM() };
+        const { ctx, w, h }: any = fitCanvas(canvas), maximumRangeKm: any = state.data?.maximum_range_km || 100, maximumDepthM: any = state.data?.maximum_depth_m || displayDepthM();
+        const axisOptions: any = fieldDomain(maximumRangeKm, maximumDepthM);
         ctx.clearRect(0, 0, w, h);
         ctx.fillStyle = '#06161f';
         ctx.fillRect(0, 0, w, h);
         const a: any = axes(ctx, w, h, axisOptions);
         if (!image)
             return;
+        const visibleFraction: any = Math.max(0, Math.min(1, (progress - axisOptions.normalizedX) / axisOptions.span));
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(a.l, a.t, a.pw, a.ph);
+        ctx.clip();
         ctx.imageSmoothingEnabled = true;
         ctx.imageSmoothingQuality = 'high';
-        ctx.globalAlpha = .96;
-        ctx.drawImage(image, 0, 0, image.width * progress, image.height, a.l, a.t, a.pw * progress, a.ph);
-        ctx.globalAlpha = 1;
-        drawBathymetry(ctx, a, state.data, progress);
-        axes(ctx, w, h, axisOptions);
-        if (progress < 1) {
-            const fx: any = a.l + a.pw * progress, g: any = ctx.createLinearGradient(fx - 18, 0, fx + 8, 0);
+        if (visibleFraction > 0) {
+            ctx.globalAlpha = .96;
+            ctx.drawImage(
+                image,
+                image.width * axisOptions.normalizedX,
+                image.height * axisOptions.normalizedY,
+                image.width * axisOptions.span * visibleFraction,
+                image.height * axisOptions.span,
+                a.l,
+                a.t,
+                a.pw * visibleFraction,
+                a.ph,
+            );
+            ctx.globalAlpha = 1;
+        }
+        drawBathymetry(ctx, a, state.data, progress, axisOptions);
+        if (progress < 1 && visibleFraction > 0 && visibleFraction < 1) {
+            const fx: any = a.l + a.pw * visibleFraction, g: any = ctx.createLinearGradient(fx - 18, 0, fx + 8, 0);
             g.addColorStop(0, 'rgba(98,216,231,0)');
             g.addColorStop(1, 'rgba(98,216,231,.42)');
             ctx.fillStyle = g;
             ctx.fillRect(fx - 18, a.t, 26, a.ph);
         }
+        ctx.restore();
+        axes(ctx, w, h, axisOptions);
     }
     function drawVelocity(progress: any = 1): any {
         drawVelocityComponent(canvases.horizontalVelocity, state.velocityImages.horizontal, progress);
@@ -1925,10 +2160,31 @@ export function mountRayCanvasExperience(root: HTMLElement, runtime: RayRuntime)
     }
     listen($('sspCanvas'), 'pointerup', finishSSPDrag);
     listen($('sspCanvas'), 'pointercancel', finishSSPDrag);
-    listen($('rayCanvas'), 'pointerdown', startSourceDrag);
-    listen($('rayCanvas'), 'pointermove', moveSource);
-    listen($('rayCanvas'), 'pointerup', finishSourceDrag);
-    listen($('rayCanvas'), 'pointercancel', finishSourceDrag);
+    listen(canvases.ray, 'pointerdown', startRayInteraction);
+    listen(canvases.ray, 'pointermove', moveRayInteraction);
+    listen(canvases.ray, 'pointerup', finishRayInteraction);
+    listen(canvases.ray, 'pointercancel', finishRayInteraction);
+    listen(canvases.ray, 'lostpointercapture', finishRayInteraction);
+    listen(canvases.ray, 'pointerleave', (): any => {
+        if (!state.sourceDragging && state.fieldPanning?.canvas !== canvases.ray)
+            canvases.ray.classList.remove('source-hover');
+    });
+    [canvases.loss, canvases.horizontalVelocity, canvases.verticalVelocity].forEach((canvas: any): any => {
+        listen(canvas, 'pointerdown', (event: any): any => startFieldPan(event, canvas));
+        listen(canvas, 'pointermove', moveFieldPan);
+        listen(canvas, 'pointerup', finishFieldPan);
+        listen(canvas, 'pointercancel', finishFieldPan);
+        listen(canvas, 'lostpointercapture', finishFieldPan);
+    });
+    const fieldPlotPrefixes: any = ['ray', 'loss', 'horizontalVelocity', 'verticalVelocity'];
+    fieldPlotPrefixes.forEach((prefix: any): any => {
+        listen($(`${prefix}ZoomOut`), 'click', (): any => setFieldZoom(state.fieldView.zoom / fieldZoomLimits.step));
+        listen($(`${prefix}ZoomIn`), 'click', (): any => setFieldZoom(state.fieldView.zoom * fieldZoomLimits.step));
+        listen($(`${prefix}ZoomReset`), 'click', (): any => setFieldZoom(1));
+    });
+    [canvases.ray, canvases.loss, canvases.horizontalVelocity, canvases.verticalVelocity].forEach((canvas: any): any => {
+        listen(canvas, 'wheel', (event: any): any => handleFieldWheel(event, canvas), { passive: false });
+    });
     listen($('runButton'), 'click', run);
     listen($('replayButton'), 'click', (): any => { drawRay(1); drawLoss(1); drawVelocity(1); });
     listen($('envImportButton'), 'click', (): any => $('envFileInput').click());
@@ -1937,8 +2193,9 @@ export function mountRayCanvasExperience(root: HTMLElement, runtime: RayRuntime)
     listen(canvases.loss, 'mousemove', (e: any): any => {
         if (!state.data)
             return;
-        const rect: any = e.target.getBoundingClientRect(), a: any = { l: 39, r: 12, t: 19, b: 28 };
-        const px: any = Math.max(0, Math.min(1, (e.clientX - rect.left - a.l) / (rect.width - a.l - a.r))), py: any = Math.max(0, Math.min(1, (e.clientY - rect.top - a.t) / (rect.height - a.t - a.b)));
+        const rect: any = e.target.getBoundingClientRect(), a: any = plotPadding, domain: any = fieldDomain(state.data.maximum_range_km, state.data.maximum_depth_m);
+        const localX: any = Math.max(0, Math.min(1, (e.clientX - rect.left - a.l) / (rect.width - a.l - a.r))), localY: any = Math.max(0, Math.min(1, (e.clientY - rect.top - a.t) / (rect.height - a.t - a.b)));
+        const px: any = domain.normalizedX + localX * domain.span, py: any = domain.normalizedY + localY * domain.span;
         const { cols, rows, values }: any = state.data.loss;
         const v: any = values[Math.min(rows - 1, Math.floor(py * rows)) * cols + Math.min(cols - 1, Math.floor(px * cols))];
         $('tlReadout').textContent = v.toFixed(1) + ' dB';
@@ -1947,7 +2204,12 @@ export function mountRayCanvasExperience(root: HTMLElement, runtime: RayRuntime)
         listen(canvas, 'mousemove', (event: any): any => {
             if (!state.data?.velocity)
                 return;
-            const rect: any = event.target.getBoundingClientRect(), a: any = { l: 39, r: 12, t: 19, b: 28 }, px: any = Math.max(0, Math.min(1, (event.clientX - rect.left - a.l) / (rect.width - a.l - a.r))), py: any = Math.max(0, Math.min(1, (event.clientY - rect.top - a.t) / (rect.height - a.t - a.b))), { cols, rows }: any = state.data.velocity, level: any = state.data.velocity[key][Math.min(rows - 1, Math.floor(py * rows)) * cols + Math.min(cols - 1, Math.floor(px * cols))], magnitude: any = Math.pow(10, -level / 20);
+            const rect: any = event.target.getBoundingClientRect(), a: any = plotPadding;
+            const domain: any = fieldDomain(state.data.maximum_range_km, state.data.maximum_depth_m);
+            const localX: any = Math.max(0, Math.min(1, (event.clientX - rect.left - a.l) / (rect.width - a.l - a.r)));
+            const localY: any = Math.max(0, Math.min(1, (event.clientY - rect.top - a.t) / (rect.height - a.t - a.b)));
+            const px: any = domain.normalizedX + localX * domain.span, py: any = domain.normalizedY + localY * domain.span;
+            const { cols, rows }: any = state.data.velocity, level: any = state.data.velocity[key][Math.min(rows - 1, Math.floor(py * rows)) * cols + Math.min(cols - 1, Math.floor(px * cols))], magnitude: any = Math.pow(10, -level / 20);
             $(readoutId).textContent = `${magnitude.toExponential(2)} · ${level.toFixed(1)} dB`;
         });
     }
@@ -1967,6 +2229,7 @@ export function mountRayCanvasExperience(root: HTMLElement, runtime: RayRuntime)
     setImportedOptionAvailability();
     activateProfile('munk', { defaults: false });
     updateFieldOptionStatus();
+    syncFieldZoomControls();
     drawIntroRay(0);
     drawSSP();
     drawRay();

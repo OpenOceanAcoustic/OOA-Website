@@ -1,9 +1,26 @@
-import type { CSSProperties } from "react";
+import { useRef, type CSSProperties } from "react";
 import { formatPeValue, type UsePePageResult } from "../hooks/usePePage";
 
 export function PeConvergence({ page }: { readonly page: UsePePageResult }) {
   const nPade = Math.max(1, Math.min(10, Number(page.parameters.nPade) || 1));
   const result = page.result;
+  const selectedPade = result?.parameters.nPade ?? null;
+  const pendingPade = useRef<number | null>(null);
+  const previewPade = (value: string) => {
+    const parsed = Number(value);
+    pendingPade.current = Number.isFinite(parsed)
+      ? Math.max(1, Math.min(10, Math.round(parsed)))
+      : null;
+    page.setNumericInput("nPade", value);
+  };
+  const commitPade = () => {
+    const next = pendingPade.current;
+    if (next === null) return;
+    pendingPade.current = null;
+    if (next === selectedPade) return;
+    void page.selectPade(next);
+  };
+
   return (
     <section className="panel convergence-panel">
       <div className="panel-head">
@@ -47,7 +64,11 @@ export function PeConvergence({ page }: { readonly page: UsePePageResult }) {
             value={nPade}
             disabled={result === null || page.solveBusy}
             aria-describedby="nPadeEffect"
-            onChange={(event) => { void page.selectPade(event.currentTarget.valueAsNumber); }}
+            onInput={(event) => previewPade(event.currentTarget.value)}
+            onPointerUp={commitPade}
+            onPointerCancel={commitPade}
+            onKeyUp={commitPade}
+            onBlur={commitPade}
           />
           <div className="pade-ticks" aria-hidden="true"><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span><span>10</span></div>
         </div>

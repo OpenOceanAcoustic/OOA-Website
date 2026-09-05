@@ -2,6 +2,12 @@
   "version": 1,
   "assets": [
     {
+      "id": "brand.dolphin-front-headphones",
+      "kind": "brand",
+      "path": "brand/dolphin-front-headphones.png",
+      "description": "OpenOcean Acoustic dolphin headphones header logo"
+    },
+    {
       "id": "brand.ooa-mark",
       "kind": "brand",
       "path": "brand/ooa-mark.svg",
