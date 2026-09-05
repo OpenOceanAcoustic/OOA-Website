@@ -1,0 +1,227 @@
+/*
+ * Ray field workspace alignment.
+ *
+ * Keep the mobile document flow untouched. On wider screens the controls span
+ * both result rows, while the second row absorbs any remaining height through
+ * the particle-velocity glossary.
+ */
+@media (min-width: 901px) {
+  [data-ooa-page="ray"] .lab-grid {
+    display: grid;
+    grid-template-columns: 340px minmax(0, 1fr);
+    grid-template-rows: max-content minmax(0, 1fr);
+    column-gap: 20px;
+    row-gap: 20px;
+    align-items: stretch;
+  }
+
+  [data-ooa-page="ray"] .lab-grid > .workspace-controls {
+    grid-column: 1;
+    grid-row: 1 / span 2;
+    min-height: 0;
+    align-self: stretch;
+  }
+
+  [data-ooa-page="ray"] .lab-grid > .workspace-controls[open] {
+    display: flex;
+    flex-direction: column;
+  }
+
+  [data-ooa-page="ray"] .workspace-controls > summary {
+    flex: 0 0 auto;
+  }
+
+  /* Chromium exposes the non-summary contents through this sizing box. */
+  [data-ooa-page="ray"] .workspace-controls[open]::details-content {
+    display: flex;
+    flex: 1 1 auto;
+    min-height: 0;
+    margin-top: 8px;
+  }
+
+  [data-ooa-page="ray"] .workspace-controls[open] > .control-panel {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    height: auto;
+    min-height: 0;
+    margin-top: 0;
+  }
+
+  [data-ooa-page="ray"] .control-panel > .execution-group {
+    margin-top: auto;
+  }
+
+  [data-ooa-page="ray"] .primary-plot-grid {
+    grid-column: 2;
+    grid-row: 1;
+    min-height: 0;
+    align-self: stretch;
+  }
+
+  [data-ooa-page="ray"] .primary-plot-grid > .panel {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+  }
+
+  /* Natural-height primary glossaries share a baseline even when plot chrome differs. */
+  [data-ooa-page="ray"] .primary-plot-grid > .panel > .plot-glossary {
+    flex: 0 0 auto;
+    margin-top: auto;
+  }
+
+
+  [data-ooa-page="ray"] .velocity-panel {
+    grid-column: 2;
+    grid-row: 2;
+    min-height: 0;
+    align-self: stretch;
+  }
+
+  [data-ooa-page="ray"] .velocity-panel > .plot-glossary {
+    flex: 1 1 320px;
+    max-height: none;
+  }
+
+  /*
+   * The English direction is longer on the horizontal plot. Give both titles
+   * a stable line, then use a row subgrid so future copy changes cannot offset
+   * either scientific canvas.
+   */
+  [data-ooa-page="ray"] .velocity-component-meta {
+    min-width: 175px;
+    flex-basis: 180px;
+  }
+
+  [data-ooa-page="ray"] .velocity-component-title {
+    white-space: nowrap;
+  }
+
+  [data-ooa-page="ray"] .velocity-grid {
+    grid-template-rows: auto 390px auto;
+    align-items: stretch;
+  }
+
+  @supports (grid-template-rows: subgrid) {
+    [data-ooa-page="ray"] .velocity-component {
+      display: grid;
+      grid-row: 1 / span 3;
+      grid-template-rows: subgrid;
+    }
+
+    [data-ooa-page="ray"] .velocity-component:first-child {
+      grid-column: 1;
+    }
+
+    [data-ooa-page="ray"] .velocity-component:last-child {
+      grid-column: 2;
+    }
+
+    [data-ooa-page="ray"] .velocity-component > .velocity-component-head {
+      grid-row: 1;
+    }
+
+    [data-ooa-page="ray"] .velocity-component > .velocity-wrap {
+      grid-row: 2;
+      height: auto;
+      min-height: 0;
+    }
+
+    [data-ooa-page="ray"] .velocity-component > .plot-interaction-hint {
+      grid-row: 3;
+    }
+  }
+
+  /* A collapsed control disclosure returns every workspace block to one column. */
+  [data-ooa-page="ray"] .lab-grid:has(> .workspace-controls:not([open])) {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: max-content max-content max-content;
+  }
+
+  [data-ooa-page="ray"] .lab-grid:has(> .workspace-controls:not([open])) > .workspace-controls {
+    display: block;
+    grid-column: 1;
+    grid-row: 1;
+    height: auto;
+    min-height: 0;
+    align-self: start;
+  }
+
+  [data-ooa-page="ray"] .lab-grid:has(> .workspace-controls:not([open])) > .primary-plot-grid {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  [data-ooa-page="ray"] .lab-grid:has(> .workspace-controls:not([open])) > .velocity-panel {
+    grid-column: 1;
+    grid-row: 3;
+  }
+}
+
+/* Side-by-side primary plots share semantic rows, so wrapping copy grows both. */
+@media (min-width: 1400px) {
+  [data-ooa-page="ray"] .primary-plot-grid {
+    grid-template-rows: auto auto auto 380px auto auto auto;
+    column-gap: 16px;
+    row-gap: 0;
+  }
+
+  @supports (grid-template-rows: subgrid) {
+    [data-ooa-page="ray"] .primary-plot-grid > .panel {
+      display: grid;
+      grid-row: 1 / span 7;
+      grid-template-rows: subgrid;
+      height: 100%;
+      min-height: 0;
+    }
+
+    [data-ooa-page="ray"] .primary-plot-grid > .ray-panel {
+      grid-column: 1;
+    }
+
+    [data-ooa-page="ray"] .primary-plot-grid > .loss-panel {
+      grid-column: 2;
+    }
+
+    [data-ooa-page="ray"] .primary-plot-grid > .panel > .canvas-heading {
+      grid-row: 1;
+    }
+
+    [data-ooa-page="ray"] .ray-panel > .sim-badge {
+      grid-row: 2;
+    }
+
+    [data-ooa-page="ray"] .ray-panel > .plot-interaction-hint {
+      grid-row: 3;
+    }
+
+    [data-ooa-page="ray"] .primary-plot-grid > .panel > .main-canvas-wrap {
+      grid-row: 4;
+      height: auto;
+      min-height: 0;
+    }
+
+    [data-ooa-page="ray"] .ray-panel > .ray-footer {
+      grid-row: 5 / span 2;
+    }
+
+    [data-ooa-page="ray"] .loss-panel > .loss-colorbar-toolbar {
+      grid-row: 2 / span 2;
+    }
+
+    [data-ooa-page="ray"] .loss-panel > .plot-interaction-hint {
+      grid-row: 5;
+    }
+
+    [data-ooa-page="ray"] .loss-panel > .loss-summary {
+      grid-row: 6;
+    }
+
+    [data-ooa-page="ray"] .primary-plot-grid > .panel > .plot-glossary {
+      grid-row: 7;
+      margin-top: 0;
+    }
+  }
+}

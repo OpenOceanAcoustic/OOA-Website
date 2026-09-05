@@ -40,6 +40,9 @@ test("RAM reruns the original nPade sweep and comparison workflow", async ({ pag
   await page.locator("#runPE").click();
 
   await expect(page.locator("#solveStatus")).toHaveText("COMPLETE", { timeout: 90_000 });
+  const pairedView = page.getByRole("button", { name: "双图对照", exact: true });
+  await pairedView.click();
+  await expect(pairedView).toHaveAttribute("aria-pressed", "true");
   await expect(page.locator("#fieldCanvas")).toBeVisible();
   await expect(page.locator("#deltaCanvas")).toBeVisible();
   await expect(page.locator("#convergenceCanvas")).toBeVisible();

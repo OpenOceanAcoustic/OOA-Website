@@ -1,0 +1,218 @@
+[data-ooa-page="ray"] .plot-glossary {
+  flex: 0 0 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--line-soft);
+  background: #06161f;
+}
+[data-ooa-page="ray"] .velocity-panel > .plot-glossary {
+  flex: 1 0 auto;
+}
+[data-ooa-page="ray"] .plot-glossary-head {
+  flex: 0 0 auto;
+  display: grid;
+  gap: 10px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--line-soft);
+  background: linear-gradient(100deg, #0a2330, #071b25);
+}
+[data-ooa-page="ray"] .plot-glossary-copy .micro {
+  display: block;
+  color: #87abb6;
+}
+[data-ooa-page="ray"] .plot-glossary-copy h4 {
+  margin: 4px 0;
+  color: #d6eaf0;
+  font-size: 16px;
+  font-weight: 600;
+}
+[data-ooa-page="ray"] .plot-glossary-copy p {
+  margin: 0;
+  color: #99b8c2;
+  font-size: 13px;
+  line-height: 1.6;
+}
+[data-ooa-page="ray"] .plot-glossary-source {
+  min-width: 0;
+  display: block;
+  color: #83adb9;
+  overflow-wrap: anywhere;
+  font: 12px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+[data-ooa-page="ray"] .plot-term-stream {
+  flex: 1 0 auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr));
+  grid-auto-rows: minmax(44px, auto);
+  gap: 22px;
+  align-content: space-evenly;
+  justify-items: center;
+  align-items: center;
+  min-width: 0;
+  padding: 24px;
+  background-image:
+    radial-gradient(ellipse at 50% 100%, rgba(48, 188, 211, .13), transparent 65%),
+    linear-gradient(rgba(98, 216, 231, .035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(98, 216, 231, .035) 1px, transparent 1px);
+  background-size: auto, 28px 28px, 28px 28px;
+}
+[data-ooa-page="ray"] .plot-glossary .plot-term {
+  position: relative;
+  min-width: 0;
+  /* Reserve room inside each grid cell for the wider drift. */
+  max-width: calc(100% - 16px);
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  color: #c1dce3;
+  background: rgba(9, 35, 47, .94);
+  border: 1px solid #326473;
+  border-radius: 24px;
+  box-shadow: 0 5px 18px rgba(0, 0, 0, .15);
+  cursor: pointer;
+  font: 14px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace;
+  --term-travel: min(var(--term-drift, 18px), var(--term-drift-limit, 18px));
+  animation: plot-term-drift calc(var(--term-duration, 20s) / 4) ease-in-out var(--term-delay, 0s) infinite alternate;
+  transition: color .18s ease, border-color .18s ease, background-color .18s ease;
+}
+[data-ooa-page="ray"] .plot-term-label {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  text-align: center;
+}
+[data-ooa-page="ray"] .plot-term-symbol {
+  flex: 0 0 auto;
+  color: var(--cyan);
+  font: 16px/1.2 Georgia, "Times New Roman", serif;
+  white-space: nowrap;
+}
+[data-ooa-page="ray"] .plot-term:hover {
+  color: #effcff;
+  border-color: var(--cyan);
+  background: #103c4c;
+}
+[data-ooa-page="ray"] .plot-term:focus-visible,
+[data-ooa-page="ray"] .plot-glossary-close:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 3px;
+}
+[data-ooa-page="ray"] .plot-glossary .plot-term[data-keyboard-focused] {
+  animation-play-state: paused;
+}
+@media (hover: hover) {
+  [data-ooa-page="ray"] .plot-glossary .plot-term:hover {
+    animation-play-state: paused;
+  }
+}
+@keyframes plot-term-drift {
+  from { transform: translate3d(calc(0px - var(--term-travel)), calc(0px - var(--term-lift, 8px)), 0); }
+  to { transform: translate3d(var(--term-travel), var(--term-lift, 8px), 0); }
+}
+[data-ooa-page="ray"] .plot-glossary-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  overflow-y: auto;
+  background: rgba(1, 9, 13, .78);
+  backdrop-filter: blur(8px);
+}
+[data-ooa-page="ray"] .plot-glossary-dialog {
+  position: relative;
+  width: min(560px, 100%);
+  max-height: calc(100dvh - 48px);
+  overflow-y: auto;
+  padding: 28px;
+  color: var(--text);
+  background: radial-gradient(circle at 100% 0, rgba(42, 183, 205, .12), transparent 38%), #091f2a;
+  border: 1px solid #3b7c8d;
+  border-radius: 9px;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, .55);
+}
+[data-ooa-page="ray"] .plot-glossary-dialog > .micro {
+  display: block;
+  padding-right: 76px;
+  color: var(--cyan);
+}
+[data-ooa-page="ray"] .plot-glossary-dialog h4 {
+  margin: 14px 64px 4px 0;
+  color: #e7f4f7;
+  font-size: 23px;
+  line-height: 1.35;
+}
+[data-ooa-page="ray"] .plot-glossary-english {
+  margin: 0;
+  color: #94b5bf;
+  font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+[data-ooa-page="ray"] .plot-glossary-definition {
+  margin-top: 22px;
+  color: #bfd5dd;
+  font-size: 15px;
+  line-height: 1.8;
+}
+[data-ooa-page="ray"] .plot-glossary-relation {
+  margin-top: 18px;
+  padding: 14px;
+  color: #abc9d2;
+  background: rgba(3, 17, 24, .58);
+  border-left: 2px solid var(--cyan);
+  font-size: 14px;
+  line-height: 1.75;
+}
+[data-ooa-page="ray"] .plot-glossary-close {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  min-height: 36px;
+  padding: 0 10px;
+  color: #c0dce5;
+  background: #092633;
+  border: 1px solid #326473;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+}
+[data-ooa-page="ray"] .plot-glossary-close:hover {
+  color: #fff;
+  border-color: var(--cyan);
+}
+@media (max-width: 600px) {
+  [data-ooa-page="ray"] .plot-glossary-head { padding: 14px 16px; }
+  [data-ooa-page="ray"] .plot-term-stream {
+    grid-template-columns: none;
+    grid-template-rows: repeat(2, auto);
+    grid-auto-flow: column;
+    grid-auto-columns: max-content;
+    justify-content: start;
+    gap: 12px;
+    padding: 16px;
+    overflow-x: auto;
+    scrollbar-width: thin;
+    scrollbar-color: #376675 #071b25;
+  }
+  [data-ooa-page="ray"] .plot-glossary .plot-term {
+    --term-drift-limit: 4px;
+    --term-lift: 4px;
+    max-width: none;
+    white-space: nowrap;
+  }
+  [data-ooa-page="ray"] .plot-glossary-backdrop { padding: 12px; }
+  [data-ooa-page="ray"] .plot-glossary-dialog {
+    max-height: calc(100dvh - 24px);
+    padding: 24px 18px;
+  }
+  [data-ooa-page="ray"] .plot-glossary-close { top: 14px; right: 14px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-ooa-page="ray"] .plot-glossary .plot-term {
+    animation: none;
+    transform: none;
+    transition: none;
+  }
+}
