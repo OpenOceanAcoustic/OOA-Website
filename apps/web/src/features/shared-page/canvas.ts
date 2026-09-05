@@ -63,7 +63,7 @@ function niceNumber(value: any, digits: any = 2): any {
 }
 export function createPlot(canvas: any, options: any = {}): any {
     const { context, width, height }: any = fitCanvas(canvas);
-    const padding: any = options.padding || { left: 53, right: 17, top: 20, bottom: 38 };
+    const padding: any = options.padding || { left: 76, right: 30, top: 24, bottom: 48 };
     const plotWidth: any = Math.max(1, width - padding.left - padding.right);
     const plotHeight: any = Math.max(1, height - padding.top - padding.bottom);
     const xMinimum: any = Number(options.xMinimum ?? 0);
@@ -78,10 +78,10 @@ export function createPlot(canvas: any, options: any = {}): any {
     context.clearRect(0, 0, width, height);
     context.fillStyle = options.background || "#041721";
     context.fillRect(0, 0, width, height);
-    const xTicks: any = Math.max(2, options.xTicks || 5);
+    const xTicks: any = Math.max(2, options.xTicks || Math.min(5, Math.max(2, Math.floor(plotWidth / 85))));
     const yTicks: any = Math.max(2, options.yTicks || 5);
     context.lineWidth = 1;
-    context.font = "9px ui-monospace, SFMono-Regular, Consolas, monospace";
+    context.font = "12px ui-monospace, SFMono-Regular, Consolas, monospace";
     for (let index: any = 0; index <= xTicks; index += 1) {
         const value: any = xMinimum + (xMaximum - xMinimum) * index / xTicks;
         const pixel: any = padding.left + plotWidth * index / xTicks;
@@ -90,10 +90,10 @@ export function createPlot(canvas: any, options: any = {}): any {
         context.moveTo(pixel, padding.top);
         context.lineTo(pixel, padding.top + plotHeight);
         context.stroke();
-        context.fillStyle = "#607f89";
+        context.fillStyle = "#a5bec7";
         context.textAlign = "center";
         const formatter: any = options.xFormatter || niceNumber;
-        context.fillText(formatter(value), pixel, height - 17);
+        context.fillText(formatter(value), pixel, height - 24);
     }
     for (let index: any = 0; index <= yTicks; index += 1) {
         const value: any = depthAxis
@@ -105,16 +105,16 @@ export function createPlot(canvas: any, options: any = {}): any {
         context.moveTo(padding.left, pixel);
         context.lineTo(padding.left + plotWidth, pixel);
         context.stroke();
-        context.fillStyle = "#607f89";
+        context.fillStyle = "#a5bec7";
         context.textAlign = "right";
         const formatter: any = options.yFormatter || niceNumber;
         context.fillText(formatter(value), padding.left - 7, pixel + 3);
     }
-    context.fillStyle = "#6a8b95";
-    context.font = "9px ui-monospace, SFMono-Regular, Consolas, monospace";
+    context.fillStyle = "#b6cfd7";
+    context.font = "12px ui-monospace, SFMono-Regular, Consolas, monospace";
     context.textAlign = "center";
     if (options.xLabel)
-        context.fillText(options.xLabel, padding.left + plotWidth / 2, height - 4);
+        context.fillText(options.xLabel, padding.left + plotWidth / 2, height - 5);
     if (options.yLabel) {
         context.save();
         context.translate(10, padding.top + plotHeight / 2);
@@ -248,6 +248,14 @@ export function drawHeatmap(canvas: any, data: any, options: any = {}): any {
         plot.context.strokeStyle = options.bottomLineColor || "#d5a968";
         plot.context.lineWidth = 1.4;
         plot.context.stroke();
+        const midRange = (plot.xMinimum + plot.xMaximum) / 2;
+        const nearest = bathymetry.reduce((best: any, point: any) => Math.abs(point[0] - midRange) < Math.abs(best[0] - midRange) ? point : best, bathymetry[0]);
+        if (plot.y(plot.yMaximum) - plot.y(nearest[1]) > 26) {
+            plot.context.fillStyle = "#e1c6a7";
+            plot.context.font = "13px sans-serif";
+            plot.context.textAlign = "center";
+            plot.context.fillText("海底介质", plot.x(midRange), plot.y((nearest[1] + plot.yMaximum) / 2));
+        }
         plot.context.restore();
     }
     return plot;

@@ -1,3 +1,4 @@
+import { CollapsibleControls } from "../../shared-page/WorkspaceNavigation";
 import { VelocityGlossary } from "./VelocityGlossary";
 
 interface PlotZoomControlsProps {
@@ -125,7 +126,7 @@ export function RayFieldLab() {
         </p>
       </div>
       <div className="lab-grid">
-        <aside className="control-panel panel">
+        <CollapsibleControls><aside className="control-panel panel">
           <div className="panel-head">
             <div>
               <span className="micro">
@@ -147,7 +148,8 @@ export function RayFieldLab() {
               </span>
               {" 导入环境文件 / JSON"}
             </button>
-            <small id="envImportStatus">
+            <small>请选择 ENV 及其同名附加文件一起导入（如 .env + .bty；使用二维声速剖面时还需 .ssp）。</small>
+            <small id="envImportStatus" role="status" aria-live="polite">
               {"支持 Bellhop ENV + 同名 SSP/BTY，或统一环境 JSON；原生不兼容时自动转为严格校验的自定义环境"}
             </small>
           </div>
@@ -291,7 +293,7 @@ export function RayFieldLab() {
             <div className="two-controls">
               <label>
                 {"声源深度"}
-                <input id="sourceDepth" type="number" min="20" max="4800" step="10" defaultValue="1000" />
+                <input id="sourceDepth" type="number" min="0" max="5000" step="any" defaultValue="1000" />
                 <span>
                   {"m"}
                 </span>
@@ -451,8 +453,8 @@ export function RayFieldLab() {
               </span>
             </button>
           </section>
-        </aside>
-        <div className="primary-plot-grid">
+        </aside></CollapsibleControls>
+        <div id="results" className="primary-plot-grid">
           <section className="ray-panel panel">
             <div className="panel-head canvas-heading">
               <div>
@@ -481,14 +483,6 @@ export function RayFieldLab() {
                 <PlotZoomControls canvasId="rayCanvas" label="声线轨迹图" prefix="ray" />
               </div>
             </div>
-            <div className="main-canvas-wrap">
-              <canvas id="rayCanvas" aria-label="声线路径动态图"></canvas>
-              <div className="canvas-axis x-axis">
-                {"距离 / km"}
-              </div>
-              <div className="canvas-axis y-axis">
-                {"深度 / m"}
-              </div>
               <div className="sim-badge">
                 <span id="simPulse"></span>
                 <b id="simStatus">
@@ -500,6 +494,14 @@ export function RayFieldLab() {
               </div>
               <div className="source-drag-hint plot-interaction-hint">
                 {"拖动声源调整深度 ↕ · 滚轮缩放 · 拖动平移"}
+              </div>
+            <div className="main-canvas-wrap">
+              <canvas id="rayCanvas" aria-label="声线路径动态图"></canvas>
+              <div className="canvas-axis x-axis">
+                {"距离 / km"}
+              </div>
+              <div className="canvas-axis y-axis">
+                {"深度 / m"}
               </div>
             </div>
             <div className="ray-footer">
@@ -600,10 +602,10 @@ export function RayFieldLab() {
               <div className="canvas-axis y-axis">
                 {"深度 / m"}
               </div>
+            </div>
               <div className="plot-interaction-hint">
                 {"滚轮缩放 · 拖动平移"}
               </div>
-            </div>
             <div className="loss-summary">
               <span>
                 {"当前环境形成的低损失声道集中在"}
@@ -639,10 +641,10 @@ export function RayFieldLab() {
                 <div className="canvas-axis y-axis">
                   {"深度 / m"}
                 </div>
+              </div>
                 <div className="plot-interaction-hint">
                   {"滚轮缩放 · 拖动平移"}
                 </div>
-              </div>
             </div>
             <div className="velocity-component">
               <VelocityPlotToolbar direction="VERTICAL" label="垂直振速" component="z" />
@@ -654,10 +656,10 @@ export function RayFieldLab() {
                 <div className="canvas-axis y-axis">
                   {"深度 / m"}
                 </div>
+              </div>
                 <div className="plot-interaction-hint">
                   {"滚轮缩放 · 拖动平移"}
                 </div>
-              </div>
             </div>
           </div>
           <VelocityGlossary />

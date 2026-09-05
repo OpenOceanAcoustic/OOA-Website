@@ -11,14 +11,9 @@ export function PeField({ page }: { readonly page: UsePePageResult }) {
           </p>
           <h3 id="fieldTitle">nPade = {result?.parameters.nPade ?? 4} 传播损失</h3>
         </div>
-        <div className="field-scale">
-          <span>
-            {"60"}
-          </span>
-          <i></i>
-          <span>
-            {"120 dB"}
-          </span>
+        <div className="field-scale" aria-label="传播损失色标，60 到 120 dB">
+          <i aria-hidden="true"></i>
+          <div className="scale-ticks"><span>60</span><span>75</span><span>90</span><span>105</span><span>120 dB</span></div>
         </div>
       </div>
       <div className="plot-wrap field-wrap">

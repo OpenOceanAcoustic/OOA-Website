@@ -137,3 +137,45 @@
     min-width: 0;
   }
 }
+
+[data-ooa-page] .resource-download {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 9px 14px;
+  border: 1px solid #ffd483;
+  border-radius: 6px;
+  background: #ffc45c;
+  color: #132330;
+  font: 600 14px/1.4 Inter, "PingFang SC", "Microsoft YaHei", sans-serif;
+  white-space: nowrap;
+  text-decoration: none;
+  flex-shrink: 0;
+}
+[data-ooa-page] .resource-download:hover,
+[data-ooa-page] .resource-download:focus-visible {
+  background: #ffda91;
+  border-color: #ffe5b5;
+  color: #071923;
+}
+[data-ooa-page] .resource-download:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
+.topbar .resource-download { margin-left: auto; }
+[data-ooa-page] footer,
+[data-ooa-page] .site-footer > .site-shell { flex-wrap: wrap; gap: 20px; }
+.topbar .resource-download + .status { margin-left: 20px; }
+@media (max-width: 1150px) and (min-width: 761px) {
+  .topbar .resource-download + .status { display: none; }
+}
+@media (max-width: 480px) {
+  :where([data-ooa-page]) .topbar .brand > span:last-child { display: none; }
+}
+
+@media (min-width: 761px) and (max-width: 1000px) {
+  [data-ooa-page] .topbar .brand { min-width: 0; margin-right: 24px; }
+  [data-ooa-page] .topbar .brand > span:last-child { display: none; }
+}
+@media (max-width: 480px) {
+  [data-ooa-page] .resource-download { font-size: 13px; padding-inline: 10px; }
+}

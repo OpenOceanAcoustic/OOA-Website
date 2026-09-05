@@ -116,7 +116,7 @@ export function RayEigenrayLab() {
               <label>
                 {"声源深度"}
                 <div>
-                  <input id="eigenSourceDepth" type="number" min="20" max="4800" step="10" defaultValue="1000" />
+                  <input id="eigenSourceDepth" type="number" min="0" max="5000" step="any" defaultValue="1000" />
                   <span>
                     {"m"}
                   </span>

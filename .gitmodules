@@ -1,0 +1,12 @@
+[submodule "OpenOcean-Field-PE"]
+	path = OpenOcean-Field-PE
+	url = ../OpenOcean-Field-PE.git
+	branch = website
+[submodule "OpenOcean-Field-RayMode"]
+	path = OpenOcean-Field-RayMode
+	url = ../OpenOcean-Field-RayMode.git
+	branch = website
+[submodule "OpenOcean-Field-NormalMode"]
+	path = OpenOcean-Field-NormalMode
+	url = ../OpenOcean-Field-NormalMode.git
+	branch = website

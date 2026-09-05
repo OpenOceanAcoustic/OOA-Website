@@ -1,3 +1,4 @@
+import { CollapsibleControls, SectionLinks } from "../../shared-page/WorkspaceNavigation";
 import { ModelPageFooter, ModelPageHeader } from "../../shared-page/ModelPageChrome";
 import { PageDocument } from "../../shared-page/PageDocument";
 import { useNormalModePage } from "../hooks/useNormalModePage";
@@ -8,9 +9,11 @@ import { NormalHero } from "../page/NormalHero";
 import { NormalMethodNote } from "../page/NormalMethodNote";
 import { NormalModeDetail } from "../page/NormalModeDetail";
 import { NormalSpectrum } from "../page/NormalSpectrum";
+import { NormalTheorySection } from "../page/NormalTheorySection";
 import "@ooa/styles/model-lab.css";
 import "@ooa/styles/controls.css";
 import "../styles/page.css";
+import "../../shared-page/presentation.css";
 
 export function NormalModeRoute() {
   const page = useNormalModePage({
@@ -22,14 +25,16 @@ export function NormalModeRoute() {
       <ModelPageHeader activePage="normal" />
       <main className="site-shell">
         <NormalHero page={page} />
-        <section className="workspace" aria-labelledby="workspaceTitle">
+        <SectionLinks theoryId="theory" labId="lab" resultsId="results" />
+        <NormalTheorySection />
+        <section id="lab" className="workspace" aria-labelledby="workspaceTitle">
           <div className="workspace-heading">
-            <div><p className="micro">01 · MODAL DECOMPOSITION</p><h2 id="workspaceTitle">模态分解实验台</h2></div>
+            <div><p className="micro">02 · MODAL DECOMPOSITION</p><h2 id="workspaceTitle">模态分解实验台</h2></div>
             <p>环境剖面 → 特征值 → 本征函数 → 模态叠加声场</p>
           </div>
           <div className="normal-grid">
-            <NormalControls page={page} />
-            <div className="normal-results-grid">
+            <CollapsibleControls><NormalControls page={page} /></CollapsibleControls>
+            <div id="results" className="normal-results-grid">
               <NormalSpectrum page={page} />
               <NormalModeDetail page={page} />
               <NormalField page={page} />

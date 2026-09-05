@@ -12,12 +12,234 @@
   gap: 12px;
   align-items: start;
 }
+
+:where([data-ooa-page="normal"]) .normal-theory {
+  margin: 8px 0 70px;
+  padding: 26px;
+  border: 1px solid rgba(98, 216, 231, 0.2);
+  border-radius: 8px;
+  background:
+    radial-gradient(circle at 76% 4%, rgba(57, 184, 205, 0.09), transparent 28%),
+    linear-gradient(145deg, rgba(6, 31, 42, 0.96), rgba(3, 20, 29, 0.98));
+  box-shadow: 0 24px 60px rgba(0, 7, 11, 0.24);
+}
+
+:where([data-ooa-page="normal"]) .normal-theory-heading { margin-bottom: 20px; }
+:where([data-ooa-page="normal"]) .normal-theory-heading > p { max-width: 560px; text-align: right; line-height: 1.65; }
+
+:where([data-ooa-page="normal"]) .normal-theory-controls {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1.2fr 1.25fr;
+  border: 1px solid rgba(98, 216, 231, 0.22);
+  border-radius: 6px;
+  overflow: hidden;
+  background: rgba(2, 16, 23, 0.76);
+}
+
+:where([data-ooa-page="normal"]) .normal-theory-control,
+:where([data-ooa-page="normal"]) .normal-theory-animation-control {
+  min-width: 0;
+  min-height: 112px;
+  padding: 15px 17px 13px;
+  border-right: 1px solid rgba(98, 216, 231, 0.14);
+}
+:where([data-ooa-page="normal"]) .normal-theory-animation-control { border-right: 0; }
+:where([data-ooa-page="normal"]) .normal-theory-control > span,
+:where([data-ooa-page="normal"]) .normal-theory-animation-control > span {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+:where([data-ooa-page="normal"]) .normal-theory-control b,
+:where([data-ooa-page="normal"]) .normal-theory-animation-control b {
+  color: #8bb1ba;
+  font-size: 12px;
+  font-weight: 500;
+}
+:where([data-ooa-page="normal"]) .normal-theory-control output,
+:where([data-ooa-page="normal"]) .normal-theory-animation-control output {
+  color: var(--ooa-cyan);
+  font: 12px var(--ooa-mono);
+  letter-spacing: 0.05em;
+}
+:where([data-ooa-page="normal"]) .normal-theory-control small,
+:where([data-ooa-page="normal"]) .normal-theory-animation-control small {
+  display: block;
+  margin-top: 8px;
+  color: #557984;
+  font-size: 12px;
+  line-height: 1.45;
+}
+:where([data-ooa-page="normal"]) .normal-theory-control input[type="range"] {
+  width: 100%;
+  margin: 13px 0 1px;
+}
+:where([data-ooa-page="normal"]) .normal-theory-profile-control select {
+  width: 100%;
+  height: 30px;
+  margin-top: 11px;
+  padding: 0 29px 0 9px;
+  border: 1px solid rgba(98, 216, 231, 0.28);
+  border-radius: 4px;
+  background: #061c25;
+  color: #c5e2e7;
+  font: 12px var(--ooa-mono);
+}
+:where([data-ooa-page="normal"]) .normal-theory-animation-control > div {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 6px;
+  margin-top: 11px;
+}
+:where([data-ooa-page="normal"]) .normal-theory-animation-control button {
+  min-height: 30px;
+  padding: 0 11px;
+  border: 1px solid rgba(98, 216, 231, 0.42);
+  border-radius: 4px;
+  background: rgba(27, 112, 128, 0.28);
+  color: #c7f3f7;
+  font: 12px var(--ooa-mono);
+  white-space: nowrap;
+}
+:where([data-ooa-page="normal"]) .normal-theory-animation-control button span { margin-right: 7px; color: var(--ooa-cyan); }
+:where([data-ooa-page="normal"]) .normal-theory-animation-control button.secondary { border-color: rgba(98, 216, 231, 0.2); background: transparent; color: #7397a1; }
+:where([data-ooa-page="normal"]) .normal-theory-animation-control button:hover { border-color: var(--ooa-cyan); color: #fff; }
+
+:where([data-ooa-page="normal"]) .normal-theory-formula {
+  margin: 15px 0;
+  overflow: hidden;
+  border: 1px solid rgba(98, 216, 231, 0.24);
+  border-radius: 6px;
+  background: rgba(3, 19, 27, 0.82);
+}
+:where([data-ooa-page="normal"]) .normal-theory-formula-main {
+  display: flex;
+  min-height: 106px;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 22px 18px;
+  color: #d8f1f4;
+  background: linear-gradient(90deg, rgba(20, 80, 94, 0.3), rgba(7, 35, 45, 0.18));
+  font-family: "STIX Two Math", "Cambria Math", "Latin Modern Math", serif;
+  font-size: clamp(29px, 2.45vw, 42px);
+  text-align: center;
+}
+:where([data-ooa-page="normal"]) .normal-theory-formula-main span { color: #8ca9b0; }
+:where([data-ooa-page="normal"]) .normal-theory-formula-main b { color: var(--ooa-amber); font-weight: 500; }
+:where([data-ooa-page="normal"]) .normal-theory-formula-main strong { color: var(--ooa-cyan); font-weight: 500; }
+:where([data-ooa-page="normal"]) .normal-theory-formula-terms {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border-top: 1px solid rgba(98, 216, 231, 0.13);
+}
+:where([data-ooa-page="normal"]) .normal-theory-formula-terms article {
+  min-width: 0;
+  padding: 13px 15px;
+  border-right: 1px solid rgba(98, 216, 231, 0.12);
+}
+:where([data-ooa-page="normal"]) .normal-theory-formula-terms article:last-child { border-right: 0; }
+:where([data-ooa-page="normal"]) .normal-theory-formula-terms code { color: var(--ooa-amber); font: 15px var(--ooa-mono); }
+:where([data-ooa-page="normal"]) .normal-theory-formula-terms article:nth-child(3) code { color: var(--ooa-cyan); }
+:where([data-ooa-page="normal"]) .normal-theory-formula-terms p { margin: 8px 0 0; color: #91b2ba; font-size: 13px; line-height: 1.65; }
+
+:where([data-ooa-page="normal"]) .normal-theory-flow {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr auto 1fr auto 1fr;
+  align-items: center;
+  gap: 12px;
+  margin: 15px 0;
+  color: #789ca5;
+  font: 12px var(--ooa-mono);
+  text-align: center;
+}
+:where([data-ooa-page="normal"]) .normal-theory-flow span {
+  padding: 8px 10px;
+  border: 1px solid rgba(98, 216, 231, 0.14);
+  border-radius: 4px;
+  background: rgba(5, 30, 40, 0.54);
+}
+:where([data-ooa-page="normal"]) .normal-theory-flow i { color: var(--ooa-amber); font-style: normal; }
+
+:where([data-ooa-page="normal"]) .normal-theory-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+:where([data-ooa-page="normal"]) .normal-theory-card {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid rgba(98, 216, 231, 0.2);
+  border-radius: 6px;
+  background: rgba(3, 22, 31, 0.82);
+}
+:where([data-ooa-page="normal"]) .normal-theory-card-wide { grid-column: 1 / -1; }
+:where([data-ooa-page="normal"]) .normal-theory-card-wide .normal-theory-canvas { height: 390px; }
+:where([data-ooa-page="normal"]) .normal-theory-card > header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 68px;
+  padding: 12px 15px;
+  border-bottom: 1px solid rgba(98, 216, 231, 0.13);
+}
+:where([data-ooa-page="normal"]) .normal-theory-index {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid rgba(98, 216, 231, 0.34);
+  border-radius: 50%;
+  color: var(--ooa-cyan);
+  font: 12px var(--ooa-mono);
+}
+:where([data-ooa-page="normal"]) .normal-theory-card header p {
+  margin: 0 0 4px;
+  color: #4b8998;
+  font: 12px var(--ooa-mono);
+  letter-spacing: 0.13em;
+}
+:where([data-ooa-page="normal"]) .normal-theory-card h3 {
+  margin: 0;
+  color: #d9edf0;
+  font-size: 20px;
+  font-weight: 600;
+}
+:where([data-ooa-page="normal"]) .normal-theory-equation {
+  min-height: 36px;
+  padding: 9px 15px;
+  border-bottom: 1px solid rgba(98, 216, 231, 0.1);
+  color: #a8dfe6;
+  background: rgba(9, 46, 57, 0.34);
+  font: 22px "STIX Two Math", "Cambria Math", "Latin Modern Math", serif;
+  letter-spacing: 0.015em;
+}
+:where([data-ooa-page="normal"]) .normal-theory-canvas { height: 286px; padding: 8px 10px 0; }
+:where([data-ooa-page="normal"]) .normal-theory-canvas canvas { display: block; width: 100%; height: 100%; }
+:where([data-ooa-page="normal"]) .normal-theory-note {
+  min-height: 66px;
+  margin: 0;
+  padding: 12px 15px 14px;
+  border-top: 1px solid rgba(98, 216, 231, 0.12);
+  color: #789ba4;
+  font-size: 15px;
+  line-height: 1.65;
+}
+:where([data-ooa-page="normal"]) .normal-theory-footnote {
+  margin: 14px 2px 0;
+  color: #52737d;
+  font: 12px var(--ooa-mono);
+  line-height: 1.55;
+  text-align: right;
+}
 :where([data-ooa-page="normal"]) .profile-label { margin-top: 13px; }
 :where([data-ooa-page="normal"]) .spectrum-wrap { min-height: 326px; }
 :where([data-ooa-page="normal"]) .detail-plots { display: grid; min-height: 383px; }
 :where([data-ooa-page="normal"]) .detail-plots .plot-wrap { min-height: 383px; }
 :where([data-ooa-page="normal"]) .field-wrap { min-height: 360px; }
-:where([data-ooa-page="normal"]) .field-scale { display: flex; align-items: center; gap: 7px; color: #6e929c; font: 8px var(--ooa-mono); }
+:where([data-ooa-page="normal"]) .field-scale { display: flex; align-items: center; gap: 7px; color: #6e929c; font: 12px var(--ooa-mono); }
 :where([data-ooa-page="normal"]) .field-scale i { width: 88px; height: 7px; border-radius: 8px; background: linear-gradient(90deg, #800000, #ff9d00, #f7ef21, #26d28b, #00bce1, #0050d6, #030468); }
 :where([data-ooa-page="normal"]) .field-head-tools { display: grid; justify-items: end; gap: 8px; }
 :where([data-ooa-page="normal"]) .field-view-toggle {
@@ -35,7 +257,7 @@
   border-radius: 2px;
   background: transparent;
   color: #678993;
-  font: 8px var(--ooa-mono);
+  font: 12px var(--ooa-mono);
   letter-spacing: 0.04em;
 }
 :where([data-ooa-page="normal"]) .field-view-toggle button:hover { color: var(--ooa-cyan); }
@@ -53,7 +275,7 @@
   border-radius: 4px;
   background: rgba(12, 61, 73, 0.32);
   color: var(--ooa-cyan);
-  font: 9px var(--ooa-mono);
+  font: 12px var(--ooa-mono);
   letter-spacing: 0.04em;
 }
 :where([data-ooa-page="normal"]) .mode-field-action:hover { border-color: var(--ooa-cyan); background: rgba(22, 83, 96, 0.42); }
@@ -72,7 +294,7 @@
   border-radius: 4px;
   background: rgba(10, 52, 65, 0.42);
   color: var(--ooa-cyan);
-  font: 10px var(--ooa-mono);
+  font: 12px var(--ooa-mono);
   letter-spacing: 0.04em;
 }
 :where([data-ooa-page="normal"]) .environment-import-button span { margin-right: 6px; font-size: 14px; }
@@ -81,7 +303,7 @@
 :where([data-ooa-page="normal"]) .environment-import-bar p {
   margin: 8px 1px 0;
   color: #64848e;
-  font-size: 8px;
+  font-size: 12px;
   line-height: 1.55;
 }
 :where([data-ooa-page="normal"]) .environment-import-bar p.busy { color: var(--ooa-amber); }
@@ -102,7 +324,7 @@
   gap: 10px;
   min-height: 29px;
   color: #7899a3;
-  font-size: 10px;
+  font-size: 12px;
 }
 :where([data-ooa-page="normal"]) .material-number-edit {
   min-width: 128px;
@@ -124,19 +346,25 @@
   background: transparent;
   color: #dff5f8;
   text-align: right;
-  font-size: 10px;
+  font-size: 12px;
 }
 :where([data-ooa-page="normal"]) .material-number-edit b {
   padding: 0 7px 0 3px;
   color: #557985;
-  font: 7px var(--ooa-mono);
+  font: 12px var(--ooa-mono);
   font-weight: 400;
   white-space: nowrap;
 }
 :where([data-ooa-page="normal"]) .material-range-control > input[type="range"] { margin: 10px 0 5px; }
-:where([data-ooa-page="normal"]) .material-range-control .range-ends { font-size: 7px; }
+:where([data-ooa-page="normal"]) .material-range-control .range-ends { font-size: 12px; }
 
 @media (max-width: 1320px) {
+  :where([data-ooa-page="normal"]) .normal-theory-controls { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  :where([data-ooa-page="normal"]) .normal-theory-control:nth-child(2) { border-right: 0; }
+  :where([data-ooa-page="normal"]) .normal-theory-control:nth-child(-n+2) { border-bottom: 1px solid rgba(98, 216, 231, 0.14); }
+  :where([data-ooa-page="normal"]) .normal-theory-formula-terms { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  :where([data-ooa-page="normal"]) .normal-theory-formula-terms article:nth-child(-n+2) { border-bottom: 1px solid rgba(98, 216, 231, 0.12); }
+  :where([data-ooa-page="normal"]) .normal-theory-formula-terms article:nth-child(2) { border-right: 0; }
   :where([data-ooa-page="normal"]) .normal-grid {
     grid-template-columns: 330px minmax(0, 1fr);
   }
@@ -146,6 +374,22 @@
 }
 
 @media (max-width: 820px) {
+  :where([data-ooa-page="normal"]) .normal-theory { margin-bottom: 45px; padding: 16px 10px; }
+  :where([data-ooa-page="normal"]) .normal-theory-heading > p { text-align: left; }
+  :where([data-ooa-page="normal"]) .normal-theory-controls,
+  :where([data-ooa-page="normal"]) .normal-theory-grid { grid-template-columns: minmax(0, 1fr); }
+  :where([data-ooa-page="normal"]) .normal-theory-formula-main { min-height: 88px; padding: 17px 7px; font-size: 23px; overflow-x: auto; justify-content: flex-start; }
+  :where([data-ooa-page="normal"]) .normal-theory-formula-terms { grid-template-columns: minmax(0, 1fr); }
+  :where([data-ooa-page="normal"]) .normal-theory-formula-terms article { border-right: 0; border-bottom: 1px solid rgba(98, 216, 231, 0.12); }
+  :where([data-ooa-page="normal"]) .normal-theory-formula-terms article:last-child { border-bottom: 0; }
+  :where([data-ooa-page="normal"]) .normal-theory-control,
+  :where([data-ooa-page="normal"]) .normal-theory-animation-control { min-height: 0; border-right: 0; border-bottom: 1px solid rgba(98, 216, 231, 0.14); }
+  :where([data-ooa-page="normal"]) .normal-theory-animation-control { border-bottom: 0; }
+  :where([data-ooa-page="normal"]) .normal-theory-flow { grid-template-columns: 1fr; gap: 5px; }
+  :where([data-ooa-page="normal"]) .normal-theory-flow i { transform: rotate(90deg); }
+  :where([data-ooa-page="normal"]) .normal-theory-canvas { height: 270px; }
+  :where([data-ooa-page="normal"]) .normal-theory-note { min-height: 0; }
+  :where([data-ooa-page="normal"]) .normal-theory-footnote { text-align: left; }
   :where([data-ooa-page="normal"]) .normal-grid { display: flex; flex-direction: column; }
   :where([data-ooa-page="normal"]) .normal-grid > *, :where([data-ooa-page="normal"]) .normal-results-grid { width: 100%; }
   :where([data-ooa-page="normal"]) .detail-plots { min-height: 310px; }

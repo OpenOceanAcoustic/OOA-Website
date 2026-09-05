@@ -17,7 +17,7 @@ export const RAY_CANONICAL_PAGE_LIMITS = Object.freeze({
   bottomSoundSpeedMps: [1_400, 3_000] as const,
   bottomDensityKgM3: [1_000, 3_500] as const,
   bottomAttenuationDbPerWavelength: [0, 5] as const,
-  sourceInsetM: 20,
+  sourceInsetM: 0,
   maximumSspPointCount: MAX_SANITIZED_SSP_POINT_COUNT,
   receiverGridRows: 201,
   receiverGridColumns: 201,

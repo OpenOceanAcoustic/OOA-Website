@@ -105,7 +105,7 @@ const TERMS: readonly VelocityGlossaryTerm[] = [
     english: "OOB native ResultHandle",
     definition: "OOB WebAssembly 求解完成后提供的原生结果访问对象，用于读取声线、声场以及水平和垂直质点振速等计算数据。",
     relation: "本区域两张图所需的复振速数组，分别通过 ResultHandle 的 horizontal_velocity 与 vertical_velocity 字段取得。",
-    position: { x: "24%", y: "68%", duration: "19s", delay: "-5s", drift: "24px" },
+    position: { x: "24%", y: "75%", duration: "19s", delay: "-5s", drift: "24px" },
   },
   {
     id: "horizontal-velocity-field",

@@ -61,16 +61,16 @@ const pages = [
     path: "/normal-mode/",
     title: "OOA Normal Mode · WebAssembly Lab",
     headings: ["拆解波导中的每一个 传播模态。", "模态分解实验台", "模态谱 · 水平波数", "相对完整模态场的差值"],
-    canvasCount: 5,
-    controlCount: 29,
+    canvasCount: 8,
+    controlCount: 34,
     page: "normal",
   },
   {
     path: "/pe/",
     title: "OOA PE Method · WebAssembly Lab",
-    headings: ["观察 Padé 阶数如何改变前向声场。", "Padé 阶数影响实验台", "相对 nPade=10 的 ΔTL", "阶数—场差收敛曲线"],
-    canvasCount: 5,
-    controlCount: 27,
+    headings: ["Padé 阶数如何影响声场", "Padé 阶数影响实验台", "相对 nPade=10 的 ΔTL", "阶数—场差收敛曲线"],
+    canvasCount: 6,
+    controlCount: 32,
     page: "pe",
   },
 ] as const;
@@ -79,6 +79,7 @@ for (const baseline of pages) {
   test(`${baseline.page} route preserves the original document contract`, async ({ page }) => {
     await page.goto(baseline.path);
 
+    if (baseline.page === "pe") await page.getByRole("button", { name: "双图对照", exact: true }).click();
     await expect(page).toHaveTitle(baseline.title);
     await expect(page.locator(`[data-ooa-page="${baseline.page}"]`)).toHaveCount(1);
     for (const heading of baseline.headings) {
@@ -91,9 +92,9 @@ for (const baseline of pages) {
 
 test("original model controls keep their browser-facing attributes", async ({ page }) => {
   await page.goto("/");
-  await expect(page.locator("#sourceDepth")).toHaveAttribute("min", "20");
-  await expect(page.locator("#sourceDepth")).toHaveAttribute("max", "4800");
-  await expect(page.locator("#sourceDepth")).toHaveAttribute("step", "10");
+  await expect(page.locator("#sourceDepth")).toHaveAttribute("min", "0");
+  await expect(page.locator("#sourceDepth")).toHaveAttribute("max", "5000");
+  await expect(page.locator("#sourceDepth")).toHaveAttribute("step", "any");
   await expect(page.locator("#beamType option")).toHaveCount(5);
   await expect(page.locator("#fieldMode option")).toHaveCount(2);
 
@@ -115,7 +116,7 @@ test("Normal Mode result layout owns mode truncation and commits the final slide
   await expect(page.locator("#solveStatus")).toHaveText("COMPLETE", { timeout: 30_000 });
 
   const grid = page.locator(".normal-grid");
-  const controls = grid.locator(":scope > .normal-controls");
+  const controls = grid.locator(":scope > .workspace-controls");
   const results = grid.locator(":scope > .normal-results-grid");
   await expect(results.locator(":scope > .panel")).toHaveCount(4);
   await expectDesktopResultGrid(
@@ -157,8 +158,9 @@ test("PE result layout owns Padé selection and commits the final slider input",
   await page.goto("/pe/");
   await expect(page.locator("#solveStatus")).toHaveText("COMPLETE", { timeout: 30_000 });
 
+  await page.getByRole("button", { name: "双图对照", exact: true }).click();
   const grid = page.locator(".pe-grid");
-  const controls = grid.locator(":scope > .pe-controls");
+  const controls = grid.locator(":scope > .workspace-controls");
   const results = grid.locator(":scope > .pe-results-grid");
   await expect(results.locator(":scope > .panel")).toHaveCount(4);
   await expectDesktopResultGrid(
@@ -259,7 +261,7 @@ test("Ray Mode velocity glossary supports reduced motion and keyboard dialog acc
   await expect(trigger).toBeFocused();
 });
 
-test("Ray Mode trajectory and loss plots stay side by side with aligned bottoms", async ({ page }) => {
+test("Ray Mode gives comparison plots readable widths across breakpoints", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/");
   await expect(page.locator("#simStatus")).toHaveText("SIMULATION COMPLETE", { timeout: 30_000 });
@@ -281,9 +283,14 @@ test("Ray Mode trajectory and loss plots stay side by side with aligned bottoms"
       throw new Error(`Ray Mode comparison plots have no layout box at ${width}px`);
     }
 
-    expect(Math.abs(rayPanelBox.y - lossPanelBox.y)).toBeLessThanOrEqual(1);
-    expect(rayPanelBox.x + rayPanelBox.width).toBeLessThanOrEqual(lossPanelBox.x + 1);
-    expect(Math.abs(rayPlotBox.y + rayPlotBox.height - (lossPlotBox.y + lossPlotBox.height))).toBeLessThanOrEqual(1);
+    if (width >= 1400) {
+      expect(Math.abs(rayPanelBox.y - lossPanelBox.y)).toBeLessThanOrEqual(1);
+      expect(rayPanelBox.x + rayPanelBox.width).toBeLessThanOrEqual(lossPanelBox.x + 1);
+    } else {
+      expect(lossPanelBox.y).toBeGreaterThan(rayPanelBox.y + rayPanelBox.height);
+      expect(rayPlotBox.width).toBeGreaterThan(700);
+    }
+    expect(Math.abs(rayPlotBox.height - lossPlotBox.height)).toBeLessThanOrEqual(1);
   }
 });
 
@@ -387,9 +394,9 @@ test("Ray Mode field plots share zoom and pan state", async ({ page }) => {
   if (sourceCanvasBox === null) throw new Error("Ray canvas has no layout box for source dragging");
   const sourceInput = page.locator("#sourceDepth");
   const sourceDragDepthBefore = Number(await sourceInput.inputValue());
-  const maximumDepthM = Number(await sourceInput.getAttribute("max")) + 20;
-  const sourceX = sourceCanvasBox.x + 39;
-  const sourceY = sourceCanvasBox.y + 19 + (sourceCanvasBox.height - 19 - 28) * sourceDragDepthBefore / maximumDepthM;
+  const maximumDepthM = Number(await sourceInput.getAttribute("max"));
+  const sourceX = sourceCanvasBox.x + 56;
+  const sourceY = sourceCanvasBox.y + 24 + (sourceCanvasBox.height - 24 - 44) * sourceDragDepthBefore / maximumDepthM;
   const viewBeforeSourceDrag = (await readViews())[0];
   await page.mouse.move(sourceX, sourceY);
   await page.mouse.down();

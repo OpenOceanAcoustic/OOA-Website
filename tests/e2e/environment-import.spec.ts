@@ -56,3 +56,27 @@ for (const model of [
     await expect(page.locator(model.solve)).toHaveText(model.complete, { timeout: 30_000 });
   });
 }
+
+for (const bare of [false, true]) {
+  test(`Ray Mode preserves shallow sources with ${bare ? "bare" : "quoted"} ENV options`, async ({ page }) => {
+    await page.goto("/");
+    await expect(page.locator("#simStatus")).toHaveText("SIMULATION COMPLETE", { timeout: 30_000 });
+    const option = (value: string) => bare ? value : `'${value}'`;
+    const env = [
+      "'Shallow source regression'", "100", "1", option("CVWT"),
+      "0 0 200", "0 1500 /", "200 1500 /", `${option("A")} 0`,
+      "200 1700 0 1.8 0.5 /", "1", "5.5 /", "21", "1 199 /", "21", "0.1 2 /",
+      option("IB"), "100", "-20 20 /", "0 201 2",
+    ].join("\n");
+    await page.locator("#envFileInput").setInputFiles({ name: "shallow.env", mimeType: "text/plain", buffer: Buffer.from(env) });
+    await expect(page.locator("#envImportStatus")).toHaveClass(/success/, { timeout: 15_000 });
+    await expect(page.locator("#sourceDepth")).toHaveValue("5.5");
+    await expect(page.locator("#eigenSourceDepth")).toHaveValue("5.5");
+    await expect(page.locator("#simStatus")).toHaveText("SIMULATION COMPLETE", { timeout: 30_000 });
+    await page.locator("#sourceDepth").fill("2.5");
+    await page.locator("#sourceDepth").press("Tab");
+    await expect(page.locator("#eigenSourceDepth")).toHaveValue("2.5");
+    await expect(page.locator("#simStatus")).toHaveText("SIMULATION COMPLETE", { timeout: 30_000 });
+    await expect(page.locator("#sourceDepth")).toHaveValue("2.5");
+  });
+}

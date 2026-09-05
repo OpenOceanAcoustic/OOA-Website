@@ -8,6 +8,7 @@ import { RayLabIntroduction } from "../page/RayLabIntroduction";
 import { RayTheorySection } from "../page/RayTheorySection";
 import { useRayPage } from "../hooks/useRayPage";
 import "../styles/page.css";
+import "../../shared-page/presentation.css";
 
 export function RayModeRoute() {
   const root = useRef<HTMLDivElement>(null);
