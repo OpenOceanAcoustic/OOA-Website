@@ -1,3 +1,5 @@
+import { VelocityGlossary } from "./VelocityGlossary";
+
 interface PlotZoomControlsProps {
   readonly canvasId:
     | "rayCanvas"
@@ -658,14 +660,7 @@ export function RayFieldLab() {
               </div>
             </div>
           </div>
-          <div className="velocity-summary">
-            <span>
-              {"OOB 原生结果句柄"}
-            </span>
-            <strong>
-              {"ResultHandle.horizontal_velocity · ResultHandle.vertical_velocity"}
-            </strong>
-          </div>
+          <VelocityGlossary />
         </section>
       </div>
     </section>

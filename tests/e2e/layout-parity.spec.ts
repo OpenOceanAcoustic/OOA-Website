@@ -54,7 +54,7 @@ const pages = [
     title: "OOA-RayMode · 声传播交互实验室",
     headings: ["声线，如何一步步 穿过海洋。", "看见声音，理解海洋。", "传播链路实验台", "精确本征声线"],
     canvasCount: 9,
-    controlCount: 111,
+    controlCount: 123,
     page: "ray",
   },
   {
@@ -220,6 +220,43 @@ test("Ray Mode heatmap color scales and labels stay above the plotting surfaces"
       await expectAbovePlot(toolbar, plot);
     }
   }
+});
+
+test("Ray Mode velocity glossary supports reduced motion and keyboard dialog access", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/");
+
+  const velocityPanel = page.locator(".velocity-panel");
+  const glossary = velocityPanel.locator(":scope > .velocity-grid ~ .velocity-glossary");
+  const terms = glossary.locator("button.velocity-term");
+  await expect(glossary).toHaveCount(1);
+  await expect(terms).toHaveCount(12);
+
+  const termNames = (await terms.allTextContents()).map((name) => name.trim());
+  expect(termNames.every((name) => name.length > 0)).toBe(true);
+  expect(new Set(termNames).size).toBe(12);
+  expect(await terms.evaluateAll((elements) => elements.map((element) => getComputedStyle(element).animationName)))
+    .toEqual(Array.from({ length: 12 }, () => "none"));
+
+  const trigger = glossary.getByRole("button", { name: "质点振速", exact: true });
+  await trigger.focus();
+  await expect(trigger).toBeFocused();
+  await trigger.press("Enter");
+
+  const dialog = page.getByRole("dialog", { name: "质点振速", exact: true });
+  await expect(dialog).toBeVisible();
+  await expect(dialog).toHaveAttribute("aria-modal", "true");
+  await expect(dialog).toContainText("介质质点");
+  await expect(dialog).toContainText("声速");
+  await expect(dialog).toContainText(/不是|不同/);
+
+  const closeButton = dialog.locator("button.velocity-glossary-close");
+  await expect(closeButton).toHaveAccessibleName(/关闭/);
+  await expect(closeButton).toBeFocused();
+  await page.keyboard.press("Escape");
+
+  await expect(dialog).toHaveCount(0);
+  await expect(trigger).toBeFocused();
 });
 
 test("Ray Mode trajectory and loss plots stay side by side with aligned bottoms", async ({ page }) => {
